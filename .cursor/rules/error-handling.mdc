@@ -1,0 +1,19 @@
+---
+description: Classified errors with safe caller responses and controlled recovery
+globs: "**/*.{py,ts,tsx}"
+alwaysApply: false
+---
+
+# Error Handling
+
+Classify errors as: caller input, configuration, temporary/permanent provider, tool execution, database, authentication, or internal application errors.
+
+For every failure:
+
+- Log with correlation identifiers
+- Avoid exposing implementation details to the caller
+- Use safe retry behavior; do not retry non-idempotent actions blindly
+- Provide a natural caller-facing response
+- Escalate or end the call safely when recovery is not possible
+
+Do not continue a conversation as though an action succeeded when it failed.

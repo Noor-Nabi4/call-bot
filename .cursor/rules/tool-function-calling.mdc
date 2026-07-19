@@ -1,0 +1,21 @@
+---
+description: Typed, validated, idempotent tool and function-calling standards
+globs: "**/*.{py,ts,tsx}"
+alwaysApply: false
+---
+
+# Tool and Function Calling
+
+Every tool must have: clear name, narrow responsibility, typed input schema, validation, auth checks where required, timeouts, safe retries, structured success/error output, idempotency where duplicates are possible, and logging without sensitive data.
+
+Before executing a tool:
+
+1. Confirm required entities are present
+2. Validate formats
+3. Confirm destructive or financially sensitive actions
+4. Prevent duplicate execution
+5. Enforce business rules server-side
+
+Never trust model-generated tool arguments without validation.
+
+The LLM must not directly access the database. It must call controlled application services.

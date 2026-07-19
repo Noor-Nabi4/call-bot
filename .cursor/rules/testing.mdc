@@ -1,0 +1,15 @@
+---
+description: Testing standards — mocks only in tests, cover voice and tool paths
+globs: "**/test*/**/*,**/tests/**/*,**/*_test.py,**/*_test.ts,**/*.spec.ts,**/*.spec.tsx"
+alwaysApply: false
+---
+
+# Testing
+
+Tests may use mocks; production code may not.
+
+Add tests for: agent startup, missing configuration, greeting, interruption handling, silence timeout, call disconnect, tool input validation, tool success/failure, duplicate tool execution, provider timeout, invalid model output, human handoff conditions, conversation state transitions.
+
+Use unit tests for business logic and integration tests for LiveKit, OpenAI, telephony, database, and external APIs.
+
+Do not claim an integration works solely because mocked tests pass.

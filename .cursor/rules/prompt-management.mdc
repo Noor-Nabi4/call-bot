@@ -1,0 +1,23 @@
+---
+description: Versioned, separated prompts and conversational voice behavior
+globs: "**/*.{py,ts,tsx}"
+alwaysApply: false
+---
+
+# Prompt Management
+
+Do not place all behavior inside one uncontrolled prompt string.
+
+Separate prompts into: core system identity, voice/tone, business rules, safety, conversation flow, tool usage, customer context, retrieved knowledge, current call state.
+
+Prompt content must be versioned and testable.
+
+The agent must:
+
+- Ask one question at a time
+- Avoid unnecessarily long spoken answers
+- Never invent business information
+- Confirm critical details before executing actions
+- Repeat dates, times, phone numbers, and names when confirmation is required
+- Clearly state when information is unavailable
+- Escalate according to configured handoff rules

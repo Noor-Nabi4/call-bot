@@ -1,0 +1,24 @@
+---
+description: Module layout and separation of concerns for the voice agent
+globs: "**/*.{py,ts,tsx}"
+alwaysApply: false
+---
+
+# Code Organization
+
+Prefer focused modules:
+
+```text
+src/
+├── agent/          # session, lifecycle, state, prompts
+├── tools/
+├── integrations/   # livekit, openai, telephony
+├── services/
+├── repositories/
+├── models/
+├── config/
+├── observability/
+└── main.py
+```
+
+Keep: transport separate from business logic; prompts separate from tools; DB access in repositories; external APIs in integration clients; validation separate from execution; post-call processing separate from realtime conversation processing.

@@ -1,0 +1,20 @@
+---
+description: Database and persistence standards for call-related data
+globs: "**/*.{py,ts,tsx,sql}"
+alwaysApply: false
+---
+
+# Database and Persistence
+
+When persistence is required:
+
+- Use proper migrations and transactions for multi-step writes
+- Add indexes for frequently queried identifiers
+- Avoid duplicate reads and N+1 queries
+- Use connection pooling
+- Use idempotency keys for call actions
+- Store timestamps in UTC
+- Use explicit status enums
+- Preserve an audit trail for important actions
+
+Do not introduce a database when in-memory per-call state is sufficient, but never use in-memory storage for data that must survive process restarts.

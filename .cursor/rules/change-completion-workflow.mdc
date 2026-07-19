@@ -1,0 +1,39 @@
+---
+description: Required checklist before marking any change complete
+alwaysApply: true
+---
+
+# Required Workflow Before Completing a Change
+
+Before considering a task complete:
+
+1. Check LiveKit docs through MCP for all affected LiveKit APIs
+2. Inspect the existing implementation and related call path
+3. Implement the real integration; remove placeholders and duplicate code
+4. Add validation, error handling, and tests
+5. Run formatting, linting, type checking, and tests
+6. Verify imports and dependency versions
+7. Review latency and security impact
+8. Update configuration examples and documentation
+9. Report any required external setup clearly
+
+Never state a feature is complete when external configuration, migrations, SIP setup, credentials, or deployment work is still missing.
+
+## Commands
+
+Before completing Python changes, run project-equivalent commands:
+
+```bash
+ruff check .
+ruff format --check .
+mypy .
+pytest
+```
+
+Where available also run `python -m compileall src` and `docker build .`. Fix failures rather than suppressing them without a documented reason.
+
+## Final Response Requirements
+
+After making changes, provide: files changed, main implementation decisions, LiveKit docs topics verified through MCP, tests executed, remaining external setup, known risks or limitations.
+
+Do not provide a vague completion message. The implementation must be real, production-oriented, typed, testable, observable, secure, and based on the latest official LiveKit documentation.

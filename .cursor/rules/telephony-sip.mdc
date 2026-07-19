@@ -1,0 +1,15 @@
+---
+description: Twilio and LiveKit SIP telephony production requirements
+globs: "**/*.{py,ts,tsx,yml,yaml,json}"
+alwaysApply: false
+---
+
+# Telephony and SIP
+
+For Twilio or LiveKit SIP work, always verify the latest official LiveKit telephony documentation through MCP.
+
+Handle: inbound routing, outbound initiation, agent dispatch, caller/agent disconnect, SIP failures, no-answer, busy, timeouts, duplicate webhooks, reconnection, DTMF where required, recording consent where applicable.
+
+Use stable call identifiers for idempotency and traceability.
+
+Do not assume every participant is a browser participant. Distinguish SIP callers, agents, and application participants.

@@ -1,0 +1,15 @@
+---
+description: Structured logging and call metrics without sensitive data
+globs: "**/*.{py,ts,tsx}"
+alwaysApply: false
+---
+
+# Logging and Observability
+
+Use structured logs, not `print()`.
+
+Every call-related log should include where available: `call_id`, `room_name`, `participant_identity`, `session_id`, `tool_name`, `provider`, `duration_ms`, `status`, `error_code`.
+
+Track: connection time, first response latency, speech-to-speech latency, tool-call latency, interruption count, model/SIP errors, call duration, disconnect reason, task completion, human handoff rate.
+
+Never log: API keys, access tokens, full payment details, passwords, sensitive PII, complete raw audio, or unredacted confidential transcripts.

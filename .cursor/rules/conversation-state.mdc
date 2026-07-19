@@ -1,0 +1,13 @@
+---
+description: Per-call conversation state isolation and typed workflow state
+globs: "**/*.{py,ts,tsx}"
+alwaysApply: false
+---
+
+# Conversation State
+
+Maintain explicit per-call state. Never use mutable globals for caller-specific state. Each call must be isolated.
+
+State may include: call ID, room ID, participant identity, conversation stage, collected entities, completed actions, failed tool attempts, handoff status, call start time, last activity time.
+
+Do not rely only on prompt history for important business state. Store required workflow state in typed application objects.

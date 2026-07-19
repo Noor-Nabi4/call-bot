@@ -1,0 +1,17 @@
+---
+description: Rules for adding and updating production dependencies
+globs: "**/pyproject.toml,**/requirements*.txt,**/package.json,**/package-lock.json,**/uv.lock,**/poetry.lock,**/Dockerfile*"
+alwaysApply: false
+---
+
+# Dependency Rules
+
+Before adding a dependency:
+
+- Confirm the existing stack cannot solve the problem
+- Check maintenance status and compatibility with current Python and LiveKit versions
+- Prefer official LiveKit and provider packages
+- Pin production dependency versions
+- Avoid overlapping libraries that solve the same problem
+
+After changing dependencies: update the lockfile, run tests, check security vulnerabilities, confirm the Docker build still succeeds.

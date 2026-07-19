@@ -1,0 +1,23 @@
+---
+description: Low-latency requirements for realtime voice conversation paths
+globs: "**/*.{py,ts,tsx}"
+alwaysApply: false
+---
+
+# Voice Latency Is a Critical Requirement
+
+Design for low-latency natural conversation.
+
+For realtime voice paths:
+
+- Do not perform unnecessary DB queries before every response
+- Do not make duplicate API calls
+- Do not load large conversation histories into every model request
+- Do not run expensive analytics synchronously
+- Do not block audio processing while saving logs or summaries
+- Use asynchronous I/O for network and database operations
+- Cache safe, frequently used configuration where appropriate
+- Move non-critical post-call processing to background jobs
+- Measure time spent in VAD, model processing, tool calls, and audio output
+
+Prioritize fast first-audio response while preserving correctness.

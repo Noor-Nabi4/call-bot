@@ -1,0 +1,23 @@
+---
+description: LiveKit docs via MCP are the source of truth before any LiveKit work
+alwaysApply: true
+---
+
+# LiveKit Documentation Is the Source of Truth
+
+Before implementing or modifying any LiveKit-related feature, check the latest LiveKit documentation through the configured LiveKit MCP server.
+
+Applies to: Agents SDK, sessions, OpenAI Realtime, STT/LLM/TTS, VAD, turn detection, interruptions, SIP/telephony, Twilio, dispatch, rooms, function tools, lifecycle, deployment, workers, metrics, auth tokens.
+
+Never rely only on memory or outdated examples.
+
+Before writing LiveKit code:
+
+1. Search relevant LiveKit docs through MCP.
+2. Confirm current APIs, imports, class names, config fields, and recommended patterns.
+3. Use the latest non-deprecated approach.
+4. Follow official LiveKit examples where applicable.
+5. Do not invent LiveKit methods, properties, events, or config options.
+6. If docs and existing code conflict, explain the conflict and update to the documented production approach.
+
+Add a brief code comment only when a non-obvious decision comes directly from LiveKit behavior.

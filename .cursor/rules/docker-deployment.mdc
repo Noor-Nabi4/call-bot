@@ -1,0 +1,22 @@
+---
+description: Production Docker image and graceful shutdown requirements
+globs: "**/Dockerfile*,**/docker-compose*.{yml,yaml}"
+alwaysApply: false
+---
+
+# Docker and Deployment
+
+Production deployment must:
+
+- Use a small supported base image
+- Run as a non-root user
+- Install only required dependencies
+- Include health checks where supported
+- Handle `SIGTERM` gracefully
+- Stop accepting new calls during shutdown
+- Allow active sessions to close safely where possible
+- Avoid writing persistent data to the container filesystem
+- Configure resource limits
+- Restart safely after crashes
+
+Never store secrets inside the Docker image.

@@ -1,0 +1,21 @@
+---
+description: Production-ready standards for every code change
+alwaysApply: true
+---
+
+# Production-Ready Changes Only
+
+Whenever touching a method, module, service, or endpoint:
+
+- Review the complete execution path
+- Remove dead code and duplicate logic
+- Handle failures and edge cases
+- Add appropriate typing and input validation
+- Add structured logging
+- Avoid blocking operations in the realtime audio path
+- Preserve backwards compatibility unless a breaking change is intentional
+- Update tests when behavior changes
+
+Do not apply temporary patches that hide the underlying problem.
+
+Do not leave: TODO-only implementations, empty exception handlers, debug prints, commented-out code, unused imports, placeholder return values, broad `except Exception` without logging/controlled handling, secrets in source, or development URLs in production logic.

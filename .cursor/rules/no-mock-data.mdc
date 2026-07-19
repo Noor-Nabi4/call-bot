@@ -1,0 +1,16 @@
+---
+description: No fake data or mock integrations in production application code
+alwaysApply: true
+---
+
+# No Mock Data in Application Code
+
+Never use fake application data such as hardcoded users, appointments, phone numbers, profiles, call records, KB results, mock API responses, artificial delays, random success responses, or hardcoded tool-call results.
+
+Production code must use real environment config, database records, LiveKit sessions, OpenAI connections, Twilio/SIP integrations, external APIs, and business services.
+
+Mocks, stubs, fixtures, and fake providers are allowed only inside test files.
+
+Do not silently fall back to mock data when an integration fails. Return a controlled error, log the failure, and follow the configured fallback or human-handoff policy.
+
+Do not create demo-only implementations, placeholders, fake integrations, mock services, or mock data unless explicitly requested for automated tests.

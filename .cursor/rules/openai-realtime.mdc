@@ -1,0 +1,20 @@
+---
+description: OpenAI Realtime via LiveKit — config, interruptions, and safety
+globs: "**/*.{py,ts,tsx}"
+alwaysApply: false
+---
+
+# OpenAI Realtime Integration
+
+When using OpenAI Realtime through LiveKit:
+
+- Verify the latest configuration through LiveKit MCP documentation
+- Use supported model names and session options
+- Configure voice, language, temperature, turn detection, and interruptions explicitly
+- Keep spoken responses concise and conversational
+- Allow the caller to interrupt; cancel or truncate agent speech correctly
+- Handle model disconnections and temporary failures
+- Do not expose internal prompts, tools, errors, or stack traces to callers
+- Validate tool arguments before execution
+
+Do not create a parallel custom audio pipeline unless there is a documented requirement.
