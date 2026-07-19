@@ -26,8 +26,7 @@ def attach_session_events(lifecycle: CallLifecycle, session) -> None:
             log_event(
                 logger,
                 "user_away",
-                call_id=lifecycle.state.call_id,
-                room_name=lifecycle.state.room_name,
+                **lifecycle.correlation_fields(),
             )
             lifecycle.on_user_away()
             return
@@ -36,12 +35,12 @@ def attach_session_events(lifecycle: CallLifecycle, session) -> None:
             ev.new_state == "speaking"
             and getattr(session, "agent_state", None) == "speaking"
         ):
-            lifecycle.state.record_interruption()
+            lifecycle.record_interruption()
             log_event(
                 logger,
                 "user_interruption",
-                call_id=lifecycle.state.call_id,
                 interruption_count=lifecycle.state.interruption_count,
+                **lifecycle.correlation_fields(),
             )
 
         lifecycle.on_user_active()
@@ -51,9 +50,9 @@ def attach_session_events(lifecycle: CallLifecycle, session) -> None:
         log_event(
             logger,
             "agent_state_changed",
-            call_id=lifecycle.state.call_id,
             old_state=str(ev.old_state),
             new_state=str(ev.new_state),
+            **lifecycle.correlation_fields(),
         )
 
     @session.on("user_input_transcribed")
@@ -67,9 +66,18 @@ def attach_session_events(lifecycle: CallLifecycle, session) -> None:
             log_event(
                 logger,
                 "user_turn_final",
-                call_id=lifecycle.state.call_id,
                 transcript_chars=len(text),
+                **lifecycle.correlation_fields(),
             )
+
+    @session.on("agent_false_interruption")
+    def on_agent_false_interruption(ev) -> None:
+        log_event(
+            logger,
+            "agent_false_interruption",
+            resumed=getattr(ev, "resumed", None),
+            **lifecycle.correlation_fields(),
+        )
 
     @session.on("error")
     def on_error(ev: ErrorEvent) -> None:
@@ -78,10 +86,10 @@ def attach_session_events(lifecycle: CallLifecycle, session) -> None:
         log_event(
             logger,
             "session_error",
-            call_id=lifecycle.state.call_id,
             error_type=error_type,
             recoverable=recoverable,
             level=40 if recoverable is False else 30,
+            **lifecycle.correlation_fields(),
         )
         if recoverable is False:
             lifecycle.state.mark_failed(error_type)
@@ -105,7 +113,6 @@ def attach_realtime_metrics(
         log_event(
             logger,
             "realtime_metrics",
-            call_id=lifecycle.state.call_id,
             request_id=getattr(metrics, "request_id", None),
             duration_ms=round(metrics.duration * 1000, 2)
             if metrics.duration is not None
@@ -114,6 +121,8 @@ def attach_realtime_metrics(
             if metrics.ttft is not None and metrics.ttft >= 0
             else None,
             total_tokens=getattr(metrics, "total_tokens", None),
+            first_response_latency_ms=lifecycle.metrics.first_response_latency_ms,
+            **lifecycle.correlation_fields(),
         )
 
     realtime_llm_session.on("metrics_collected", on_metrics_collected)

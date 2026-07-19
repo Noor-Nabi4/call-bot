@@ -98,7 +98,8 @@ Already in progress under `voice-agent/`:
 - [x] Unit tests for config, prompts, state, lifecycle  
 - [x] Multi-tenant product decision recorded  
 - [x] Phase 0 hygiene (README, CI, business facts, env check)  
-- [ ] Browser playground verified end-to-end  
+- [x] Phase 1 code: prompts/guardrails, observability, checklist, unit+eval tests  
+- [ ] Browser playground verified end-to-end *(manual; needs `OPENAI_API_KEY`)*  
 - [ ] `OPENAI_API_KEY` filled in `.env.local` (LiveKit keys present)  
 - [ ] Telephony (SIP) not started  
 - [x] Optional `tenant_id` on CallState / Settings (env `TENANT_ID`)  
@@ -134,7 +135,9 @@ Already in progress under `voice-agent/`:
 
 ### 1.1 Browser audio
 
-- [ ] Run agent in LiveKit console / playground  
+Manual verification: [`voice-agent/docs/PHASE1_MANUAL_CHECKLIST.md`](./voice-agent/docs/PHASE1_MANUAL_CHECKLIST.md)
+
+- [ ] Run agent in LiveKit console / playground *(requires `OPENAI_API_KEY`)*  
 - [ ] Verify greeting plays once per call  
 - [ ] Verify barge-in (caller can interrupt agent)  
 - [ ] Verify short replies / one question at a time  
@@ -145,32 +148,33 @@ Already in progress under `voice-agent/`:
 
 ### 1.2 Prompt & guardrails
 
-- [ ] Finalize business identity copy  
-- [ ] Add “unsupported request” spoken fallback  
-- [ ] Confirm agent never invents hours/prices/availability  
-- [ ] Confirm agent never exposes prompts/errors/keys  
+- [x] Finalize business identity copy  
+- [x] Add “unsupported request” spoken fallback  
+- [x] Confirm agent never invents hours/prices/availability (prompt + eval coverage)  
+- [x] Confirm agent never exposes prompts/errors/keys (prompt rules)  
 
 ### 1.3 Observability
 
-- [ ] Confirm logs include `call_id`, `room_name`, status, disconnect reason  
-- [ ] Leave room for `tenant_id` in log fields (add when resolution exists)  
-- [ ] Confirm first-response / model latency captured when available  
-- [ ] Confirm interruption count increments on barge-in  
-- [ ] Decide whether end-of-call summary webhook is needed (later CRM phase)  
+- [x] Logs include `call_id`, `room_name`, status, disconnect reason  
+- [x] `tenant_id` included in correlation / metrics fields when set  
+- [x] First-response / model latency captured when Realtime metrics available  
+- [x] Interruption count increments on barge-in (state + metrics sync)  
+- [x] End-of-call summary webhook **deferred to Phase 3+ CRM** (not in Phase 1)  
+- [x] `delete_room_on_close=True` + job shutdown callback for clean teardown  
 
 ### 1.4 Tests
 
-- [ ] Keep unit tests green  
-- [ ] Add/repair behavior evals when LiveKit credentials available  
-- [ ] Add a manual test checklist in `voice-agent/docs/` or README  
+- [x] Keep unit tests green (incl. observability + prompt guardrails)  
+- [x] Behavior evals updated (skip without LiveKit creds; adds unsupported-booking case)  
+- [x] Manual test checklist in `voice-agent/docs/PHASE1_MANUAL_CHECKLIST.md`  
 
 **Exit criteria**
 
-- 10 consecutive successful browser test calls  
-- No stuck sessions after disconnect  
-- Interruptions feel natural  
+- [ ] 10 consecutive successful browser test calls *(operator)*  
+- [ ] No stuck sessions after disconnect *(operator)*  
+- [ ] Interruptions feel natural *(operator)*  
 
-**Do not start CRM or telephony until this phase passes.**
+**Do not start CRM or telephony until this phase’s manual exit criteria pass.**
 
 ---
 
@@ -348,7 +352,7 @@ Do **not** build these until the phase above them is done:
 ## Suggested near-term task order (next 2–4 weeks)
 
 1. [x] Finish Phase 0 hygiene  
-2. [ ] Complete Phase 1 browser test checklist (10 calls)  
+2. [ ] Complete Phase 1 browser test checklist (10 calls) — code ready; needs `OPENAI_API_KEY` + manual sign-off  
 3. [x] Add root README pointing at architecture + this plan  
 4. [ ] Start Phase 2 telephony **or** Phase 3 CRM light (CRM tables must include `tenant_id` from the first migration)  
 5. [ ] First real write tool: `create_lead` with confirmation + tenant scope  

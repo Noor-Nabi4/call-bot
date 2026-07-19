@@ -176,6 +176,18 @@ class CallLifecycle:
             elapsed_ms = (datetime.now(UTC) - started).total_seconds() * 1000
             self._metrics.first_response_latency_ms = elapsed_ms
 
+    def record_interruption(self) -> None:
+        self._state.record_interruption()
+        self._metrics.sync_interruption_count(self._state.interruption_count)
+
+    def correlation_fields(self) -> dict[str, object]:
+        return {
+            "call_id": self._state.call_id,
+            "room_name": self._state.room_name,
+            "tenant_id": self._state.tenant_id,
+            "participant_identity": self._state.participant_identity,
+        }
+
     def _cancel_background_tasks(self) -> None:
         for task in (self._inactivity_task, self._max_duration_task):
             if task is not None and not task.done():

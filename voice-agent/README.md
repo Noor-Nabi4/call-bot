@@ -110,7 +110,7 @@ uv run src/agent.py start
 Unit tests (no live providers required):
 
 ```bash
-uv run pytest tests/test_config.py tests/test_prompt.py tests/test_state.py tests/test_lifecycle.py -v
+uv run pytest tests/test_config.py tests/test_prompt.py tests/test_state.py tests/test_lifecycle.py tests/test_observability.py -v
 ```
 
 Behavior evals (requires LiveKit credentials for inference judge models):
@@ -119,6 +119,9 @@ Behavior evals (requires LiveKit credentials for inference judge models):
 uv run pytest tests/test_agent.py -v
 ```
 
+## Phase 1 manual verification
+
+Follow [`docs/PHASE1_MANUAL_CHECKLIST.md`](./docs/PHASE1_MANUAL_CHECKLIST.md) for browser/console call tests (greeting, barge-in, silence, disconnect). Complete **10 consecutive successful calls** before Phase 2 telephony.
 ## Telephony (phase 4)
 
 Only after browser audio is stable: Twilio SIP trunk → LiveKit SIP → this same agent. No telephony code is required for v1 browser audio.

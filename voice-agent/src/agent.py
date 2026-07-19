@@ -70,6 +70,7 @@ class VoiceAssistant(Agent):
             "greeting",
             call_id=lifecycle.state.call_id,
             room_name=lifecycle.state.room_name,
+            tenant_id=lifecycle.state.tenant_id,
         )
         await self.session.generate_reply(
             instructions=(
@@ -142,7 +143,11 @@ async def entrypoint(ctx: JobContext) -> None:
         room_name=room_name,
         tenant_id=settings.tenant_id,
     )
-    metrics = CallMetrics(call_id=call_id, room_name=room_name)
+    metrics = CallMetrics(
+        call_id=call_id,
+        room_name=room_name,
+        tenant_id=settings.tenant_id,
+    )
     instructions = build_system_instructions(
         business_name=settings.business_name,
         max_spoken_sentences=settings.max_spoken_sentences,
@@ -162,13 +167,25 @@ async def entrypoint(ctx: JobContext) -> None:
     agent.bind_lifecycle(lifecycle)
     attach_session_events(lifecycle, session)
 
+    async def _on_job_shutdown() -> None:
+        # Ensures final operational metrics are logged even if close raced.
+        if metrics.ended_at is None:
+            lifecycle.on_session_closed("job_shutdown")
+        else:
+            log_event(logger, "job_shutdown", **metrics.as_log_fields())
+
+    ctx.add_shutdown_callback(_on_job_shutdown)
+
     log_event(
         logger,
         "call_starting",
         call_id=call_id,
         room_name=room_name,
+        tenant_id=settings.tenant_id,
         model=settings.openai_realtime_model,
         voice=settings.openai_voice,
+        # End-of-call summary webhooks deferred to CRM phase (Phase 3+).
+        end_of_call_summary_webhook=False,
     )
 
     # Docs: https://docs.livekit.io/transport/media/noise-cancellation/
@@ -177,6 +194,7 @@ async def entrypoint(ctx: JobContext) -> None:
         agent=agent,
         room=ctx.room,
         room_options=room_io.RoomOptions(
+            delete_room_on_close=True,
             audio_input=room_io.AudioInputOptions(
                 noise_cancellation=lambda params: (
                     noise_cancellation.BVCTelephony()

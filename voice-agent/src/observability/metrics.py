@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 class CallMetrics:
     call_id: str
     room_name: str
+    tenant_id: str | None = None
     participant_identity: str | None = None
     started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     ended_at: datetime | None = None
@@ -37,6 +38,9 @@ class CallMetrics:
         if interruption_count is not None:
             self.interruption_count = interruption_count
 
+    def sync_interruption_count(self, count: int) -> None:
+        self.interruption_count = count
+
     @property
     def duration_sec(self) -> float | None:
         if self.ended_at is None:
@@ -47,6 +51,7 @@ class CallMetrics:
         return {
             "call_id": self.call_id,
             "room_name": self.room_name,
+            "tenant_id": self.tenant_id,
             "participant_identity": self.participant_identity,
             "started_at": self.started_at.isoformat(),
             "ended_at": self.ended_at.isoformat() if self.ended_at else None,

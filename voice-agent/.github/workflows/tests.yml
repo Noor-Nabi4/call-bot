@@ -40,3 +40,4 @@ jobs:
           tests/test_prompt.py
           tests/test_state.py
           tests/test_lifecycle.py
+          tests/test_observability.py

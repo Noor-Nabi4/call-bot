@@ -8,6 +8,7 @@ from prompts.system import (
     call_ending_rules,
     conversation_rules,
     core_identity,
+    unsupported_request_rules,
     voice_style,
 )
 
@@ -30,6 +31,7 @@ def build_system_instructions(
             voice_style(max_spoken_sentences),
             language_rule,
             conversation_rules(),
+            unsupported_request_rules(),
             safety_rules(),
             call_ending_rules(),
         ]
