@@ -23,6 +23,8 @@ class CallState:
 
     call_id: str
     room_name: str
+    # Optional until Phase 2-3 tenant resolution. Prefer env TENANT_ID in Phase 0/1.
+    tenant_id: str | None = None
     participant_identity: str | None = None
     call_started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     current_status: CallStatus = CallStatus.INITIALIZING

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from config import ConfigurationError, Settings
+from config import ConfigurationError, Settings, missing_required_env_vars
 
 
 def test_from_env_requires_core_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -27,6 +27,8 @@ def test_from_env_loads_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.delenv("BUSINESS_NAME", raising=False)
     monkeypatch.delenv("OPENAI_TEMPERATURE", raising=False)
+    monkeypatch.delenv("TENANT_ID", raising=False)
+    monkeypatch.delenv("BUSINESS_HOURS", raising=False)
 
     settings = Settings.from_env()
     assert settings.openai_realtime_model == "gpt-realtime"
@@ -34,6 +36,25 @@ def test_from_env_loads_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.temperature == 0.8
     assert settings.max_call_duration_sec == 900.0
     assert settings.business_name == "our business"
+    assert settings.tenant_id is None
+    assert settings.business_facts.hours is None
+
+
+def test_from_env_loads_business_facts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LIVEKIT_URL", "wss://example.livekit.cloud")
+    monkeypatch.setenv("LIVEKIT_API_KEY", "key")
+    monkeypatch.setenv("LIVEKIT_API_SECRET", "secret")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("BUSINESS_NAME", "Acme HVAC")
+    monkeypatch.setenv("TENANT_ID", "tenant_demo_acme")
+    monkeypatch.setenv("BUSINESS_HOURS", "Mon-Fri 8-6")
+    monkeypatch.setenv("BUSINESS_SERVICES", "HVAC repair")
+
+    settings = Settings.from_env()
+    assert settings.business_name == "Acme HVAC"
+    assert settings.tenant_id == "tenant_demo_acme"
+    assert settings.business_facts.hours == "Mon-Fri 8-6"
+    assert settings.business_facts.services == "HVAC repair"
 
 
 def test_temperature_out_of_range(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -45,3 +66,12 @@ def test_temperature_out_of_range(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(ConfigurationError, match="OPENAI_TEMPERATURE"):
         Settings.from_env()
+
+
+def test_missing_required_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LIVEKIT_URL", "wss://example.livekit.cloud")
+    monkeypatch.setenv("LIVEKIT_API_KEY", "key")
+    monkeypatch.setenv("LIVEKIT_API_SECRET", "secret")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    assert missing_required_env_vars() == ["OPENAI_API_KEY"]

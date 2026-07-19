@@ -134,14 +134,20 @@ async def entrypoint(ctx: JobContext) -> None:
     ctx.log_context_fields = {
         "room": room_name,
         "call_id": call_id,
+        "tenant_id": settings.tenant_id,
     }
 
-    state = CallState(call_id=call_id, room_name=room_name)
+    state = CallState(
+        call_id=call_id,
+        room_name=room_name,
+        tenant_id=settings.tenant_id,
+    )
     metrics = CallMetrics(call_id=call_id, room_name=room_name)
     instructions = build_system_instructions(
         business_name=settings.business_name,
         max_spoken_sentences=settings.max_spoken_sentences,
         language=settings.language,
+        business_facts=settings.business_facts,
     )
 
     session = _build_session(settings)

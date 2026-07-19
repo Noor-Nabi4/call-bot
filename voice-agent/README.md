@@ -77,7 +77,14 @@ Fill in `.env.local`:
 | `LIVEKIT_API_SECRET` | yes | LiveKit API secret |
 | `OPENAI_API_KEY` | yes | OpenAI Realtime access |
 | `BUSINESS_NAME` | no | Spoken business identity |
+| `TENANT_ID` | no | Single-tenant id until multi-tenant dispatch |
+| `BUSINESS_HOURS` / `BUSINESS_SERVICES` / … | no | Facts the agent may speak |
 
+Validate without printing secrets:
+
+```bash
+uv run python scripts/check_env.py
+```
 ## Run
 
 Console / playground:

@@ -97,10 +97,11 @@ Already in progress under `voice-agent/`:
 - [x] Krisp BVC / BVCTelephony noise cancellation  
 - [x] Unit tests for config, prompts, state, lifecycle  
 - [x] Multi-tenant product decision recorded  
+- [x] Phase 0 hygiene (README, CI, business facts, env check)  
 - [ ] Browser playground verified end-to-end  
-- [ ] `OPENAI_API_KEY` + LiveKit creds confirmed in `.env.local`  
+- [ ] `OPENAI_API_KEY` filled in `.env.local` (LiveKit keys present)  
 - [ ] Telephony (SIP) not started  
-- [ ] `tenant_id` not yet on CallState / runtime  
+- [x] Optional `tenant_id` on CallState / Settings (env `TENANT_ID`)  
 
 **Rule:** no RAG, multi-agent, CRM, or booking until Phase 1 is green.
 
@@ -110,20 +111,20 @@ Already in progress under `voice-agent/`:
 
 **Outcome:** clean, deployable voice worker repo.
 
-- [ ] Confirm `.env.local` has `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `OPENAI_API_KEY`  
-- [ ] Set `BUSINESS_NAME` and basic business facts in prompts (still versioned Python, not a DB)  
+- [x] Confirm `.env.local` has LiveKit keys present; **`OPENAI_API_KEY` must be filled by operator** (validate with `uv run python scripts/check_env.py`)  
+- [x] Set `BUSINESS_NAME` and basic business facts in prompts / env (`BUSINESS_HOURS`, etc.)  
 - [x] Commit voice-agent Realtime refactor + noise cancel + lockfile  
-- [ ] Ensure secrets never committed (`.env.local` gitignored)  
-- [ ] Document run commands in root README (link to `voice-agent/README.md` + this plan)  
-- [ ] Decide deploy target: LiveKit Cloud agent vs self-hosted worker  
-- [ ] Add CI that runs unit tests on every PR (`pytest` unit suite)  
-- [ ] Decide shared worker vs per-tenant workers (recommend: **shared worker**, tenant resolved at dispatch)  
+- [x] Ensure secrets never committed (`.env.local` gitignored at package + repo root)  
+- [x] Document run commands in root README (link to `voice-agent/README.md` + this plan)  
+- [x] Decide deploy target: **LiveKit Cloud agent worker**  
+- [x] Add CI that runs unit tests on every PR (`.github/workflows/voice-agent-unit-tests.yml`)  
+- [x] Decide shared worker vs per-tenant workers: **shared worker**, tenant resolved at dispatch; optional `TENANT_ID` env for Phase 0/1  
 
 **Exit criteria**
 
-- `uv sync` works  
-- Unit tests pass without live providers  
-- Agent starts with `uv run src/agent.py console` or `dev`
+- [x] `uv sync` works  
+- [x] Unit tests pass without live providers  
+- [ ] Agent starts with `uv run src/agent.py console` or `dev` (requires non-empty `OPENAI_API_KEY` in `.env.local`)  
 
 ---
 
@@ -346,9 +347,9 @@ Do **not** build these until the phase above them is done:
 
 ## Suggested near-term task order (next 2–4 weeks)
 
-1. [ ] Finish Phase 0 hygiene  
+1. [x] Finish Phase 0 hygiene  
 2. [ ] Complete Phase 1 browser test checklist (10 calls)  
-3. [ ] Add root README pointing at architecture + this plan  
+3. [x] Add root README pointing at architecture + this plan  
 4. [ ] Start Phase 2 telephony **or** Phase 3 CRM light (CRM tables must include `tenant_id` from the first migration)  
 5. [ ] First real write tool: `create_lead` with confirmation + tenant scope  
 
@@ -359,7 +360,8 @@ Do **not** build these until the phase above them is done:
 | Date | Decision | Choice | Why |
 |------|----------|--------|-----|
 | 2026-07-19 | Tenancy | **Multi-tenant SaaS** | Many businesses on one platform (ServiceTitan-style) |
-| | Tenant runtime | Shared agent worker + resolve tenant at dispatch *(recommended)* / dedicated workers | |
+| 2026-07-19 | Tenant runtime | **Shared agent worker** + resolve tenant at dispatch | Simpler ops; Phase 0/1 optional `TENANT_ID` env |
+| 2026-07-19 | Deploy target | **LiveKit Cloud agent worker** | Managed dispatch, insights; self-host later if needed |
 | | System of record | Own DB / external API per tenant / other | |
 | | Phone provider | Twilio / other | |
 | | First paid feature | Lead capture / Booking | |

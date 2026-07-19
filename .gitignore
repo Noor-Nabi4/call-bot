@@ -1,0 +1,16 @@
+# Local secrets and tooling
+.env
+.env.*
+!.env.example
+.DS_Store
+.venv/
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.idea/
+.vscode/
+
+# Nested agent venv / local env
+voice-agent/.venv/
+voice-agent/.env.local

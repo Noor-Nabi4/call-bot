@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from prompts import build_system_instructions
+from prompts.business import BusinessFacts
 
 
 def test_build_system_instructions_includes_required_sections() -> None:
@@ -28,3 +29,18 @@ def test_prompt_limits_spoken_length() -> None:
         language="en",
     )
     assert "2 short sentences" in prompt
+
+
+def test_prompt_includes_business_facts() -> None:
+    prompt = build_system_instructions(
+        business_name="Acme HVAC",
+        max_spoken_sentences=3,
+        language="en",
+        business_facts=BusinessFacts(
+            hours="Monday to Friday, 8 AM to 6 PM",
+            services="Heating and cooling repair",
+        ),
+    )
+    assert "Monday to Friday, 8 AM to 6 PM" in prompt
+    assert "Heating and cooling repair" in prompt
+    assert "Never invent hours" in prompt

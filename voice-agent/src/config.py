@@ -5,9 +5,19 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from prompts.business import BusinessFacts
+
 
 class ConfigurationError(ValueError):
     """Raised when required configuration is missing or invalid."""
+
+
+REQUIRED_ENV_VARS = (
+    "LIVEKIT_URL",
+    "LIVEKIT_API_KEY",
+    "LIVEKIT_API_SECRET",
+    "OPENAI_API_KEY",
+)
 
 
 def _require(name: str) -> str:
@@ -15,6 +25,11 @@ def _require(name: str) -> str:
     if not value:
         raise ConfigurationError(f"Missing required environment variable: {name}")
     return value
+
+
+def _optional(name: str) -> str | None:
+    value = os.getenv(name, "").strip()
+    return value or None
 
 
 def _float_env(name: str, default: float) -> float:
@@ -46,6 +61,7 @@ class Settings:
     livekit_api_secret: str
     openai_api_key: str
     business_name: str
+    business_facts: BusinessFacts
     openai_realtime_model: str
     openai_voice: str
     temperature: float
@@ -56,6 +72,8 @@ class Settings:
     inactivity_check_interval_sec: float
     max_spoken_sentences: int
     agent_name: str
+    # Phase 0/1 single-tenant runtime. Multi-tenant resolution comes in Phase 2-3.
+    tenant_id: str | None
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -74,6 +92,15 @@ class Settings:
         if user_away_timeout_sec <= 0:
             raise ConfigurationError("USER_AWAY_TIMEOUT_SEC must be positive")
 
+        business_facts = BusinessFacts(
+            hours=_optional("BUSINESS_HOURS"),
+            service_area=_optional("BUSINESS_SERVICE_AREA"),
+            phone=_optional("BUSINESS_PHONE"),
+            address=_optional("BUSINESS_ADDRESS"),
+            services=_optional("BUSINESS_SERVICES"),
+            extra=_optional("BUSINESS_EXTRA_FACTS"),
+        )
+
         return cls(
             livekit_url=_require("LIVEKIT_URL"),
             livekit_api_key=_require("LIVEKIT_API_KEY"),
@@ -81,6 +108,7 @@ class Settings:
             openai_api_key=_require("OPENAI_API_KEY"),
             business_name=os.getenv("BUSINESS_NAME", "our business").strip()
             or "our business",
+            business_facts=business_facts,
             openai_realtime_model=os.getenv(
                 "OPENAI_REALTIME_MODEL", "gpt-realtime"
             ).strip()
@@ -96,4 +124,10 @@ class Settings:
             ),
             max_spoken_sentences=_int_env("MAX_SPOKEN_SENTENCES", 3),
             agent_name=os.getenv("AGENT_NAME", "voice-agent").strip() or "voice-agent",
+            tenant_id=_optional("TENANT_ID"),
         )
+
+
+def missing_required_env_vars() -> list[str]:
+    """Return required env var names that are unset or empty (never values)."""
+    return [name for name in REQUIRED_ENV_VARS if not os.getenv(name, "").strip()]

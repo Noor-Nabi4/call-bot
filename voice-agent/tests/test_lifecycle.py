@@ -13,12 +13,15 @@ from session.state import CallState, CallStatus
 
 
 def _settings() -> Settings:
+    from prompts.business import BusinessFacts
+
     return Settings(
         livekit_url="wss://example.livekit.cloud",
         livekit_api_key="key",
         livekit_api_secret="secret",
         openai_api_key="sk-test",
         business_name="Acme",
+        business_facts=BusinessFacts(),
         openai_realtime_model="gpt-realtime",
         openai_voice="marin",
         temperature=0.8,
@@ -29,6 +32,7 @@ def _settings() -> Settings:
         inactivity_check_interval_sec=10.0,
         max_spoken_sentences=3,
         agent_name="voice-agent",
+        tenant_id="tenant_demo",
     )
 
 
