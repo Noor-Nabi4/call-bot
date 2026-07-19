@@ -26,47 +26,47 @@ import {
 } from "@/components/ops/charts-shared";
 
 export const RAFFLE_COLORS = [
-  "#7c3aed",
-  "#22d3ee",
-  "#5B9BD5",
-  "#70AD47",
-  "#ED7D31",
-  "#A5A5A5",
-  "#FFC000",
-  "#4472C4",
+  "#0f7a64",
+  "#1aa884",
+  "#45d6ac",
+  "#0a5a4a",
+  "#b45309",
+  "#5c6f67",
+  "#d9e4de",
+  "#14352c",
   "#34d399",
   "#f59e0b",
-  "#f87171",
-  "#94a3b8",
+  "#b91c1c",
+  "#afc2ba",
 ] as const;
 
 /** Fixed brand colors for job statuses (not rotating palette). */
 export const JOB_STATUS_COLORS: Record<string, string> = {
-  new: "#22d3ee",
-  scheduled: "#7c3aed",
-  dispatched: "#6366f1",
-  in_progress: "#f59e0b",
-  completed: "#34d399",
-  canceled: "#f87171",
-  cancelled: "#f87171",
+  new: "#1aa884",
+  scheduled: "#0f7a64",
+  dispatched: "#14352c",
+  in_progress: "#b45309",
+  completed: "#0a5a4a",
+  canceled: "#b91c1c",
+  cancelled: "#b91c1c",
 };
 
 /** Fixed brand colors for call statuses. */
 export const CALL_STATUS_COLORS: Record<string, string> = {
-  ringing: "#22d3ee",
-  initiated: "#22d3ee",
-  in_progress: "#f59e0b",
-  active: "#f59e0b",
-  answered: "#7c3aed",
-  completed: "#34d399",
-  ended: "#34d399",
-  success: "#34d399",
-  failed: "#f87171",
-  busy: "#ed7d31",
-  no_answer: "#94a3b8",
-  canceled: "#f87171",
-  cancelled: "#f87171",
-  unknown: "#64748b",
+  ringing: "#1aa884",
+  initiated: "#1aa884",
+  in_progress: "#b45309",
+  active: "#b45309",
+  answered: "#0f7a64",
+  completed: "#0a5a4a",
+  ended: "#0a5a4a",
+  success: "#0a5a4a",
+  failed: "#b91c1c",
+  busy: "#b45309",
+  no_answer: "#5c6f67",
+  canceled: "#b91c1c",
+  cancelled: "#b91c1c",
+  unknown: "#5c6f67",
 };
 
 export function colorForJobStatus(status: string): string {

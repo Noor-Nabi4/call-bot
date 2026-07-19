@@ -6,12 +6,13 @@ import uuid
 from datetime import date, datetime
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from callbot_platform.auth.repos import AuthError, AuthRepository
 from callbot_platform.config import Settings
 from callbot_platform.crm.repos import CustomerRepository
-from callbot_platform.db.models import Job, Tenant, TenantUser
+from callbot_platform.db.models import Job, Technician, Tenant, TenantUser
 from callbot_platform.jobs.repos import JobRepository, JobsError, TechnicianRepository
 from callbot_platform.scheduling.notifications import NotificationService
 from callbot_platform.scheduling.repos import AppointmentRepository
@@ -78,6 +79,76 @@ def test_bootstrap_and_login(session: Session, tenant: Tenant) -> None:
             email="admin@acme.test",
             password="wrong-password",
         )
+
+
+def test_update_profile_name_and_password(session: Session, tenant: Tenant) -> None:
+    auth = AuthRepository(session)
+    admin = auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="admin@acme.test",
+        password="password123",
+        name="Admin",
+    )
+    updated = auth.update_profile(
+        tenant_id=tenant.id,
+        user_id=uuid.UUID(admin["id"]),
+        name="  Ada Admin  ",
+        current_password="password123",
+        new_password="password456",
+        actor="admin@acme.test",
+    )
+    assert updated["name"] == "Ada Admin"
+    row = session.get(TenantUser, uuid.UUID(admin["id"]))
+    assert row is not None
+    assert verify_password("password456", row.password_hash)
+
+    with pytest.raises(AuthError) as bad_current:
+        auth.update_profile(
+            tenant_id=tenant.id,
+            user_id=uuid.UUID(admin["id"]),
+            current_password="wrong",
+            new_password="password789",
+        )
+    assert bad_current.value.code == "invalid_credentials"
+
+    with pytest.raises(AuthError) as missing_current:
+        auth.update_profile(
+            tenant_id=tenant.id,
+            user_id=uuid.UUID(admin["id"]),
+            new_password="password789",
+        )
+    assert missing_current.value.code == "current_password_required"
+
+
+def test_update_profile_syncs_technician_display_name(
+    session: Session, tenant: Tenant
+) -> None:
+    auth = AuthRepository(session)
+    auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="admin@acme.test",
+        password="password123",
+        name="Admin",
+    )
+    tech_user = auth.create_user(
+        tenant.id,
+        email="tech@acme.test",
+        password="password123",
+        name="Tech One",
+        role="technician",
+        phone="+15551112222",
+    )
+    updated = auth.update_profile(
+        tenant_id=tenant.id,
+        user_id=uuid.UUID(tech_user["id"]),
+        name="Tech Two",
+    )
+    assert updated["name"] == "Tech Two"
+    tech = session.scalar(
+        select(Technician).where(Technician.user_id == uuid.UUID(tech_user["id"]))
+    )
+    assert tech is not None
+    assert tech.display_name == "Tech Two"
 
 
 def test_session_token_roundtrip(

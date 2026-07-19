@@ -206,6 +206,36 @@ export const tech = {
   emptyHint: "New assignments will appear here when dispatched.",
 } as const;
 
+export const profile = {
+  title: "Your profile",
+  description: "Update how your name appears and change your password.",
+  name: "Display name",
+  email: "Email",
+  role: "Role",
+  business: "Business",
+  currentPassword: "Current password",
+  newPassword: "New password",
+  confirmPassword: "Confirm new password",
+  save: "Save profile",
+  saving: "Saving…",
+  saved: "Profile updated",
+  passwordMismatch: "New password and confirmation do not match.",
+  passwordHint: "Leave blank to keep your current password.",
+  emailReadonly: "Email cannot be changed here. Ask an admin if you need a new login.",
+} as const;
+
+export const notifications = {
+  title: "Needs attention",
+  empty: "You’re all caught up.",
+  emptyHint: "Unassigned jobs, overdue work, and handoff issues show up here.",
+  refresh: "Refresh",
+  viewDispatch: "Open dispatch",
+  loadFailed: "Could not load alerts.",
+  summary: "Summary",
+  jobs: "Jobs",
+  liveIdle: "Live updates on",
+} as const;
+
 export const errors = {
   generic: "Something went wrong. Please try again.",
   loadFailed: "We could not load this page. Please try again.",

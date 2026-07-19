@@ -18,6 +18,7 @@ import {
 } from "@/components/ui";
 import { errors, handoff as copy } from "@/lib/copy";
 import { maskSecret, safeUserError } from "@/lib/safe-error";
+import { notifyAttentionChanged } from "@/lib/attention-bus";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
@@ -86,6 +87,7 @@ export default function HandoffPage() {
       const data = await res.json();
       setSettings(data.settings);
       toast.push("Transfer rules saved", "success");
+      notifyAttentionChanged();
     } catch (err) {
       setError(safeUserError(err, errors.saveFailed));
     } finally {

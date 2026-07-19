@@ -35,21 +35,21 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="ops-shell-atmosphere fixed inset-0 -z-10" aria-hidden />
+    <div className="relative flex min-h-screen items-center justify-center px-4 py-12">
+      <div className="ops-login-stage fixed inset-0 -z-10" aria-hidden />
       <form
         onSubmit={onSubmit}
-        className="glass-panel relative z-[1] w-full max-w-md p-6"
+        className="relative z-[1] w-full max-w-md rounded-xl border border-white/15 bg-white/95 p-6 shadow-[var(--shadow-elevated)] backdrop-blur-sm sm:p-8"
       >
-        <p className="text-[11px] font-medium tracking-[0.16em] text-text-muted uppercase">
+        <p className="font-heading text-2xl font-semibold tracking-[-0.03em] text-ink">
           {copy.brand}
         </p>
-        <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight">
+        <h1 className="mt-3 font-heading text-2xl font-semibold tracking-tight text-ink">
           {copy.heading}
         </h1>
         <p className="mt-1 text-sm text-text-secondary">{copy.supporting}</p>
 
-        <div className="mt-5 grid gap-3">
+        <div className="mt-6 grid gap-3">
           <Field label={copy.businessId}>
             <Input
               value={tenantSlug}
@@ -87,7 +87,7 @@ export default function LoginPage() {
           />
         ) : null}
 
-        <Button type="submit" disabled={busy} className="mt-5 w-full" size="lg">
+        <Button type="submit" disabled={busy} className="mt-6 w-full" size="lg">
           {busy ? copy.submitting : copy.submit}
         </Button>
       </form>

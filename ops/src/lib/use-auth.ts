@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { me, type OpsUser } from "@/lib/api";
 
@@ -14,18 +14,21 @@ export function useAuth(opts?: {
   const redirectTo = opts?.redirectTo;
   const rolesKey = opts?.roles?.join(",") ?? "";
 
+  const load = useCallback(async () => {
+    const allowedRoles = rolesKey ? rolesKey.split(",") : undefined;
+    const { user: u } = await me();
+    if (allowedRoles && !allowedRoles.includes(u.role)) {
+      router.replace(u.role === "technician" ? "/tech" : "/dashboard");
+      return null;
+    }
+    setUser(u);
+    return u;
+  }, [router, rolesKey]);
+
   useEffect(() => {
     let cancelled = false;
-    const allowedRoles = rolesKey ? rolesKey.split(",") : undefined;
-    me()
-      .then(({ user: u }) => {
-        if (cancelled) return;
-        if (allowedRoles && !allowedRoles.includes(u.role)) {
-          router.replace(u.role === "technician" ? "/tech" : "/dashboard");
-          return;
-        }
-        setUser(u);
-      })
+    setLoading(true);
+    load()
       .catch(() => {
         if (!cancelled) router.replace(redirectTo || "/login");
       })
@@ -35,7 +38,15 @@ export function useAuth(opts?: {
     return () => {
       cancelled = true;
     };
-  }, [router, redirectTo, rolesKey]);
+  }, [load, router, redirectTo]);
 
-  return { user, loading };
+  const refresh = useCallback(async () => {
+    try {
+      await load();
+    } catch {
+      router.replace(redirectTo || "/login");
+    }
+  }, [load, router, redirectTo]);
+
+  return { user, loading, refresh };
 }

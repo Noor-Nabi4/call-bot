@@ -36,6 +36,14 @@ class BootstrapBody(BaseModel):
     name: str
 
 
+class UpdateProfileBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    current_password: str | None = None
+    new_password: str | None = Field(default=None, min_length=8)
+
+
 def _auth_http(exc: Exception) -> HTTPException:
     if isinstance(exc, AuthError):
         status = 401 if exc.code == "invalid_credentials" else 400
@@ -98,6 +106,34 @@ def logout(
 @router.get("/me")
 def me(user: CurrentUser = Depends(require_tenant_user)) -> dict[str, Any]:
     return {"user": user.as_dict()}
+
+
+@router.put("/me")
+def update_me(
+    body: UpdateProfileBody,
+    user: CurrentUser = Depends(require_tenant_user),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    if body.name is None and body.new_password is None:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "nothing_to_update",
+                "message": "Provide a name and/or a new password",
+            },
+        )
+    try:
+        updated = AuthRepository(session).update_profile(
+            tenant_id=user.tenant_id,
+            user_id=user.user_id,
+            name=body.name,
+            current_password=body.current_password,
+            new_password=body.new_password,
+            actor=user.email,
+        )
+    except Exception as exc:
+        raise _auth_http(exc) from exc
+    return {"user": updated}
 
 
 @router.post("/bootstrap", dependencies=[Depends(require_internal_token)])

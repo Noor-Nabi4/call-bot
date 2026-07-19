@@ -1,21 +1,24 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import { Fraunces, JetBrains_Mono, Manrope } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const sans = Inter({
+const sans = Manrope({
   subsets: ["latin"],
   variable: "--font-ops-sans",
+  display: "swap",
 });
 
-const heading = Space_Grotesk({
+const heading = Fraunces({
   subsets: ["latin"],
   variable: "--font-ops-heading",
+  display: "swap",
 });
 
 const mono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-ops-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {

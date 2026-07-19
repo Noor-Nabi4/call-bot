@@ -50,6 +50,7 @@ import {
   type Technician,
 } from "@/lib/api";
 import { deriveUrgency } from "@/lib/schedule";
+import { buildAttentionItems } from "@/lib/attention";
 import { useAuth } from "@/lib/use-auth";
 import { dashboard as copy, errors } from "@/lib/copy";
 import { safeUserError } from "@/lib/safe-error";
@@ -198,31 +199,8 @@ export default function DashboardPage() {
   );
 
   const attention = useMemo(() => {
-    const items: {
-      id: string;
-      title: string;
-      count: number;
-      explanation: string;
-      href: string;
-    }[] = [];
-    if (unassigned.length > 0) {
-      items.push({
-        id: "unassigned",
-        title: "Unassigned jobs",
-        count: unassigned.length,
-        explanation: "Active jobs waiting for a technician.",
-        href: "/dispatch?view=unassigned",
-      });
-    }
-    if (overdue.length > 0) {
-      items.push({
-        id: "overdue",
-        title: "Overdue jobs",
-        count: overdue.length,
-        explanation: "Scheduled start time has passed.",
-        href: "/dispatch?view=overdue",
-      });
-    }
+    const base = buildAttentionItems({ jobs, technicians: techs });
+    const items = base.map(({ tone: _tone, ...rest }) => rest);
     if (callsToday.length > 0) {
       items.push({
         id: "calls-today",
@@ -232,18 +210,8 @@ export default function DashboardPage() {
         href: "/calls",
       });
     }
-    const inactiveTechs = techs.filter((t) => !t.is_active).length;
-    if (inactiveTechs > 0) {
-      items.push({
-        id: "inactive-techs",
-        title: "Inactive technicians",
-        count: inactiveTechs,
-        explanation: "Technicians marked inactive for your organization.",
-        href: "/dispatch",
-      });
-    }
     return items;
-  }, [unassigned, overdue, callsToday, techs]);
+  }, [jobs, techs, callsToday]);
 
   const todayWork = useMemo(() => {
     const rows: {

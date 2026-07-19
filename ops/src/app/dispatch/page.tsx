@@ -370,7 +370,7 @@ function DispatchWorkspace() {
           </span>
           <Link
             href="/dispatch"
-            className="text-xs text-cyan hover:underline"
+            className="text-xs text-brand hover:underline"
           >
             Clear status filter
           </Link>

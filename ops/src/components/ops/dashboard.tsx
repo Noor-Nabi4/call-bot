@@ -86,7 +86,7 @@ export function AttentionList({
               </p>
               <p className="mt-0.5 text-xs text-text-muted">{item.explanation}</p>
             </div>
-            <span className="shrink-0 font-heading text-lg font-semibold tabular-nums text-cyan">
+            <span className="shrink-0 font-heading text-lg font-semibold tabular-nums text-brand">
               {item.count}
             </span>
           </Link>

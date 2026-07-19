@@ -155,7 +155,7 @@ export function JobCard({
       {showDispatch ? (
         <button
           type="button"
-          className="mt-1.5 h-7 w-full rounded-[10px] bg-brand text-[11px] font-medium text-white transition-colors duration-150 hover:bg-brand-hover"
+          className="mt-1.5 h-7 w-full rounded-md bg-[#45d6ac] text-[11px] font-medium text-[#07120f] transition-colors duration-150 hover:bg-[#71f0ca]"
           onClick={() => onDispatch(job.id)}
         >
           Dispatch

@@ -165,6 +165,81 @@ class AuthRepository:
             result["technician_id"] = str(tech.id)
         return result
 
+    def update_profile(
+        self,
+        *,
+        tenant_id: UUID,
+        user_id: UUID,
+        name: str | None = None,
+        current_password: str | None = None,
+        new_password: str | None = None,
+        actor: str | None = None,
+    ) -> dict[str, Any]:
+        user = self._session.scalar(
+            select(TenantUser).where(
+                TenantUser.id == user_id, TenantUser.tenant_id == tenant_id
+            )
+        )
+        if user is None or not user.is_active:
+            raise AuthError("user_not_found", "User not found or inactive")
+        tenant = self._session.get(Tenant, tenant_id)
+        if tenant is None:
+            raise AuthError("tenant_not_found", "Tenant not found")
+
+        changed: list[str] = []
+        if name is not None:
+            cleaned = name.strip()
+            if not cleaned:
+                raise AuthError("invalid_name", "Name is required")
+            if len(cleaned) > 255:
+                raise AuthError("invalid_name", "Name must be 255 characters or fewer")
+            if cleaned != user.name:
+                user.name = cleaned
+                changed.append("name")
+                tech = self._session.scalar(
+                    select(Technician).where(Technician.user_id == user.id)
+                )
+                if tech is not None:
+                    tech.display_name = cleaned
+                    changed.append("technician_display_name")
+
+        if new_password is not None:
+            if not current_password:
+                raise AuthError(
+                    "current_password_required",
+                    "Current password is required to set a new password",
+                )
+            if not verify_password(current_password, user.password_hash):
+                raise AuthError("invalid_credentials", "Current password is incorrect")
+            if len(new_password) < 8:
+                raise AuthError(
+                    "weak_password", "Password must be at least 8 characters"
+                )
+            if verify_password(new_password, user.password_hash):
+                raise AuthError(
+                    "password_unchanged",
+                    "New password must be different from the current password",
+                )
+            user.password_hash = hash_password(new_password)
+            changed.append("password")
+
+        if not changed:
+            return self._serialize_user(user, tenant)
+
+        user.updated_at = datetime.now(UTC)
+        self._session.flush()
+        write_audit(
+            self._session,
+            tenant_id=tenant_id,
+            actor=actor or user.email,
+            action="user_profile_updated",
+            resource_ids={
+                "user_id": str(user.id),
+                "changed_fields": changed,
+            },
+        )
+        return self._serialize_user(user, tenant)
+
     def _serialize_user(self, user: TenantUser, tenant: Tenant) -> dict[str, Any]:
         tech_id = None
         if user.technician is not None:

@@ -2,6 +2,7 @@
 
 import { safeUserError } from "@/lib/safe-error";
 import { errors } from "@/lib/copy";
+import { notifyAttentionChanged } from "@/lib/attention-bus";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
@@ -100,6 +101,17 @@ export function me() {
   return api<{ user: OpsUser }>("/auth/me");
 }
 
+export function updateProfile(body: {
+  name?: string;
+  current_password?: string;
+  new_password?: string;
+}) {
+  return api<{ user: OpsUser }>("/auth/me", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
 export function listJobs(params?: { status?: string; technician_id?: string }) {
   const q = new URLSearchParams();
   if (params?.status) q.set("status", params.status);
@@ -122,11 +134,25 @@ export function createJob(body: {
   return api<{ job: Job }>("/api/jobs", {
     method: "POST",
     body: JSON.stringify(body),
+  }).then((res) => {
+    notifyAttentionChanged();
+    return res;
   });
 }
 
 export function listTechnicians() {
   return api<{ technicians: Technician[] }>("/api/technicians");
+}
+
+export type HandoffSettings = {
+  enabled: boolean;
+  mode: string;
+  escalation_phone_e164: string | null;
+  sip_outbound_trunk_id: string | null;
+};
+
+export function getHandoffSettings() {
+  return api<{ settings: HandoffSettings }>("/api/handoff");
 }
 
 export function createTechnician(body: {
@@ -138,6 +164,9 @@ export function createTechnician(body: {
   return api<{ technician: Technician }>("/api/technicians", {
     method: "POST",
     body: JSON.stringify(body),
+  }).then((res) => {
+    notifyAttentionChanged();
+    return res;
   });
 }
 
@@ -145,6 +174,9 @@ export function assignJob(jobId: string, technician_id: string) {
   return api<{ job: Job }>(`/api/jobs/${jobId}/assign`, {
     method: "POST",
     body: JSON.stringify({ technician_id }),
+  }).then((res) => {
+    notifyAttentionChanged();
+    return res;
   });
 }
 
@@ -156,6 +188,9 @@ export function transitionJob(
   return api<{ job: Job }>(`/api/jobs/${jobId}/transition`, {
     method: "POST",
     body: JSON.stringify({ status, completion_notes }),
+  }).then((res) => {
+    notifyAttentionChanged();
+    return res;
   });
 }
 

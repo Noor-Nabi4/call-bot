@@ -198,7 +198,7 @@ function CallsWorkspace() {
               {statusFilter.replace(/_/g, " ")}
             </span>
           </span>
-          <Link href="/calls" className="text-xs text-cyan hover:underline">
+          <Link href="/calls" className="text-xs text-brand hover:underline">
             Clear status filter
           </Link>
         </div>

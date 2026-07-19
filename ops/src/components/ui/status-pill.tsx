@@ -4,22 +4,22 @@ import { cn } from "@/lib/cn";
 import { deriveUrgency } from "@/lib/schedule";
 
 const tones: Record<string, string> = {
-  new: "bg-white/5 text-text-secondary",
-  scheduled: "bg-brand/20 text-cyan",
+  new: "bg-surface-muted text-text-secondary",
+  scheduled: "bg-brand-soft text-brand",
   dispatched: "bg-warn-soft text-warn",
   in_progress: "bg-warn-soft text-warn",
   completed: "bg-success-soft text-success",
   canceled: "bg-danger-soft text-danger",
-  active: "bg-brand/20 text-cyan",
-  inactive: "bg-white/5 text-text-muted",
+  active: "bg-brand-soft text-brand",
+  inactive: "bg-surface-muted text-text-muted",
   ready: "bg-success-soft text-success",
   needs_attention: "bg-warn-soft text-warn",
   connected: "bg-success-soft text-success",
   failed: "bg-danger-soft text-danger",
   pending: "bg-warn-soft text-warn",
   verified: "bg-success-soft text-success",
-  warm: "bg-brand/20 text-cyan",
-  cold: "bg-white/5 text-text-secondary",
+  warm: "bg-brand-soft text-brand",
+  cold: "bg-surface-muted text-text-secondary",
 };
 
 export function StatusPill({
