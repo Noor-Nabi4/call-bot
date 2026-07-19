@@ -43,6 +43,7 @@ def business_information(
         "Only share business facts that appear in these instructions. "
         "If a caller asks for details that are not listed here, say you do not "
         "have that information and offer to take a message or suggest another "
-        "way they can get help. Never invent hours, prices, policies, "
-        "addresses, or availability."
+        "way they can get help. Never invent hours, prices, policies, or "
+        "addresses. For appointment availability, use get_available_slots — "
+        "do not invent open times."
     )

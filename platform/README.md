@@ -1,4 +1,4 @@
-# Telephony platform API — multi-tenant Twilio + LiveKit SIP + CRM
+# Telephony platform API — multi-tenant Twilio + LiveKit SIP + CRM + Scheduling
 
 ## Run locally
 
@@ -23,8 +23,19 @@ Internal routes (require `X-Internal-Token`):
 
 Tenant agent settings: `GET|PUT /tenants/{id}/agent-settings`
 
+## Scheduling (Phase 4)
+
+- `POST /internal/scheduling/slots`
+- `POST /internal/scheduling/appointments`
+- `GET /internal/scheduling/appointments/{id}?tenant_id=`
+- `POST /internal/scheduling/appointments/{id}/reschedule`
+- `POST /internal/scheduling/appointments/{id}/cancel`
+
+Availability uses tenant timezone + `tenant_schedule_settings` (default Mon–Fri 09:00–17:00). SMS via Twilio when configured; email rows stay in `notification_outbox`.
+
 ## Docs
 
 - Path A / Path B checklist: `../voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md`
 - CRM checklist: `../voice-agent/docs/PHASE3_CRM_CHECKLIST.md`
+- Booking checklist: `../voice-agent/docs/PHASE4_BOOKING_CHECKLIST.md`
 - LiveKit Twilio SIP: https://docs.livekit.io/telephony/start/providers/twilio/

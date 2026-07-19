@@ -13,6 +13,7 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env.local")
 from callbot_platform.api.crm_routes import router as crm_router  # noqa: E402
 from callbot_platform.api.crm_routes import tenant_settings_router  # noqa: E402
 from callbot_platform.api.routes import router  # noqa: E402
+from callbot_platform.api.scheduling_routes import router as scheduling_router  # noqa: E402
 from callbot_platform.db import init_db  # noqa: E402
 
 app = FastAPI(title="Call Bot Platform", version="0.1.0")
@@ -25,6 +26,7 @@ app.add_middleware(
 )
 app.include_router(router)
 app.include_router(crm_router)
+app.include_router(scheduling_router)
 app.include_router(tenant_settings_router)
 
 

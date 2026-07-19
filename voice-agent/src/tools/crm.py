@@ -133,7 +133,8 @@ def build_crm_tools(client: PlatformCrmClient) -> list[Any]:
     ) -> dict[str, Any]:
         """Create a service lead / job request after the caller confirms the summary.
 
-        Does not book a calendar slot. Captures preferred time window only.
+        Prefer book_appointment when the caller picks a real slot. Use this tool
+        when no slot fits or the caller only wants a callback window.
 
         Args:
             service_type: Type of service requested (for example AC repair).

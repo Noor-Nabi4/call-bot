@@ -261,17 +261,18 @@ Manual checklist: [`voice-agent/docs/PHASE3_CRM_CHECKLIST.md`](./voice-agent/doc
 
 **Outcome:** agent can offer real slots and book appointments **inside the resolved tenant**.
 
-- [ ] Availability service scoped by `tenant_id` (+ timezone)  
-- [ ] Tool: `get_available_slots`  
-- [ ] Tool: `book_appointment` (confirm before commit)  
-- [ ] Conflict handling / double-booking prevention (per tenant)  
-- [ ] Reschedule + cancel flows  
-- [ ] SMS/email confirmation (provider credentials per tenant or platform)  
-- [ ] Timezone handling  
+- [x] Availability service scoped by `tenant_id` (+ timezone)  
+- [x] Tool: `get_available_slots`  
+- [x] Tool: `book_appointment` (confirm before commit)  
+- [x] Conflict handling / double-booking prevention (per tenant)  
+- [x] Reschedule + cancel flows  
+- [x] SMS/email confirmation (Twilio SMS when configured; email outbox pending)  
+- [x] Timezone handling  
 
 **Exit criteria**
 
-- Caller books a real appointment end-to-end by voice for the correct tenant  
+- Caller books a real appointment end-to-end by voice for the correct tenant *(operator — see `voice-agent/docs/PHASE4_BOOKING_CHECKLIST.md`)*  
+- Automated isolation / overlap / idempotency tests pass *(in `platform/tests/test_scheduling.py`)*  
 
 ---
 
