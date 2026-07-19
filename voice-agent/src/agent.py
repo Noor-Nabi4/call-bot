@@ -27,8 +27,11 @@ from prompts import build_system_instructions
 from session.events import attach_realtime_metrics, attach_session_events
 from session.lifecycle import CallLifecycle
 from session.state import CallState
+from session.userdata import SessionUserData
 from tenant.resolve import TenantResolveError, resolver_from_env
 from tenant.sip_attrs import extract_sip_context, is_sip_participant
+from tools.crm import build_crm_tools
+from tools.platform_crm import PlatformCrmError, crm_client_from_env
 
 # Load local secrets for development. Production injects env vars directly.
 load_dotenv(Path(__file__).resolve().parent.parent / ".env.local")
@@ -40,8 +43,8 @@ logger = get_logger("voice-agent")
 class VoiceAssistant(Agent):
     """Single speech-to-speech assistant for one LiveKit session."""
 
-    def __init__(self, instructions: str) -> None:
-        super().__init__(instructions=instructions)
+    def __init__(self, instructions: str, *, tools: list | None = None) -> None:
+        super().__init__(instructions=instructions, tools=tools or [])
         self._lifecycle: CallLifecycle | None = None
 
     def bind_lifecycle(self, lifecycle: CallLifecycle) -> None:
@@ -101,12 +104,15 @@ def _build_realtime_model(settings: Settings) -> openai.realtime.RealtimeModel:
     )
 
 
-def _build_session(settings: Settings) -> AgentSession:
+def _build_session(
+    settings: Settings, *, userdata: SessionUserData | None = None
+) -> AgentSession:
     # Docs: realtime models use turn_detection="realtime_llm"
     # https://docs.livekit.io/agents/logic/turns/
     return AgentSession(
         llm=_build_realtime_model(settings),
         user_away_timeout=settings.user_away_timeout_sec,
+        userdata=userdata,
         turn_handling=TurnHandlingOptions(
             turn_detection="realtime_llm",
             interruption={
@@ -159,8 +165,9 @@ async def entrypoint(ctx: JobContext) -> None:
         business_facts=settings.business_facts,
     )
 
+    crm_client = crm_client_from_env()
     session = _build_session(settings)
-    agent = VoiceAssistant(instructions=instructions)
+    agent = VoiceAssistant(instructions=instructions, tools=[])
     lifecycle = CallLifecycle(
         session=session,
         state=state,
@@ -171,8 +178,32 @@ async def entrypoint(ctx: JobContext) -> None:
     agent.bind_lifecycle(lifecycle)
     attach_session_events(lifecycle, session)
 
+    platform_call_id_holder: dict[str, str | None] = {"id": None}
+
     async def _on_job_shutdown() -> None:
-        # Ensures final operational metrics are logged even if close raced.
+        # Persist CRM call end when possible.
+        userdata = session.userdata
+        if (
+            isinstance(userdata, SessionUserData)
+            and userdata.platform_call_id
+            and userdata.tenant_id
+        ):
+            try:
+                crm_client.end_call(
+                    tenant_id=userdata.tenant_id,
+                    call_id=userdata.platform_call_id,
+                    status=state.current_status.value
+                    if state.current_status
+                    else "closed",
+                    disconnect_reason=state.disconnect_reason,
+                    metrics=metrics.as_log_fields(),
+                    customer_id=userdata.customer_id,
+                )
+            except Exception:
+                logger.exception(
+                    "crm_call_end_failed",
+                    extra={"call_id": call_id, "tenant_id": userdata.tenant_id},
+                )
         if metrics.ended_at is None:
             lifecycle.on_session_closed("job_shutdown")
         else:
@@ -188,8 +219,8 @@ async def entrypoint(ctx: JobContext) -> None:
         tenant_id=settings.tenant_id,
         model=settings.openai_realtime_model,
         voice=settings.openai_voice,
-        # End-of-call summary webhooks deferred to CRM phase (Phase 3+).
         end_of_call_summary_webhook=False,
+        crm_tools=True,
     )
 
     # Docs: https://docs.livekit.io/transport/media/noise-cancellation/
@@ -250,6 +281,7 @@ async def entrypoint(ctx: JobContext) -> None:
     metrics.tenant_id = resolution.tenant_id
     ctx.log_context_fields["tenant_id"] = resolution.tenant_id
 
+    caller_number = None
     if sip:
         telephony = extract_sip_context(
             participant,
@@ -260,6 +292,8 @@ async def entrypoint(ctx: JobContext) -> None:
         if resolution.livekit_inbound_trunk_id:
             telephony.inbound_trunk_id = resolution.livekit_inbound_trunk_id
         state.apply_telephony(telephony)
+        caller_number = telephony.caller_number
+        called_number = telephony.called_number or called_number
         if telephony.called_number:
             try:
                 resolver.notify_inbound_observed(
@@ -275,6 +309,42 @@ async def entrypoint(ctx: JobContext) -> None:
                     extra={"call_id": call_id, "tenant_id": resolution.tenant_id},
                 )
 
+    userdata = SessionUserData(
+        tenant_id=resolution.tenant_id,
+        call_id=call_id,
+        room_name=room_name,
+        business_name=settings.business_name,
+        caller_number=caller_number,
+        called_number=called_number,
+        is_sip=sip,
+    )
+    session.userdata = userdata
+
+    # Bind CRM tools only after fail-closed tenant resolve.
+    # Docs: https://docs.livekit.io/agents/logic/tools/definition/
+    await agent.update_tools(build_crm_tools(crm_client))
+
+    try:
+        started = crm_client.start_call(
+            tenant_id=resolution.tenant_id,
+            room_name=room_name,
+            job_id=call_id,
+            caller_number=caller_number,
+            called_number=called_number,
+            telephony_provider="twilio" if sip else None,
+            provider_call_id=(
+                state.telephony.provider_call_id if state.telephony else None
+            ),
+        )
+        platform_call = started.get("call") or {}
+        userdata.platform_call_id = platform_call.get("id")
+        platform_call_id_holder["id"] = userdata.platform_call_id
+    except PlatformCrmError:
+        logger.exception(
+            "crm_call_start_failed",
+            extra={"call_id": call_id, "tenant_id": resolution.tenant_id},
+        )
+
     state.mark_active(participant.identity)
     metrics.participant_identity = participant.identity
     log_event(
@@ -286,8 +356,9 @@ async def entrypoint(ctx: JobContext) -> None:
         tenant_id=resolution.tenant_id,
         is_sip=sip,
         resolve_source=resolution.source,
-        caller_number=(state.telephony.caller_number if state.telephony else None),
-        called_number=(state.telephony.called_number if state.telephony else None),
+        caller_number=caller_number,
+        called_number=called_number,
+        platform_call_id=userdata.platform_call_id,
     )
 
     # Greeting only after successful tenant resolution (fail-closed for SIP).

@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env.local")
 
+from callbot_platform.api.crm_routes import router as crm_router  # noqa: E402
+from callbot_platform.api.crm_routes import tenant_settings_router  # noqa: E402
 from callbot_platform.api.routes import router  # noqa: E402
 from callbot_platform.db import init_db  # noqa: E402
 
@@ -22,6 +24,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router)
+app.include_router(crm_router)
+app.include_router(tenant_settings_router)
 
 
 @app.on_event("startup")

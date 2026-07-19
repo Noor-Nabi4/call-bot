@@ -39,6 +39,7 @@ router = APIRouter()
 class CreateTenantBody(BaseModel):
     name: str
     slug: str
+    timezone: str = "UTC"
 
 
 class ConnectNumberBody(BaseModel):
@@ -91,7 +92,7 @@ def create_tenant(body: CreateTenantBody, session: Session = Depends(db_dep)) ->
     existing = session.scalar(select(Tenant).where(Tenant.slug == body.slug))
     if existing:
         raise HTTPException(status_code=409, detail="Tenant slug already exists")
-    tenant = Tenant(name=body.name, slug=body.slug)
+    tenant = Tenant(name=body.name, slug=body.slug, timezone=body.timezone or "UTC")
     session.add(tenant)
     session.flush()
     return {
@@ -99,6 +100,7 @@ def create_tenant(body: CreateTenantBody, session: Session = Depends(db_dep)) ->
         "name": tenant.name,
         "slug": tenant.slug,
         "status": tenant.status,
+        "timezone": tenant.timezone,
     }
 
 

@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     ForeignKey,
     Index,
@@ -45,6 +46,7 @@ class Tenant(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow, server_default=func.now()
     )
@@ -54,6 +56,12 @@ class Tenant(Base):
     )
     twilio_subaccount: Mapped[TenantTwilioSubaccount | None] = relationship(
         back_populates="tenant", uselist=False, cascade="all, delete-orphan"
+    )
+    agent_settings: Mapped[TenantAgentSettings | None] = relationship(
+        back_populates="tenant", uselist=False, cascade="all, delete-orphan"
+    )
+    customers: Mapped[list[Customer]] = relationship(
+        back_populates="tenant", cascade="all, delete-orphan"
     )
 
 
@@ -73,6 +81,7 @@ class TenantPhoneNumber(Base):
     )
     provider: Mapped[str] = mapped_column(String(32), nullable=False, default="twilio")
     e164: Mapped[str] = mapped_column(String(32), nullable=False)
+    is_primary: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     twilio_account_sid: Mapped[str | None] = mapped_column(String(64), nullable=True)
     twilio_trunk_sid: Mapped[str | None] = mapped_column(String(64), nullable=True)
     livekit_inbound_trunk_id: Mapped[str | None] = mapped_column(
@@ -163,6 +172,185 @@ class TelephonyAuditEvent(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow, server_default=func.now()
     )
+
+
+class TenantAgentSettings(Base):
+    __tablename__ = "tenant_agent_settings"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", name="uq_tenant_agent_settings_tenant"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    business_prompt_facts: Mapped[dict[str, Any]] = mapped_column(
+        JsonType, nullable=False, default=dict
+    )
+    voice: Mapped[str] = mapped_column(String(64), nullable=False, default="marin")
+    language: Mapped[str] = mapped_column(String(16), nullable=False, default="en")
+    greeting: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        onupdate=_utcnow,
+        server_default=func.now(),
+    )
+
+    tenant: Mapped[Tenant] = relationship(back_populates="agent_settings")
+
+
+class Customer(Base):
+    __tablename__ = "customers"
+    __table_args__ = (Index("ix_customers_tenant_id", "tenant_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        onupdate=_utcnow,
+        server_default=func.now(),
+    )
+
+    tenant: Mapped[Tenant] = relationship(back_populates="customers")
+    phones: Mapped[list[CustomerPhone]] = relationship(
+        back_populates="customer", cascade="all, delete-orphan"
+    )
+    leads: Mapped[list[Lead]] = relationship(back_populates="customer")
+    calls: Mapped[list[Call]] = relationship(back_populates="customer")
+
+
+class CustomerPhone(Base):
+    __tablename__ = "customer_phones"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "e164", name="uq_customer_phones_tenant_e164"),
+        Index("ix_customer_phones_tenant_id", "tenant_id"),
+        Index("ix_customer_phones_customer_id", "customer_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    customer_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("customers.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    e164: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, server_default=func.now()
+    )
+
+    customer: Mapped[Customer] = relationship(back_populates="phones")
+
+
+class Call(Base):
+    __tablename__ = "calls"
+    __table_args__ = (
+        Index("ix_calls_tenant_id", "tenant_id"),
+        Index("ix_calls_customer_id", "customer_id"),
+        Index("ix_calls_job_id", "job_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("customers.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    room_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    job_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    disconnect_reason: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    metrics: Mapped[dict[str, Any]] = mapped_column(JsonType, nullable=False, default=dict)
+    caller_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    called_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    telephony_provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    provider_call_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, server_default=func.now()
+    )
+
+    customer: Mapped[Customer | None] = relationship(back_populates="calls")
+    leads: Mapped[list[Lead]] = relationship(back_populates="call")
+
+
+class Lead(Base):
+    __tablename__ = "leads"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "idempotency_key", name="uq_leads_tenant_idempotency"
+        ),
+        Index("ix_leads_tenant_id", "tenant_id"),
+        Index("ix_leads_customer_id", "customer_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    customer_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("customers.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    call_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("calls.id", ondelete="SET NULL"), nullable=True
+    )
+    service_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    urgency: Mapped[str] = mapped_column(String(32), nullable=False, default="normal")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    preferred_time_window: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="new")
+    idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    reference_code: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        onupdate=_utcnow,
+        server_default=func.now(),
+    )
+
+    customer: Mapped[Customer] = relationship(back_populates="leads")
+    call: Mapped[Call | None] = relationship(back_populates="leads")
 
 
 class TelephonyIdempotencyKey(Base):

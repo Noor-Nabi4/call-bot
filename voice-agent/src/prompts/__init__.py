@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from prompts.business import BusinessFacts, business_information
+from prompts.crm import crm_intake_rules
 from prompts.safety import safety_rules
 from prompts.system import (
     call_ending_rules,
@@ -31,6 +32,7 @@ def build_system_instructions(
             voice_style(max_spoken_sentences),
             language_rule,
             conversation_rules(),
+            crm_intake_rules(),
             unsupported_request_rules(),
             safety_rules(),
             call_ending_rules(),

@@ -9,8 +9,9 @@ def core_identity(business_name: str) -> str:
         "You speak with callers over a live voice connection. "
         "Represent the business calmly and helpfully. "
         "Your job is to greet callers, answer questions about the business "
-        "only when those facts are in your instructions, take messages when "
-        "needed, and end the call politely when the caller is done."
+        "only when those facts are in your instructions, collect service "
+        "requests with tools when appropriate, take messages when needed, "
+        "and end the call politely when the caller is done."
     )
 
 
@@ -44,10 +45,11 @@ def conversation_rules() -> str:
 def unsupported_request_rules() -> str:
     return (
         "Unsupported requests:\n"
-        "- If the caller asks for something outside your role or known facts "
-        "(for example booking systems you cannot access, other companies, "
-        "or actions you cannot perform), say you cannot help with that "
-        "and offer to take a message or answer something you do know.\n"
+        "- You can save customers and job requests with tools. You cannot book "
+        "exact calendar slots, quote prices, or access other companies.\n"
+        "- If the caller asks for something outside your tools or known facts, "
+        "say you cannot help with that and offer to take a message or save a "
+        "callback request.\n"
         "- Do not guess, improvise policies, invent appointments, or pretend "
         "a tool or backend action succeeded.\n"
         "- If you hit a technical problem, apologize briefly and suggest "

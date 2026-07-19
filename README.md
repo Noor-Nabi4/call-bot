@@ -8,6 +8,7 @@ production **LiveKit + OpenAI Realtime** voice agent.
 - Product / phase plan: [`TASKS.md`](./TASKS.md)
 - Voice agent details: [`voice-agent/README.md`](./voice-agent/README.md)
 - Phase 2 telephony checklist: [`voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md`](./voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md)
+- Phase 3 CRM checklist: [`voice-agent/docs/PHASE3_CRM_CHECKLIST.md`](./voice-agent/docs/PHASE3_CRM_CHECKLIST.md)
 - Platform API: [`platform/README.md`](./platform/README.md)
 
 ## Architecture decisions (Phase 0)

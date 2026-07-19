@@ -212,52 +212,49 @@ Manual verification: [`voice-agent/docs/PHASE1_MANUAL_CHECKLIST.md`](./voice-age
 
 **Multi-tenant first:** every business table includes `tenant_id` + unique constraints scoped per tenant.
 
-- [ ] `tenants` (id, name, slug, status, timezone, created_at)  
-- [ ] `tenant_phone_numbers` (tenant_id, e164, sip_trunk_id, is_primary)  
-- [ ] `tenant_agent_settings` (tenant_id, business_prompt_facts, voice, language, greeting)  
-- [ ] `customers` (id, **tenant_id**, name, phones, email, address, created_at) — unique phone per tenant  
-- [ ] `calls` (id, **tenant_id**, room/job ids, customer_id, started_at, ended_at, status, disconnect_reason, metrics JSON)  
-- [ ] `leads` / `job_requests` (id, **tenant_id**, customer_id, service_type, urgency, notes, status)  
-- [ ] Migrations + repository layer (no LLM direct DB access; repos always require `tenant_id`)  
-- [ ] Integration tests: Tenant A cannot read Tenant B customers/leads  
+- [x] `tenants` (id, name, slug, status, timezone, created_at)  
+- [x] `tenant_phone_numbers` (tenant_id, e164, sip_trunk_id, is_primary)  
+- [x] `tenant_agent_settings` (tenant_id, business_prompt_facts, voice, language, greeting)  
+- [x] `customers` (id, **tenant_id**, name, phones, email, address, created_at) — unique phone per tenant  
+- [x] `calls` (id, **tenant_id**, room/job ids, customer_id, started_at, ended_at, status, disconnect_reason, metrics JSON)  
+- [x] `leads` / `job_requests` (id, **tenant_id**, customer_id, service_type, urgency, notes, status)  
+- [x] Migrations + repository layer (no LLM direct DB access; repos always require `tenant_id`)  
+- [x] Integration tests: Tenant A cannot read Tenant B customers/leads  
 
 ### 3.2 Voice tools (validated)
 
-- [ ] Resolve `tenant_id` at session start; bind into tool/service context  
-- [ ] `lookup_customer_by_phone` (tenant-scoped)  
-- [ ] `create_or_update_customer` (tenant-scoped)  
-- [ ] `create_job_request` / `create_lead` (tenant-scoped)  
-- [ ] Confirm critical fields aloud before write  
-- [ ] Idempotency keys **per tenant** to prevent duplicate leads on retries  
-- [ ] Structured tool errors → safe spoken fallback  
-- [ ] Reject tool calls that try to pass/override `tenant_id` from the model  
+- [x] Resolve `tenant_id` at session start; bind into tool/service context  
+- [x] `lookup_customer_by_phone` (tenant-scoped)  
+- [x] `create_or_update_customer` (tenant-scoped)  
+- [x] `create_job_request` / `create_lead` (tenant-scoped)  
+- [x] Confirm critical fields aloud before write  
+- [x] Idempotency keys **per tenant** to prevent duplicate leads on retries  
+- [x] Structured tool errors → safe spoken fallback  
+- [x] Reject tool calls that try to pass/override `tenant_id` from the model  
 
 ### 3.3 Call flow
 
-- [ ] Identify caller phone (SIP) or ask for callback number (browser)  
-- [ ] Lookup existing customer **in this tenant**  
-- [ ] Collect: name, address, service need, urgency, preferred time window  
-- [ ] Confirm summary  
-- [ ] Persist lead/job request  
-- [ ] Spoken confirmation + optional reference number  
+- [x] Identify caller phone (SIP) or ask for callback number (browser) *(prompt + tools)*  
+- [x] Lookup existing customer **in this tenant**  
+- [x] Collect: name, address, service need, urgency, preferred time window  
+- [x] Confirm summary  
+- [x] Persist lead/job request  
+- [x] Spoken confirmation + optional reference number  
 
-### 3.4 Integration choice (pick one)
+### 3.4 Integration choice
 
-**Option A — Own multi-tenant CRM**
+**Option A — Own multi-tenant CRM** *(implemented)*
 
-- [ ] Postgres + API/services inside this monorepo  
+- [x] Postgres + API/services inside this monorepo (`platform/` CRM routes + repos)  
 
-**Option B — External system of record per tenant** (e.g. ServiceTitan account mapping)
+**Option B — External system of record per tenant** — deferred  
 
-- [ ] OAuth / API credentials **per tenant**  
-- [ ] Map tools to Customers + Jobs/Bookings endpoints  
-- [ ] Store call metrics locally with `tenant_id`  
+Manual checklist: [`voice-agent/docs/PHASE3_CRM_CHECKLIST.md`](./voice-agent/docs/PHASE3_CRM_CHECKLIST.md)
 
 **Exit criteria**
 
-- Test call creates a real customer + lead with no mock data  
-- Two-tenant isolation test passes  
-
+- Test call creates a real customer + lead with no mock data *(operator)*  
+- Two-tenant isolation test passes *(automated in `platform/tests/test_crm.py`)*  
 ---
 
 ## Phase 4 — Booking / scheduling
