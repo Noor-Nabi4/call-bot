@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
+from session.telephony import TelephonyContext
+
 
 class CallStatus(str, Enum):
     INITIALIZING = "initializing"
@@ -23,18 +25,28 @@ class CallState:
 
     call_id: str
     room_name: str
-    # Optional until Phase 2-3 tenant resolution. Prefer env TENANT_ID in Phase 0/1.
+    # Resolved at session start (signed metadata / DID / trunk). Never from speech.
     tenant_id: str | None = None
     participant_identity: str | None = None
     call_started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     current_status: CallStatus = CallStatus.INITIALIZING
     important_details: dict[str, Any] = field(default_factory=dict)
+    telephony: TelephonyContext | None = None
     last_user_message: str | None = None
     last_activity_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     greeting_sent: bool = False
     interruption_count: int = 0
     error_code: str | None = None
     disconnect_reason: str | None = None
+
+    def apply_telephony(self, ctx: TelephonyContext) -> None:
+        self.telephony = ctx
+        if ctx.tenant_id:
+            self.tenant_id = ctx.tenant_id
+        self.important_details.update(
+            {k: v for k, v in ctx.as_dict().items() if v is not None}
+        )
+        self.touch()
 
     def mark_active(self, participant_identity: str | None = None) -> None:
         if participant_identity:

@@ -5,6 +5,7 @@ import {
   RoomConfiguration,
   type VideoGrant,
 } from "livekit-server-sdk";
+import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -21,6 +22,27 @@ function requireEnv(name: string): string {
     throw new Error(`Missing required environment variable: ${name}`);
   }
   return value;
+}
+
+function canonicalJson(payload: Record<string, unknown>): string {
+  const sorted: Record<string, unknown> = {};
+  for (const key of Object.keys(payload).sort()) {
+    sorted[key] = payload[key];
+  }
+  return JSON.stringify(sorted);
+}
+
+function signAgentMetadata(payload: Record<string, unknown>): string {
+  const secret = process.env.METADATA_HMAC_SECRET?.trim();
+  const body: Record<string, unknown> = { ...payload };
+  delete body.sig;
+  if (!secret) {
+    // Dev fallback: unsigned metadata (agent may use env tenant fallback).
+    return JSON.stringify(body);
+  }
+  const canonical = canonicalJson(body);
+  const sig = createHmac("sha256", secret).update(canonical).digest("hex");
+  return JSON.stringify({ ...JSON.parse(canonical), sig });
 }
 
 async function createParticipantToken(
@@ -48,14 +70,15 @@ async function createParticipantToken(
 
   // Explicit dispatch to the Python worker registered as agent_name="voice-agent".
   // https://docs.livekit.io/agents/server/agent-dispatch/
+  const metadataPayload: Record<string, unknown> = {
+    source: "playground",
+    tenant_id: tenantId ?? null,
+  };
   at.roomConfig = new RoomConfiguration({
     agents: [
       new RoomAgentDispatch({
         agentName,
-        metadata: JSON.stringify({
-          source: "playground",
-          tenant_id: tenantId ?? null,
-        }),
+        metadata: signAgentMetadata(metadataPayload),
       }),
     ],
   });

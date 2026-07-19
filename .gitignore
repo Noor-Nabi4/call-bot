@@ -19,3 +19,5 @@ voice-agent/.env.local
 playground/.env.local
 playground/node_modules/
 playground/.next/
+platform/.venv/
+platform/.env.local

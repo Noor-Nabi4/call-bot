@@ -27,6 +27,8 @@ from prompts import build_system_instructions
 from session.events import attach_realtime_metrics, attach_session_events
 from session.lifecycle import CallLifecycle
 from session.state import CallState
+from tenant.resolve import TenantResolveError, resolver_from_env
+from tenant.sip_attrs import extract_sip_context, is_sip_participant
 
 # Load local secrets for development. Production injects env vars directly.
 load_dotenv(Path(__file__).resolve().parent.parent / ".env.local")
@@ -60,9 +62,10 @@ class VoiceAssistant(Agent):
                 extra={"call_id": lifecycle.state.call_id},
             )
 
-        if lifecycle.state.greeting_sent:
+    async def speak_greeting(self) -> None:
+        lifecycle = self._lifecycle
+        if lifecycle is None or lifecycle.state.greeting_sent:
             return
-
         lifecycle.state.greeting_sent = True
         lifecycle.state.mark_active()
         log_event(
@@ -131,6 +134,7 @@ async def entrypoint(ctx: JobContext) -> None:
         ctx.job.id if getattr(ctx, "job", None) and ctx.job.id else str(uuid.uuid4())
     )
     room_name = ctx.room.name
+    job_metadata = getattr(getattr(ctx, "job", None), "metadata", None)
 
     ctx.log_context_fields = {
         "room": room_name,
@@ -141,12 +145,12 @@ async def entrypoint(ctx: JobContext) -> None:
     state = CallState(
         call_id=call_id,
         room_name=room_name,
-        tenant_id=settings.tenant_id,
+        tenant_id=None,
     )
     metrics = CallMetrics(
         call_id=call_id,
         room_name=room_name,
-        tenant_id=settings.tenant_id,
+        tenant_id=None,
     )
     instructions = build_system_instructions(
         business_name=settings.business_name,
@@ -212,6 +216,65 @@ async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
 
     participant = await ctx.wait_for_participant()
+    sip = is_sip_participant(participant)
+    resolver = resolver_from_env()
+
+    called_number = None
+    trunk_id = None
+    if sip:
+        provisional = extract_sip_context(participant, room_name=room_name)
+        called_number = provisional.called_number
+        trunk_id = provisional.inbound_trunk_id
+
+    try:
+        resolution = resolver.resolve(
+            job_metadata=job_metadata,
+            called_number=called_number,
+            livekit_inbound_trunk_id=trunk_id,
+            is_sip=sip,
+        )
+    except TenantResolveError as exc:
+        log_event(
+            logger,
+            "tenant_resolve_failed",
+            call_id=call_id,
+            room_name=room_name,
+            code=exc.code,
+            error=str(exc),
+            is_sip=sip,
+        )
+        await lifecycle.end_call(reason="tenant_unresolved", error_code=exc.code)
+        return
+
+    state.tenant_id = resolution.tenant_id
+    metrics.tenant_id = resolution.tenant_id
+    ctx.log_context_fields["tenant_id"] = resolution.tenant_id
+
+    if sip:
+        telephony = extract_sip_context(
+            participant,
+            room_name=room_name,
+            tenant_id=resolution.tenant_id,
+            dispatch_rule_id=resolution.livekit_dispatch_rule_id,
+        )
+        if resolution.livekit_inbound_trunk_id:
+            telephony.inbound_trunk_id = resolution.livekit_inbound_trunk_id
+        state.apply_telephony(telephony)
+        if telephony.called_number:
+            try:
+                resolver.notify_inbound_observed(
+                    called_number=telephony.called_number,
+                    caller_number=telephony.caller_number,
+                    livekit_inbound_trunk_id=telephony.inbound_trunk_id,
+                    livekit_room_name=room_name,
+                    provider_call_id=telephony.provider_call_id,
+                )
+            except Exception:
+                logger.exception(
+                    "inbound_observed_notify_failed",
+                    extra={"call_id": call_id, "tenant_id": resolution.tenant_id},
+                )
+
     state.mark_active(participant.identity)
     metrics.participant_identity = participant.identity
     log_event(
@@ -220,7 +283,15 @@ async def entrypoint(ctx: JobContext) -> None:
         call_id=call_id,
         room_name=room_name,
         participant_identity=participant.identity,
+        tenant_id=resolution.tenant_id,
+        is_sip=sip,
+        resolve_source=resolution.source,
+        caller_number=(state.telephony.caller_number if state.telephony else None),
+        called_number=(state.telephony.called_number if state.telephony else None),
     )
+
+    # Greeting only after successful tenant resolution (fail-closed for SIP).
+    await agent.speak_greeting()
 
 
 # Keep a stable name for tests and local imports.

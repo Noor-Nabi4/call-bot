@@ -7,6 +7,8 @@ production **LiveKit + OpenAI Realtime** voice agent.
 
 - Product / phase plan: [`TASKS.md`](./TASKS.md)
 - Voice agent details: [`voice-agent/README.md`](./voice-agent/README.md)
+- Phase 2 telephony checklist: [`voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md`](./voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md)
+- Platform API: [`platform/README.md`](./platform/README.md)
 
 ## Architecture decisions (Phase 0)
 
@@ -56,9 +58,22 @@ call-bot/
 ├── TASKS.md                 # phased product plan
 ├── docker-compose.yml       # voice-agent + playground
 ├── .github/workflows/       # CI
+├── platform/                # FastAPI telephony + tenant DID API
 ├── voice-agent/             # LiveKit voice worker (v1) + Dockerfile
-└── playground/              # Next.js browser playground + Dockerfile
+└── playground/              # Next.js browser playground + /telephony wizard
 ```
+
+## Quick start (platform telephony API)
+
+```bash
+cd platform
+uv sync
+cp .env.example .env.local
+# Fill DATABASE_URL, LIVEKIT_*, TWILIO_* (Path B), secrets
+uv run uvicorn callbot_platform.main:app --port 8000
+```
+
+Wizard UI: http://localhost:3000/telephony (playground) against the platform API.
 
 ## Docker
 

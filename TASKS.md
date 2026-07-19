@@ -104,6 +104,7 @@ Already in progress under `voice-agent/`:
 - [ ] `OPENAI_API_KEY` filled in `.env.local` (LiveKit keys present)  
 - [ ] Telephony (SIP) not started  
 - [x] Optional `tenant_id` on CallState / Settings (env `TENANT_ID`)  
+- [x] Phase 2 platform telephony API + agent fail-closed DID resolve (PSTN operator verification pending)  
 
 **Rule:** no RAG, multi-agent, CRM, or booking until Phase 1 is green.
 
@@ -183,22 +184,24 @@ Manual verification: [`voice-agent/docs/PHASE1_MANUAL_CHECKLIST.md`](./voice-age
 
 **Outcome:** real phone callers reach the same agent, with tenant resolved from the number.
 
-- [ ] Buy/configure phone number (Twilio or preferred carrier)  
-- [ ] Create SIP trunk → LiveKit SIP  
-- [ ] Configure inbound dispatch to `voice-agent`  
-- [ ] Map each inbound DID / trunk to `tenant_id` (dispatch metadata or DB lookup)  
-- [ ] Fail closed if tenant cannot be resolved (no accidental default tenant)  
-- [ ] Verify `BVCTelephony` path for SIP participants  
-- [ ] Test: answer, interrupt, silence, hangup, busy/no-answer behavior  
-- [ ] Test concurrent calls (2–3), ideally across **two tenants** once CRM exists  
-- [ ] Test deploy/restart during an idle period (not mid-call first)  
-- [ ] Capture caller phone number into `CallState.important_details`  
+- [x] Hybrid Twilio architecture: Path A connect-existing + Path B platform purchase  
+- [x] Platform API (`platform/`) with Postgres models, audit, encryption, idempotency  
+- [x] Create SIP trunk → LiveKit SIP (inbound trunk + dispatch rule APIs)  
+- [x] Configure inbound dispatch to `voice-agent`  
+- [x] Map each inbound DID / trunk to `tenant_id` (signed metadata + DID + trunk)  
+- [x] Fail closed if tenant cannot be resolved (no accidental default tenant for SIP)  
+- [x] Verify `BVCTelephony` path for SIP participants (already branched)  
+- [ ] Test: answer, interrupt, silence, hangup *(operator PSTN)*  
+- [ ] Test concurrent calls (2–3) *(operator)*  
+- [ ] Test deploy/restart during an idle period *(operator)*  
+- [x] Capture caller phone number into `CallState.important_details`  
+- [x] Manual checklist: [`voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md`](./voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md)  
+- [x] Playground telephony wizard at `/telephony`  
 
 **Exit criteria**
 
-- Inbound PSTN call talks to the same Realtime agent reliably  
-- Correct `tenant_id` attached to the call session  
-
+- Inbound PSTN call talks to the same Realtime agent reliably *(operator)*  
+- Correct `tenant_id` attached to the call session *(operator after verification call)*  
 ---
 
 ## Phase 3 — CRM light (customer + lead)

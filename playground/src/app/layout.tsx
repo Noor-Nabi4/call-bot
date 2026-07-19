@@ -4,12 +4,12 @@ import "./globals.css";
 
 const display = Fraunces({
   subsets: ["latin"],
-  variable: "--font-display",
+  variable: "--font-fraunces",
 });
 
 const body = Source_Sans_3({
   subsets: ["latin"],
-  variable: "--font-body",
+  variable: "--font-source-sans",
 });
 
 export const metadata: Metadata = {
@@ -24,7 +24,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${display.variable} ${body.variable}`}>{children}</body>
+      <body className={`${display.variable} ${body.variable} antialiased`}>
+        {children}
+      </body>
     </html>
   );
 }
