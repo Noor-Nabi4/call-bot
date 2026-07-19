@@ -2,6 +2,11 @@
 
 Next.js browser playground for the LiveKit `voice-agent` worker (OpenAI Realtime).
 
+Dark branded realtime UI: Fraunces display + IBM Plex Sans, teal accents on
+`#07120f`, glass voice panel, and a stepped `/telephony` wizard. LiveKit
+session behavior is unchanged (`LiveKitRoom`, `BarVisualizer`,
+`VoiceAssistantControlBar`).
+
 ## Prerequisites
 
 1. LiveKit Cloud project credentials

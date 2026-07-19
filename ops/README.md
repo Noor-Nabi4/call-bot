@@ -1,6 +1,20 @@
 # Call Bot Ops
 
-Tenant-scoped dispatch board and technician mobile UI.
+Tenant-scoped operations console: dashboard overview, dispatch board, and
+technician mobile UI.
+
+Premium ops product: warm-gray canvas, white surfaces, teal brand `#1f6f5b`,
+IBM Plex Sans/Mono, left sidebar navigation. Shared UI under `src/components/ui/`
+and `src/components/ops/`.
+
+## Routes
+
+| Path | Purpose |
+|------|---------|
+| `/dashboard` | Default landing after login (ops overview) |
+| `/dispatch` | Kanban job assignment workspace |
+| `/board` | Redirects to `/dispatch` (compat) |
+| `/tech` | Technician mobile jobs |
 
 ## Run
 

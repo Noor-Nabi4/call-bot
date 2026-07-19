@@ -11,20 +11,23 @@ export function useAuth(opts?: {
   const router = useRouter();
   const [user, setUser] = useState<OpsUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const redirectTo = opts?.redirectTo;
+  const rolesKey = opts?.roles?.join(",") ?? "";
 
   useEffect(() => {
     let cancelled = false;
+    const allowedRoles = rolesKey ? rolesKey.split(",") : undefined;
     me()
       .then(({ user: u }) => {
         if (cancelled) return;
-        if (opts?.roles && !opts.roles.includes(u.role)) {
-          router.replace(u.role === "technician" ? "/tech" : "/board");
+        if (allowedRoles && !allowedRoles.includes(u.role)) {
+          router.replace(u.role === "technician" ? "/tech" : "/dashboard");
           return;
         }
         setUser(u);
       })
       .catch(() => {
-        if (!cancelled) router.replace(opts?.redirectTo || "/login");
+        if (!cancelled) router.replace(redirectTo || "/login");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -32,7 +35,7 @@ export function useAuth(opts?: {
     return () => {
       cancelled = true;
     };
-  }, [router, opts?.redirectTo, opts?.roles?.join(",")]);
+  }, [router, redirectTo, rolesKey]);
 
   return { user, loading };
 }

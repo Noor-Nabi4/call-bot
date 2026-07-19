@@ -1,16 +1,20 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { Inter, JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const sans = IBM_Plex_Sans({
+const sans = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   variable: "--font-ops-sans",
 });
 
-const mono = IBM_Plex_Mono({
+const heading = Space_Grotesk({
   subsets: ["latin"],
-  weight: ["400", "500"],
+  variable: "--font-ops-heading",
+});
+
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
   variable: "--font-ops-mono",
 });
 
@@ -26,8 +30,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${sans.variable} ${mono.variable} antialiased`}>
-        {children}
+      <body
+        className={`${sans.variable} ${heading.variable} ${mono.variable} antialiased`}
+      >
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

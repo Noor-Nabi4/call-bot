@@ -33,6 +33,8 @@ export type Job = {
   scheduled_ends_at?: string | null;
   checklist: { id: string; label: string; done: boolean }[];
   completion_notes?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
   notes?: {
     id: string;
     body: string;
@@ -105,6 +107,19 @@ export function listJobs(params?: { status?: string; technician_id?: string }) {
 
 export function getJob(id: string) {
   return api<{ job: Job }>(`/api/jobs/${id}`);
+}
+
+export function createJob(body: {
+  customer_id: string;
+  service_type: string;
+  status?: string;
+  scheduled_starts_at?: string | null;
+  scheduled_ends_at?: string | null;
+}) {
+  return api<{ job: Job }>("/api/jobs", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 export function listTechnicians() {

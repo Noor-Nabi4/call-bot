@@ -1,45 +1,265 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Phone } from "lucide-react";
 import { AppShell } from "@/components/shell";
+import { formatWhen } from "@/lib/api";
 import { useAuth } from "@/lib/use-auth";
+import {
+  DataTable,
+  DetailDrawer,
+  EmptyState,
+  ErrorState,
+  LoadingSkeleton,
+  PageHeader,
+  SearchInput,
+  StatusPill,
+  Timeline,
+  type DataTableColumn,
+} from "@/components/ui";
 
 const API =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
   "http://localhost:8000";
 
+type Call = {
+  id: string;
+  room_name: string;
+  status: string;
+  caller_number?: string | null;
+  called_number?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
+  customer_id?: string | null;
+};
+
+function formatDuration(
+  started?: string | null,
+  ended?: string | null,
+): string {
+  if (!started || !ended) return "—";
+  const ms = new Date(ended).getTime() - new Date(started).getTime();
+  if (ms < 0) return "—";
+  const totalSec = Math.floor(ms / 1000);
+  const mins = Math.floor(totalSec / 60);
+  const secs = totalSec % 60;
+  if (mins > 0) return `${mins}m ${secs}s`;
+  return `${secs}s`;
+}
+
 export default function CallsPage() {
   const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
-  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [rows, setRows] = useState<Call[]>([]);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Call | null>(null);
+  const [fetching, setFetching] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const res = await fetch(`${API}/api/admin/calls`, { credentials: "include" });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    setRows(data.calls || []);
+  }, []);
 
   useEffect(() => {
     if (!user) return;
-    fetch(`${API}/api/admin/calls`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => setRows(d.calls || []));
-  }, [user]);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      load()
+        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .finally(() => {
+          if (!cancelled) setFetching(false);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, load]);
 
-  if (loading || !user) return <p className="p-6 text-ink-muted">Loading…</p>;
+  const filtered = useMemo(() => {
+    if (!search.trim()) return rows;
+    const q = search.toLowerCase();
+    return rows.filter(
+      (c) =>
+        c.status.toLowerCase().includes(q) ||
+        (c.caller_number || "").includes(q) ||
+        (c.called_number || "").includes(q) ||
+        c.room_name.toLowerCase().includes(q),
+    );
+  }, [rows, search]);
+
+  const columns: DataTableColumn<Call>[] = [
+    {
+      id: "status",
+      header: "Status",
+      cell: (c) => <StatusPill status={c.status} />,
+      className: "w-28",
+    },
+    {
+      id: "caller",
+      header: "Caller",
+      cell: (c) => (
+        <span className="font-mono text-xs">{c.caller_number || "—"}</span>
+      ),
+      mono: true,
+    },
+    {
+      id: "called",
+      header: "Called",
+      cell: (c) => (
+        <span className="font-mono text-xs">{c.called_number || "—"}</span>
+      ),
+      mono: true,
+    },
+    {
+      id: "started",
+      header: "Started",
+      cell: (c) => (
+        <span className="text-text-secondary">{formatWhen(c.started_at)}</span>
+      ),
+    },
+    {
+      id: "duration",
+      header: "Duration",
+      cell: (c) => (
+        <span className="font-mono text-xs">
+          {formatDuration(c.started_at, c.ended_at)}
+        </span>
+      ),
+      className: "w-24",
+    },
+  ];
+
+  const timelineItems = selected
+    ? [
+        ...(selected.started_at
+          ? [
+              {
+                id: "started",
+                title: "Call started",
+                detail: selected.room_name,
+                time: formatWhen(selected.started_at),
+                tone: "success" as const,
+              },
+            ]
+          : []),
+        ...(selected.ended_at
+          ? [
+              {
+                id: "ended",
+                title: "Call ended",
+                detail: `Duration: ${formatDuration(selected.started_at, selected.ended_at)}`,
+                time: formatWhen(selected.ended_at),
+                tone: "default" as const,
+              },
+            ]
+          : []),
+      ]
+    : [];
+
+  if (loading || !user) {
+    return (
+      <div className="p-6">
+        <LoadingSkeleton rows={6} />
+      </div>
+    );
+  }
 
   return (
     <AppShell user={user}>
-      <h2 className="text-xl font-semibold">Calls</h2>
-      <ul className="mt-4 divide-y divide-line rounded border border-line bg-panel">
-        {rows.map((c) => (
-          <li key={String(c.id)} className="px-3 py-2 text-sm font-mono">
-            <span className="font-sans font-medium">{String(c.status)}</span>{" "}
-            {String(c.caller_number || "—")} → {String(c.called_number || "—")}
-            <div className="text-xs text-ink-muted font-sans">
-              {String(c.started_at || "")}
+      <PageHeader
+        title="Calls"
+        description="Inbound and outbound voice sessions for this tenant."
+        actions={
+          <SearchInput
+            className="w-full sm:w-64"
+            placeholder="Search calls…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onClear={() => setSearch("")}
+          />
+        }
+      />
+
+      {error ? (
+        <ErrorState
+          className="mb-4"
+          message={error}
+          onRetry={() => {
+            setError(null);
+            setFetching(true);
+            load()
+              .catch((e) => setError(e.message))
+              .finally(() => setFetching(false));
+          }}
+        />
+      ) : null}
+
+      {fetching ? (
+        <LoadingSkeleton rows={5} />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={filtered}
+          onRowClick={setSelected}
+          selectedId={selected?.id}
+          empty={
+            <EmptyState
+              icon={<Phone className="size-8" />}
+              title={search ? "No matching calls" : "No calls yet"}
+              description="Call records appear when the voice agent handles sessions."
+            />
+          }
+        />
+      )}
+
+      <DetailDrawer
+        open={!!selected}
+        onClose={() => setSelected(null)}
+        title="Call detail"
+        description={selected?.room_name}
+      >
+        {selected ? (
+          <div className="space-y-5">
+            <dl className="grid gap-3 text-sm">
+              <div>
+                <dt className="text-xs font-medium text-text-muted uppercase">Status</dt>
+                <dd className="mt-1">
+                  <StatusPill status={selected.status} />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-text-muted uppercase">Caller</dt>
+                <dd className="mt-1 font-mono">{selected.caller_number || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-text-muted uppercase">Called</dt>
+                <dd className="mt-1 font-mono">{selected.called_number || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-text-muted uppercase">Duration</dt>
+                <dd className="mt-1 font-mono">
+                  {formatDuration(selected.started_at, selected.ended_at)}
+                </dd>
+              </div>
+              {selected.customer_id ? (
+                <div>
+                  <dt className="text-xs font-medium text-text-muted uppercase">
+                    Customer ID
+                  </dt>
+                  <dd className="mt-1 font-mono text-xs">{selected.customer_id}</dd>
+                </div>
+              ) : null}
+            </dl>
+            <div>
+              <h3 className="mb-3 text-sm font-semibold">Lifecycle</h3>
+              <Timeline items={timelineItems} />
             </div>
-          </li>
-        ))}
-        {rows.length === 0 && (
-          <li className="px-3 py-6 text-center text-ink-muted font-sans">
-            No calls yet.
-          </li>
-        )}
-      </ul>
+          </div>
+        ) : null}
+      </DetailDrawer>
     </AppShell>
   );
 }

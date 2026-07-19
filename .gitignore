@@ -24,3 +24,6 @@ ops/node_modules/
 ops/.next/
 platform/.venv/
 platform/.env.local
+.tmp-techverseo/
+.tmp-techverseo/
+*.tsbuildinfo

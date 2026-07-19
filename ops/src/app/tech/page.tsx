@@ -1,15 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { AppShell, StatusPill } from "@/components/shell";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Briefcase,
+  MapPin,
+  Navigation,
+} from "lucide-react";
+import { AppShell } from "@/components/shell";
 import {
   formatWhen,
   listJobs,
   pingLocation,
   type Job,
 } from "@/lib/api";
+import { deriveUrgency } from "@/lib/schedule";
+import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/use-auth";
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  LoadingSkeleton,
+  MetricSummary,
+  PageHeader,
+  StatusPill,
+  Surface,
+  urgencyEdgeClass,
+} from "@/components/ui";
 
 export default function TechHomePage() {
   const { user, loading } = useAuth({
@@ -18,6 +36,8 @@ export default function TechHomePage() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [locMsg, setLocMsg] = useState<string | null>(null);
+  const [locBusy, setLocBusy] = useState(false);
+  const [fetching, setFetching] = useState(true);
 
   const refresh = useCallback(async () => {
     const data = await listJobs();
@@ -30,17 +50,54 @@ export default function TechHomePage() {
 
   useEffect(() => {
     if (!user) return;
-    refresh().catch((e) => setError(e.message));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      refresh()
+        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .finally(() => {
+          if (!cancelled) setFetching(false);
+        });
+    });
     const id = setInterval(() => {
       refresh().catch(() => undefined);
     }, 5000);
-    return () => clearInterval(id);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, [user, refresh]);
+
+  const sorted = useMemo(
+    () =>
+      [...jobs].sort((a, b) => {
+        const ta = a.scheduled_starts_at
+          ? new Date(a.scheduled_starts_at).getTime()
+          : Infinity;
+        const tb = b.scheduled_starts_at
+          ? new Date(b.scheduled_starts_at).getTime()
+          : Infinity;
+        return ta - tb;
+      }),
+    [jobs],
+  );
+
+  const todayCount = useMemo(
+    () =>
+      sorted.filter((j) => deriveUrgency(j.scheduled_starts_at) === "today")
+        .length,
+    [sorted],
+  );
+
+  const nextJob = sorted[0] ?? null;
+  const isTech = user?.role === "technician";
 
   async function onPingLocation() {
     setLocMsg(null);
+    setLocBusy(true);
     if (!navigator.geolocation) {
-      setLocMsg("Geolocation not available");
+      setLocMsg("Geolocation not available on this device.");
+      setLocBusy(false);
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -50,70 +107,166 @@ export default function TechHomePage() {
           setLocMsg("Location updated");
         } catch (e) {
           setLocMsg(e instanceof Error ? e.message : "Location failed");
+        } finally {
+          setLocBusy(false);
         }
       },
-      () => setLocMsg("Permission denied"),
+      () => {
+        setLocMsg("Location permission denied — enable in browser settings.");
+        setLocBusy(false);
+      },
     );
   }
 
   if (loading || !user) {
-    return <p className="p-6 text-ink-muted">Loading…</p>;
+    return (
+      <div className="p-6">
+        <LoadingSkeleton rows={6} />
+      </div>
+    );
   }
 
   return (
     <AppShell user={user}>
-      <div className="mb-4 flex items-end justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold">My jobs</h2>
-          <p className="text-sm text-ink-muted">
-            Today&apos;s assigned field work.
-          </p>
-        </div>
-        {user.role === "technician" && (
-          <button
-            type="button"
-            onClick={onPingLocation}
-            className="rounded border border-line bg-panel px-3 py-1.5 text-sm"
-          >
-            Share location
-          </button>
-        )}
-      </div>
-      {error && <p className="mb-2 text-sm text-danger">{error}</p>}
-      {locMsg && <p className="mb-2 text-sm text-ink-muted">{locMsg}</p>}
+      <PageHeader
+        title="My jobs"
+        description="Today's assigned field work."
+      />
 
-      <ul className="space-y-3">
-        {jobs.map((job) => (
-          <li key={job.id}>
-            <Link
-              href={`/tech/jobs/${job.id}`}
-              className="block rounded border border-line bg-panel p-4 text-ink"
+      {error ? (
+        <ErrorState
+          className="mb-4"
+          message={error}
+          onRetry={() => {
+            setError(null);
+            setFetching(true);
+            refresh()
+              .catch((e) => setError(e.message))
+              .finally(() => setFetching(false));
+          }}
+        />
+      ) : null}
+
+      {fetching && jobs.length === 0 ? (
+        <LoadingSkeleton rows={4} />
+      ) : (
+        <>
+          <MetricSummary
+            items={[
+              { label: "Active", value: sorted.length },
+              { label: "Today", value: todayCount },
+              {
+                label: "In progress",
+                value: sorted.filter((j) => j.status === "in_progress").length,
+              },
+            ]}
+            className="lg:grid-cols-3"
+          />
+
+          {nextJob ? (
+            <Surface
+              className={cn(
+                "mb-4 border-l-4 p-4",
+                urgencyEdgeClass(nextJob.scheduled_starts_at),
+              )}
             >
-              <div className="flex items-start justify-between gap-2">
+              <p className="text-xs font-medium tracking-wide text-text-muted uppercase">
+                Next up
+              </p>
+              <div className="mt-2 flex items-start justify-between gap-3">
                 <div>
-                  <p className="font-mono text-xs text-ink-muted">
-                    {job.reference_code}
+                  <p className="font-mono text-xs text-text-muted">
+                    {nextJob.reference_code}
                   </p>
-                  <p className="text-lg font-semibold">{job.service_type}</p>
-                  <p className="text-sm text-ink-muted">
-                    {job.customer?.name}
-                    {job.customer?.address ? ` · ${job.customer.address}` : ""}
+                  <p className="text-lg font-semibold text-text-primary">
+                    {nextJob.service_type}
                   </p>
-                  <p className="text-sm text-ink-muted">
-                    {formatWhen(job.scheduled_starts_at)}
+                  <p className="text-sm text-text-secondary">
+                    {nextJob.customer?.name}
+                  </p>
+                  <p className="text-sm text-text-muted">
+                    {formatWhen(nextJob.scheduled_starts_at)}
                   </p>
                 </div>
-                <StatusPill status={job.status} />
+                <StatusPill status={nextJob.status} />
               </div>
-            </Link>
-          </li>
-        ))}
-        {jobs.length === 0 && (
-          <li className="rounded border border-dashed border-line p-6 text-center text-ink-muted">
-            No active assigned jobs.
-          </li>
-        )}
-      </ul>
+              <Link href={`/tech/jobs/${nextJob.id}`} className="mt-4 block">
+                <Button size="lg" className="w-full">
+                  Open job
+                </Button>
+              </Link>
+            </Surface>
+          ) : null}
+
+          <ul className="space-y-3">
+            {sorted.map((job) => (
+              <li key={job.id}>
+                <Link
+                  href={`/tech/jobs/${job.id}`}
+                  className={cn(
+                    "block rounded-lg border border-border border-l-4 bg-surface p-4 transition-colors hover:border-brand/30 active:bg-surface-muted",
+                    urgencyEdgeClass(job.scheduled_starts_at),
+                    isTech && "min-h-[5.5rem]",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs text-text-muted">
+                        {job.reference_code}
+                      </p>
+                      <p className="text-base font-semibold text-text-primary">
+                        {job.service_type}
+                      </p>
+                      <p className="text-sm text-text-secondary">
+                        {job.customer?.name}
+                      </p>
+                      {job.customer?.address ? (
+                        <p className="mt-1 flex items-start gap-1 text-xs text-text-muted">
+                          <MapPin className="mt-0.5 size-3 shrink-0" aria-hidden />
+                          <span className="line-clamp-2">{job.customer.address}</span>
+                        </p>
+                      ) : null}
+                      <p className="mt-1 text-sm text-text-muted">
+                        {formatWhen(job.scheduled_starts_at)}
+                      </p>
+                    </div>
+                    <StatusPill status={job.status} />
+                  </div>
+                </Link>
+              </li>
+            ))}
+            {sorted.length === 0 && (
+              <EmptyState
+                icon={<Briefcase className="size-8" />}
+                title="No active assigned jobs"
+                description="New assignments will appear here when dispatched."
+              />
+            )}
+          </ul>
+        </>
+      )}
+
+      {isTech ? (
+        <div className="fixed inset-x-0 bottom-16 z-20 border-t border-border bg-surface/95 px-4 py-3 backdrop-blur-[2px] lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
+          <Button
+            size="lg"
+            variant="secondary"
+            className="w-full"
+            onClick={onPingLocation}
+            disabled={locBusy}
+          >
+            <Navigation className="size-4" aria-hidden />
+            {locBusy ? "Sharing location…" : "Share location"}
+          </Button>
+          {locMsg ? (
+            <p className="mt-2 text-center text-xs text-text-muted">{locMsg}</p>
+          ) : (
+            <p className="mt-2 text-center text-xs text-text-muted">
+              Share your location so dispatch can track field progress.
+            </p>
+          )}
+        </div>
+      ) : null}
     </AppShell>
   );
 }

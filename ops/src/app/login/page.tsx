@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/lib/api";
+import { Button, Field, Input, ErrorState } from "@/components/ui";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function LoginPage() {
         tenant_slug: tenantSlug,
       });
       if (user.role === "technician") router.replace("/tech");
-      else router.replace("/board");
+      else router.replace("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -33,64 +34,58 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="ops-shell-atmosphere fixed inset-0 -z-10" aria-hidden />
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-md rounded border border-line bg-panel p-6 shadow-sm"
+        className="glass-panel relative z-[1] w-full max-w-md p-6"
       >
-        <p className="text-xs uppercase tracking-[0.16em] text-ink-muted">
+        <p className="text-[11px] font-medium tracking-[0.16em] text-text-muted uppercase">
           Call Bot Ops
         </p>
-        <h1 className="mt-1 text-2xl font-semibold">Sign in</h1>
-        <p className="mt-1 text-sm text-ink-muted">
+        <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight">
+          Sign in
+        </h1>
+        <p className="mt-1 text-sm text-text-secondary">
           Tenant-scoped dispatcher and technician access.
         </p>
 
-        <label className="mt-5 block text-sm font-medium">
-          Tenant slug
-          <input
-            className="mt-1 w-full rounded border border-line px-3 py-2"
-            value={tenantSlug}
-            onChange={(e) => setTenantSlug(e.target.value)}
-            required
-            autoComplete="organization"
-          />
-        </label>
-        <label className="mt-3 block text-sm font-medium">
-          Email
-          <input
-            type="email"
-            className="mt-1 w-full rounded border border-line px-3 py-2"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="username"
-          />
-        </label>
-        <label className="mt-3 block text-sm font-medium">
-          Password
-          <input
-            type="password"
-            className="mt-1 w-full rounded border border-line px-3 py-2"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
-        </label>
+        <div className="mt-5 grid gap-3">
+          <Field label="Tenant slug">
+            <Input
+              value={tenantSlug}
+              onChange={(e) => setTenantSlug(e.target.value)}
+              required
+              autoComplete="organization"
+              placeholder="acme-hvac"
+            />
+          </Field>
+          <Field label="Email">
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="username"
+            />
+          </Field>
+          <Field label="Password">
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
+          </Field>
+        </div>
 
-        {error && (
-          <p className="mt-3 text-sm text-danger" role="alert">
-            {error}
-          </p>
-        )}
+        {error ? (
+          <ErrorState className="mt-4" title="Sign-in failed" message={error} />
+        ) : null}
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="mt-5 w-full rounded bg-accent px-3 py-2 font-medium text-white disabled:opacity-60"
-        >
+        <Button type="submit" disabled={busy} className="mt-5 w-full" size="lg">
           {busy ? "Signing in…" : "Sign in"}
-        </button>
+        </Button>
       </form>
     </div>
   );

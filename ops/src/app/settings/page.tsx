@@ -1,17 +1,47 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { ScrollText, Shield, Users } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
+import {
+  Button,
+  DataTable,
+  EmptyState,
+  ErrorState,
+  Field,
+  Input,
+  LoadingSkeleton,
+  PageHeader,
+  Select,
+  Surface,
+  useToast,
+  type DataTableColumn,
+} from "@/components/ui";
 
 const API =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
   "http://localhost:8000";
 
+type TenantUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+};
+
+type AuditEvent = {
+  id: string;
+  created_at?: string | null;
+  actor?: string | null;
+  action?: string | null;
+};
+
 export default function SettingsPage() {
   const { user, loading } = useAuth({ roles: ["admin"] });
-  const [users, setUsers] = useState<Record<string, unknown>[]>([]);
-  const [audit, setAudit] = useState<Record<string, unknown>[]>([]);
+  const toast = useToast();
+  const [users, setUsers] = useState<TenantUser[]>([]);
+  const [audit, setAudit] = useState<AuditEvent[]>([]);
   const [retention, setRetention] = useState({
     recording_retention_days: 30,
     transcript_retention_days: 90,
@@ -23,9 +53,12 @@ export default function SettingsPage() {
     password: "",
     role: "dispatcher",
   });
-  const [msg, setMsg] = useState<string | null>(null);
+  const [fetching, setFetching] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [retentionBusy, setRetentionBusy] = useState(false);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const [u, a, r] = await Promise.all([
       fetch(`${API}/api/admin/users`, { credentials: "include" }).then((x) =>
         x.json(),
@@ -40,151 +73,260 @@ export default function SettingsPage() {
     setUsers(u.users || []);
     setAudit(a.events || []);
     if (r.settings) setRetention(r.settings);
-  }
+  }, []);
 
   useEffect(() => {
     if (!user) return;
-    refresh().catch(() => undefined);
-  }, [user]);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      refresh()
+        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .finally(() => {
+          if (!cancelled) setFetching(false);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, refresh]);
 
-  if (loading || !user) return <p className="p-6 text-ink-muted">Loading…</p>;
+  const userColumns: DataTableColumn<TenantUser>[] = [
+    {
+      id: "name",
+      header: "Name",
+      cell: (u) => <span className="font-medium">{u.name}</span>,
+    },
+    {
+      id: "email",
+      header: "Email",
+      cell: (u) => <span className="text-text-secondary">{u.email}</span>,
+    },
+    {
+      id: "role",
+      header: "Role",
+      cell: (u) => (
+        <span className="font-mono text-xs uppercase">{u.role}</span>
+      ),
+      className: "w-28",
+    },
+  ];
+
+  const auditColumns: DataTableColumn<AuditEvent>[] = [
+    {
+      id: "time",
+      header: "Time",
+      cell: (e) => (
+        <span className="font-mono text-xs">{String(e.created_at || "—")}</span>
+      ),
+      mono: true,
+    },
+    {
+      id: "actor",
+      header: "Actor",
+      cell: (e) => <span>{String(e.actor || "—")}</span>,
+    },
+    {
+      id: "action",
+      header: "Action",
+      cell: (e) => (
+        <span className="font-mono text-xs">{String(e.action || "—")}</span>
+      ),
+      mono: true,
+    },
+  ];
+
+  if (loading || !user) {
+    return (
+      <div className="p-6">
+        <LoadingSkeleton rows={6} />
+      </div>
+    );
+  }
 
   async function onInvite(e: FormEvent) {
     e.preventDefault();
-    const res = await fetch(`${API}/api/admin/users`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(invite),
-    });
-    if (!res.ok) {
-      setMsg(await res.text());
-      return;
+    setInviteBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API}/api/admin/users`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(invite),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setInvite({ name: "", email: "", password: "", role: "dispatcher" });
+      toast.push("User invited", "success");
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invite failed");
+    } finally {
+      setInviteBusy(false);
     }
-    setInvite({ name: "", email: "", password: "", role: "dispatcher" });
-    setMsg("User invited");
-    await refresh();
   }
 
   async function onRetention(e: FormEvent) {
     e.preventDefault();
-    await fetch(`${API}/api/admin/retention`, {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(retention),
-    });
-    setMsg("Retention saved");
+    setRetentionBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API}/api/admin/retention`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(retention),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      toast.push("Retention saved", "success");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Save failed");
+    } finally {
+      setRetentionBusy(false);
+    }
   }
 
   return (
     <AppShell user={user}>
-      <h2 className="text-xl font-semibold">Tenant settings</h2>
-      <p className="text-sm text-ink-muted">
-        Invite users, set retention policy, review audit log.
-      </p>
-      {msg && <p className="mt-2 text-sm text-accent">{msg}</p>}
+      <PageHeader
+        title="Tenant settings"
+        description="Invite users, set retention policy, and review audit log."
+      />
 
-      <section className="mt-6 grid gap-6 md:grid-cols-2">
-        <form
-          onSubmit={onInvite}
-          className="space-y-2 rounded border border-line bg-panel p-4"
-        >
-          <h3 className="font-semibold">Invite user</h3>
-          <input
-            className="w-full rounded border border-line px-2 py-1.5 text-sm"
-            placeholder="Name"
-            value={invite.name}
-            onChange={(e) => setInvite({ ...invite, name: e.target.value })}
-            required
-          />
-          <input
-            className="w-full rounded border border-line px-2 py-1.5 text-sm"
-            placeholder="Email"
-            type="email"
-            value={invite.email}
-            onChange={(e) => setInvite({ ...invite, email: e.target.value })}
-            required
-          />
-          <input
-            className="w-full rounded border border-line px-2 py-1.5 text-sm"
-            placeholder="Temp password"
-            type="password"
-            value={invite.password}
-            onChange={(e) => setInvite({ ...invite, password: e.target.value })}
-            required
-            minLength={8}
-          />
-          <select
-            className="w-full rounded border border-line px-2 py-1.5 text-sm"
-            value={invite.role}
-            onChange={(e) => setInvite({ ...invite, role: e.target.value })}
-          >
-            <option value="admin">admin</option>
-            <option value="dispatcher">dispatcher</option>
-            <option value="technician">technician</option>
-          </select>
-          <button
-            type="submit"
-            className="rounded bg-accent px-3 py-1.5 text-sm text-white"
-          >
-            Invite
-          </button>
-          <ul className="mt-3 space-y-1 text-sm">
-            {users.map((u) => (
-              <li key={String(u.id)}>
-                {String(u.name)} · {String(u.role)} · {String(u.email)}
-              </li>
-            ))}
-          </ul>
-        </form>
+      {error ? (
+        <ErrorState
+          className="mb-4"
+          message={error}
+          onRetry={() => {
+            setError(null);
+            setFetching(true);
+            refresh()
+              .catch((e) => setError(e.message))
+              .finally(() => setFetching(false));
+          }}
+        />
+      ) : null}
 
-        <form
-          onSubmit={onRetention}
-          className="space-y-2 rounded border border-line bg-panel p-4"
-        >
-          <h3 className="font-semibold">Retention (days)</h3>
-          {(
-            [
-              ["recording_retention_days", "Recordings"],
-              ["transcript_retention_days", "Transcripts"],
-              ["audit_retention_days", "Audit"],
-            ] as const
-          ).map(([key, label]) => (
-            <label key={key} className="block text-sm">
-              {label}
-              <input
-                type="number"
-                className="mt-1 w-full rounded border border-line px-2 py-1.5"
-                value={retention[key]}
-                onChange={(e) =>
-                  setRetention({
-                    ...retention,
-                    [key]: Number(e.target.value),
-                  })
+      {fetching ? (
+        <LoadingSkeleton rows={6} />
+      ) : (
+        <div className="space-y-6">
+          <section>
+            <div className="mb-3 flex items-center gap-2">
+              <Users className="size-4 text-text-muted" aria-hidden />
+              <h2 className="text-sm font-semibold text-text-primary">Users</h2>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Surface className="p-4">
+                <h3 className="text-sm font-medium">Invite user</h3>
+                <form onSubmit={onInvite} className="mt-3 grid gap-3">
+                  <Field label="Name">
+                    <Input
+                      value={invite.name}
+                      onChange={(e) => setInvite({ ...invite, name: e.target.value })}
+                      required
+                    />
+                  </Field>
+                  <Field label="Email">
+                    <Input
+                      type="email"
+                      value={invite.email}
+                      onChange={(e) => setInvite({ ...invite, email: e.target.value })}
+                      required
+                    />
+                  </Field>
+                  <Field label="Temporary password" hint="Minimum 8 characters">
+                    <Input
+                      type="password"
+                      value={invite.password}
+                      onChange={(e) =>
+                        setInvite({ ...invite, password: e.target.value })
+                      }
+                      required
+                      minLength={8}
+                    />
+                  </Field>
+                  <Field label="Role">
+                    <Select
+                      value={invite.role}
+                      onChange={(e) => setInvite({ ...invite, role: e.target.value })}
+                    >
+                      <option value="admin">admin</option>
+                      <option value="dispatcher">dispatcher</option>
+                      <option value="technician">technician</option>
+                    </Select>
+                  </Field>
+                  <Button type="submit" disabled={inviteBusy} className="w-fit">
+                    {inviteBusy ? "Inviting…" : "Invite"}
+                  </Button>
+                </form>
+              </Surface>
+              <DataTable
+                columns={userColumns}
+                rows={users}
+                empty={
+                  <EmptyState
+                    title="No users"
+                    description="Invite team members to access this tenant."
+                  />
                 }
               />
-            </label>
-          ))}
-          <button
-            type="submit"
-            className="rounded bg-ink px-3 py-1.5 text-sm text-white"
-          >
-            Save retention
-          </button>
-        </form>
-      </section>
+            </div>
+          </section>
 
-      <section className="mt-6 rounded border border-line bg-panel p-4">
-        <h3 className="font-semibold">Audit log</h3>
-        <ul className="mt-2 max-h-80 space-y-1 overflow-auto text-xs font-mono">
-          {audit.map((e) => (
-            <li key={String(e.id)}>
-              {String(e.created_at)} · {String(e.actor)} · {String(e.action)}
-            </li>
-          ))}
-        </ul>
-      </section>
+          <section>
+            <div className="mb-3 flex items-center gap-2">
+              <Shield className="size-4 text-text-muted" aria-hidden />
+              <h2 className="text-sm font-semibold text-text-primary">Retention</h2>
+            </div>
+            <Surface className="max-w-lg p-4">
+              <form onSubmit={onRetention} className="grid gap-3">
+                {(
+                  [
+                    ["recording_retention_days", "Recordings"],
+                    ["transcript_retention_days", "Transcripts"],
+                    ["audit_retention_days", "Audit"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <Field key={key} label={`${label} (days)`}>
+                    <Input
+                      type="number"
+                      value={retention[key]}
+                      onChange={(e) =>
+                        setRetention({
+                          ...retention,
+                          [key]: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </Field>
+                ))}
+                <Button type="submit" disabled={retentionBusy} className="w-fit">
+                  {retentionBusy ? "Saving…" : "Save retention"}
+                </Button>
+              </form>
+            </Surface>
+          </section>
+
+          <section>
+            <div className="mb-3 flex items-center gap-2">
+              <ScrollText className="size-4 text-text-muted" aria-hidden />
+              <h2 className="text-sm font-semibold text-text-primary">Audit log</h2>
+            </div>
+            <DataTable
+              columns={auditColumns}
+              rows={audit}
+              className="max-h-96 overflow-y-auto"
+              empty={
+                <EmptyState
+                  title="No audit events"
+                  description="Administrative actions will appear here."
+                />
+              }
+            />
+          </section>
+        </div>
+      )}
     </AppShell>
   );
 }

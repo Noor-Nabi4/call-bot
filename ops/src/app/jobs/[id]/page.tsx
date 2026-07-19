@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { AppShell, StatusPill } from "@/components/shell";
+import { ArrowLeft } from "lucide-react";
+import { AppShell } from "@/components/shell";
 import {
   addNote,
   formatWhen,
@@ -12,7 +13,20 @@ import {
   updateChecklist,
   type Job,
 } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/use-auth";
+import {
+  Breadcrumbs,
+  Button,
+  ErrorState,
+  Field,
+  Input,
+  LoadingSkeleton,
+  PageHeader,
+  StatusPill,
+  Surface,
+  Textarea,
+} from "@/components/ui";
 
 export default function JobDetailPage() {
   const params = useParams<{ id: string }>();
@@ -21,6 +35,11 @@ export default function JobDetailPage() {
   const [note, setNote] = useState("");
   const [completionNotes, setCompletionNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fetching, setFetching] = useState(true);
+  const [noteBusy, setNoteBusy] = useState(false);
+
+  const isTech = user?.role === "technician";
+  const btnSize = isTech ? "lg" : "md";
 
   const refresh = useCallback(async () => {
     const data = await getJob(params.id);
@@ -29,16 +48,49 @@ export default function JobDetailPage() {
 
   useEffect(() => {
     if (!user) return;
-    refresh().catch((e) => setError(e.message));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      refresh()
+        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .finally(() => {
+          if (!cancelled) setFetching(false);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [user, refresh]);
 
   if (loading || !user) {
-    return <p className="p-6 text-ink-muted">Loading…</p>;
+    return (
+      <div className="p-6">
+        <LoadingSkeleton rows={6} />
+      </div>
+    );
   }
+
+  if (fetching && !job) {
+    return (
+      <AppShell user={user}>
+        <LoadingSkeleton rows={6} />
+      </AppShell>
+    );
+  }
+
   if (!job) {
     return (
       <AppShell user={user}>
-        <p className="text-ink-muted">{error || "Loading job…"}</p>
+        <ErrorState
+          title="Job not found"
+          message={error || "Unable to load this job."}
+          onRetry={() => {
+            setFetching(true);
+            refresh()
+              .catch((e) => setError(e.message))
+              .finally(() => setFetching(false));
+          }}
+        />
       </AppShell>
     );
   }
@@ -55,9 +107,16 @@ export default function JobDetailPage() {
   async function onNote(e: FormEvent) {
     e.preventDefault();
     if (!job) return;
-    const updated = await addNote(job.id, note);
-    setJob(updated.job);
-    setNote("");
+    setNoteBusy(true);
+    try {
+      const updated = await addNote(job.id, note);
+      setJob(updated.job);
+      setNote("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Note failed");
+    } finally {
+      setNoteBusy(false);
+    }
   }
 
   async function onTransition(status: string) {
@@ -74,142 +133,161 @@ export default function JobDetailPage() {
     }
   }
 
-  const home = user.role === "technician" ? "/tech" : "/board";
+  const home = isTech ? "/tech" : "/dispatch";
 
   return (
     <AppShell user={user}>
-      <Link href={home} className="text-sm">
-        ← Back
+      <Breadcrumbs
+        items={[
+          { label: isTech ? "My jobs" : "Dispatch", href: home },
+          { label: job.reference_code },
+        ]}
+      />
+
+      <PageHeader
+        className="mt-3"
+        eyebrow={job.reference_code}
+        title={job.service_type}
+        description={[
+          job.customer?.name,
+          job.customer?.address,
+          formatWhen(job.scheduled_starts_at),
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+        actions={<StatusPill status={job.status} />}
+      />
+
+      <Link
+        href={home}
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-brand"
+      >
+        <ArrowLeft className="size-3.5" aria-hidden />
+        Back
       </Link>
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="font-mono text-sm text-ink-muted">{job.reference_code}</p>
-          <h2 className="text-2xl font-semibold">{job.service_type}</h2>
-          <p className="text-ink-muted">
-            {job.customer?.name}
-            {job.customer?.address ? ` · ${job.customer.address}` : ""}
-          </p>
-          <p className="text-sm text-ink-muted">
-            {formatWhen(job.scheduled_starts_at)}
-          </p>
-        </div>
-        <StatusPill status={job.status} />
-      </div>
 
-      {error && (
-        <p className="mt-3 text-sm text-danger" role="alert">
-          {error}
-        </p>
-      )}
+      {error ? (
+        <ErrorState className="mb-4" message={error} onRetry={() => setError(null)} />
+      ) : null}
 
-      <section className="mt-6 grid gap-4 md:grid-cols-2">
-        <div className="rounded border border-line bg-panel p-4">
-          <h3 className="font-semibold">Checklist</h3>
-          <ul className="mt-3 space-y-2">
+      <div className="grid gap-4 md:grid-cols-2">
+        <Surface className="p-4">
+          <h3 className="text-sm font-semibold text-text-primary">Checklist</h3>
+          <ul className={cn("mt-3 space-y-2", isTech && "space-y-3")}>
             {job.checklist.map((item) => (
               <li key={item.id}>
-                <label className="flex items-center gap-2 text-sm">
+                <label
+                  className={cn(
+                    "flex items-center gap-3 text-sm",
+                    isTech && "min-h-11 rounded-md border border-border px-3 py-2",
+                  )}
+                >
                   <input
                     type="checkbox"
+                    className={cn(isTech && "size-5")}
                     checked={item.done}
                     onChange={() => onToggle(item.id)}
                   />
-                  {item.label}
+                  <span className={item.done ? "text-text-muted line-through" : undefined}>
+                    {item.label}
+                  </span>
                 </label>
               </li>
             ))}
+            {job.checklist.length === 0 ? (
+              <li className="text-sm text-text-muted">No checklist items.</li>
+            ) : null}
           </ul>
-        </div>
+        </Surface>
 
-        <div className="rounded border border-line bg-panel p-4">
-          <h3 className="font-semibold">Status actions</h3>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {user.role !== "technician" && job.status === "scheduled" && (
-              <button
-                type="button"
-                className="rounded bg-accent px-3 py-1.5 text-sm text-white"
-                onClick={() => onTransition("dispatched")}
-              >
+        <Surface className="p-4">
+          <h3 className="text-sm font-semibold text-text-primary">Status actions</h3>
+          <div className={cn("mt-3 flex flex-wrap gap-2", isTech && "flex-col")}>
+            {!isTech && job.status === "scheduled" && (
+              <Button size={btnSize} onClick={() => onTransition("dispatched")}>
                 Dispatch
-              </button>
+              </Button>
             )}
-            {(job.status === "dispatched") && (
-                <button
-                  type="button"
-                  className="rounded bg-accent px-3 py-1.5 text-sm text-white"
-                  onClick={() => onTransition("in_progress")}
-                >
-                  {user.role === "technician" ? "Start job" : "Mark in progress"}
-                </button>
-              )}
+            {job.status === "dispatched" && (
+              <Button size={btnSize} onClick={() => onTransition("in_progress")}>
+                {isTech ? "Start job" : "Mark in progress"}
+              </Button>
+            )}
             {job.status === "in_progress" && (
               <div className="w-full space-y-2">
-                <textarea
-                  className="w-full rounded border border-line px-2 py-1.5 text-sm"
-                  rows={3}
-                  placeholder="Completion notes (required)"
-                  value={completionNotes}
-                  onChange={(e) => setCompletionNotes(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="rounded bg-ink px-3 py-1.5 text-sm text-white"
+                <Field label="Completion notes" hint="Required to complete">
+                  <Textarea
+                    rows={isTech ? 4 : 3}
+                    placeholder="Completion notes (required)"
+                    value={completionNotes}
+                    onChange={(e) => setCompletionNotes(e.target.value)}
+                  />
+                </Field>
+                <Button
+                  variant="ink"
+                  size={btnSize}
+                  className={isTech ? "w-full" : undefined}
                   onClick={() => onTransition("completed")}
                 >
                   Complete job
-                </button>
+                </Button>
               </div>
             )}
-            {user.role !== "technician" &&
-              !["completed", "canceled"].includes(job.status) && (
-                <button
-                  type="button"
-                  className="rounded border border-danger px-3 py-1.5 text-sm text-danger"
-                  onClick={() => onTransition("canceled")}
-                >
-                  Cancel
-                </button>
-              )}
+            {!isTech && !["completed", "canceled"].includes(job.status) && (
+              <Button
+                variant="danger"
+                size={btnSize}
+                onClick={() => onTransition("canceled")}
+              >
+                Cancel
+              </Button>
+            )}
           </div>
-          {job.completion_notes && (
-            <p className="mt-3 text-sm text-ink-muted">
+          {job.completion_notes ? (
+            <p className="mt-3 text-sm text-text-secondary">
               Completion: {job.completion_notes}
             </p>
-          )}
-        </div>
-      </section>
+          ) : null}
+        </Surface>
+      </div>
 
-      <section className="mt-6 rounded border border-line bg-panel p-4">
-        <h3 className="font-semibold">Notes</h3>
-        <ul className="mt-3 space-y-2 text-sm">
+      <Surface className="mt-4 p-4">
+        <h3 className="text-sm font-semibold text-text-primary">Notes</h3>
+        <ul className="mt-3 space-y-3 text-sm">
           {(job.notes || []).map((n) => (
-            <li key={n.id} className="border-b border-line pb-2">
-              <p>{n.body}</p>
-              <p className="text-xs text-ink-muted">
+            <li key={n.id} className="border-b border-border pb-3 last:border-0">
+              <p className="text-text-primary">{n.body}</p>
+              <p className="mt-1 text-xs text-text-muted">
                 {n.author_name || "System"} · {formatWhen(n.created_at)}
               </p>
             </li>
           ))}
           {(job.notes || []).length === 0 && (
-            <li className="text-ink-muted">No notes yet.</li>
+            <li className="text-text-muted">No notes yet.</li>
           )}
         </ul>
-        <form onSubmit={onNote} className="mt-3 flex gap-2">
-          <input
-            className="flex-1 rounded border border-line px-2 py-1.5 text-sm"
+        <form
+          onSubmit={onNote}
+          className={cn("mt-4 flex gap-2", isTech && "flex-col sm:flex-row")}
+        >
+          <Input
+            className={cn("flex-1", isTech && "h-11")}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Add a note"
             required
           />
-          <button
+          <Button
             type="submit"
-            className="rounded bg-ink px-3 py-1.5 text-sm text-white"
+            variant="ink"
+            size={btnSize}
+            disabled={noteBusy}
+            className={isTech ? "w-full sm:w-auto" : undefined}
           >
-            Add
-          </button>
+            {noteBusy ? "Adding…" : "Add"}
+          </Button>
         </form>
-      </section>
+      </Surface>
     </AppShell>
   );
 }

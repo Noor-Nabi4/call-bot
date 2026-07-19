@@ -1,36 +1,222 @@
 @import "tailwindcss";
 
+/* Theme inspired by TechVerseo portal dashboard — Call Bot product branding. */
+:root {
+  --ops-bg: #05070d;
+  --ops-elevated: rgba(12, 16, 28, 0.72);
+  --ops-surface: rgba(14, 18, 32, 0.92);
+  --ops-surface-solid: #0c101c;
+  --ops-border: rgba(255, 255, 255, 0.1);
+  --ops-text: #f8fafc;
+  --ops-text-muted: #94a3b8;
+  --ops-accent: #7c3aed;
+  --ops-accent-hover: #6d28d9;
+  --ops-accent-soft: rgba(124, 58, 237, 0.18);
+  --ops-cyan: #22d3ee;
+  --ops-cyan-soft: rgba(34, 211, 238, 0.16);
+  --ops-success: #34d399;
+  --ops-warn: #f59e0b;
+  --ops-danger: #f87171;
+}
+
 @theme {
-  --color-ink: #1a1f24;
-  --color-ink-muted: #5c6b7a;
-  --color-surface: #eef1f4;
-  --color-panel: #ffffff;
-  --color-line: #d0d8e0;
-  --color-accent: #1f6f5b;
-  --color-accent-soft: #d8efe8;
-  --color-warn: #9a5b00;
-  --color-warn-soft: #fff1d6;
-  --color-danger: #9b1c1c;
-  --color-danger-soft: #fde8e8;
-  --font-sans: var(--font-ops-sans), "Segoe UI", sans-serif;
+  --color-background: var(--ops-bg);
+  --color-surface: var(--ops-surface-solid);
+  --color-surface-muted: #12182a;
+  --color-text-primary: var(--ops-text);
+  --color-text-secondary: #a8b4c4;
+  --color-text-muted: var(--ops-text-muted);
+  --color-border: #1e293b;
+  --color-border-strong: #334155;
+  --color-brand: var(--ops-accent);
+  --color-brand-hover: var(--ops-accent-hover);
+  --color-brand-soft: #1a1230;
+  --color-warn: #f59e0b;
+  --color-warn-soft: #2a2110;
+  --color-danger: #f87171;
+  --color-danger-soft: #2a1518;
+  --color-success: #34d399;
+  --color-success-soft: #0f2a22;
+  --color-cyan: var(--ops-cyan);
+  --font-sans: var(--font-ops-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-ops-heading), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-ops-mono), ui-monospace, monospace;
+  --radius-panel: 16px;
+  --shadow-elevated: 0 24px 80px rgba(0, 0, 0, 0.45);
+  --shadow-drawer: -12px 0 40px rgba(0, 0, 0, 0.5);
+  --animate-fade-in: fade-in 160ms ease-out both;
+  --animate-slide-in: slide-in 180ms ease-out both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes ops-bg-drift {
+  0% {
+    background-position:
+      0% 35%,
+      0 0,
+      0 0;
+  }
+  100% {
+    background-position:
+      100% 65%,
+      0 0,
+      0 0;
+  }
 }
 
 @layer base {
   html,
   body {
-    @apply m-0 min-h-screen bg-surface text-ink font-sans;
+    @apply m-0 min-h-screen bg-background text-text-primary font-sans antialiased;
   }
 
   a {
-    @apply text-accent no-underline;
+    @apply text-cyan no-underline;
   }
 
   button {
     @apply cursor-pointer;
   }
+
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand;
+  }
+
+.font-heading {
+    font-family: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
+  }
+
+  h1,
+  h2 {
+    font-family: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .ops-shell-atmosphere::after {
+    animation: none !important;
+  }
 }
 
 .status-pill {
-  @apply inline-flex items-center rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide;
+  @apply inline-flex items-center rounded-lg px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide;
+}
+
+.skeleton {
+  @apply rounded-xl bg-surface-muted;
+  animation: pulse-soft 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* TechVerseo-style atmosphere behind ops shell */
+.ops-shell-atmosphere {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background-color: var(--ops-bg);
+  background-image:
+    radial-gradient(ellipse 110% 85% at 50% 118%, rgba(124, 58, 237, 0.35) 0%, transparent 56%),
+    radial-gradient(ellipse 75% 58% at -8% 18%, rgba(34, 211, 238, 0.18) 0%, transparent 52%),
+    radial-gradient(ellipse 72% 55% at 108% 28%, rgba(99, 102, 241, 0.22) 0%, transparent 54%),
+    linear-gradient(180deg, var(--ops-bg) 0%, transparent 42%);
+}
+
+.ops-shell-atmosphere::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image:
+    linear-gradient(
+      118deg,
+      transparent 0%,
+      rgba(99, 102, 241, 0.07) 42%,
+      rgba(34, 211, 238, 0.06) 52%,
+      transparent 68%
+    ),
+    linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+  background-size:
+    220% 220%,
+    64px 64px,
+    64px 64px;
+  animation: ops-bg-drift 22s ease-in-out infinite alternate;
+  mask-image: radial-gradient(ellipse 95% 75% at 50% 42%, black 0%, transparent 78%);
+}
+
+.ops-shell-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.glass-card {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.07) 0%,
+    rgba(255, 255, 255, 0.02) 45%,
+    rgba(12, 16, 28, 0.75) 100%
+  );
+  border: 1px solid var(--ops-border);
+  backdrop-filter: blur(28px) saturate(140%);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.glass-panel {
+  @apply rounded-2xl;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.06) 0%,
+    rgba(12, 16, 28, 0.8) 100%
+  );
+  border: 1px solid var(--ops-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
