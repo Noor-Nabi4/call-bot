@@ -64,8 +64,18 @@ call-bot/
 ├── .github/workflows/       # CI
 ├── platform/                # FastAPI telephony + CRM + scheduling + jobs
 ├── voice-agent/             # LiveKit voice worker (v1) + Dockerfile
+├── web/                     # Marketing landing (Next.js)
 ├── playground/              # Next.js LiveKit playground + /telephony wizard
 └── ops/                     # Next.js dispatch board + technician mobile
+```
+
+## Quick start (landing)
+
+```bash
+cd web
+cp .env.example .env.local
+npm install
+npm run dev   # http://localhost:3002
 ```
 
 ## Quick start (ops dispatch)

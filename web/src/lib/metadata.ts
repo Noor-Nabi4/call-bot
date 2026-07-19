@@ -1,0 +1,203 @@
+import type { Metadata } from "next";
+import { capabilities, howItWorks, industries } from "@/lib/copy";
+import { getSiteUrl, seo } from "@/lib/seo";
+
+export function buildRootMetadata(): Metadata {
+  const siteUrl = getSiteUrl();
+
+  return {
+    metadataBase: new URL(siteUrl),
+    title: {
+      default: seo.title,
+      template: seo.titleTemplate,
+    },
+    description: seo.description,
+    applicationName: seo.brand,
+    authors: [{ name: seo.brand }],
+    creator: seo.brand,
+    publisher: seo.brand,
+    keywords: [...seo.keywords],
+    category: "business",
+    classification: "Field Service Software, Voice AI, Business Communications",
+    referrer: "origin-when-cross-origin",
+    formatDetection: {
+      email: false,
+      address: false,
+      telephone: false,
+    },
+    alternates: {
+      canonical: "/",
+    },
+    openGraph: {
+      type: "website",
+      locale: seo.locale,
+      url: siteUrl,
+      siteName: seo.brand,
+      title: seo.title,
+      description: seo.description,
+      images: [
+        {
+          url: "/opengraph-image",
+          width: 1200,
+          height: 630,
+          alt: seo.ogImageAlt,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: seo.title,
+      description: seo.description,
+      images: ["/twitter-image"],
+      ...(seo.twitterHandle
+        ? { creator: seo.twitterHandle, site: seo.twitterHandle }
+        : {}),
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
+        "max-video-preview": -1,
+      },
+    },
+    icons: {
+      icon: [{ url: "/icon", type: "image/png" }],
+      apple: [{ url: "/apple-icon", type: "image/png" }],
+    },
+    manifest: "/manifest.webmanifest",
+  };
+}
+
+export function buildJsonLd() {
+  const siteUrl = getSiteUrl();
+
+  const organization = {
+    "@type": "Organization",
+    "@id": `${siteUrl}/#organization`,
+    name: seo.brand,
+    url: siteUrl,
+    logo: {
+      "@type": "ImageObject",
+      url: `${siteUrl}/icon`,
+    },
+    description: seo.description,
+    knowsAbout: [
+      "Field service management",
+      "AI voice agents",
+      "HVAC call answering",
+      "Appointment scheduling",
+      "Multi-tenant SaaS",
+    ],
+  };
+
+  const website = {
+    "@type": "WebSite",
+    "@id": `${siteUrl}/#website`,
+    url: siteUrl,
+    name: seo.brand,
+    description: seo.description,
+    publisher: { "@id": `${siteUrl}/#organization` },
+    inLanguage: "en-US",
+  };
+
+  const software = {
+    "@type": "SoftwareApplication",
+    "@id": `${siteUrl}/#software`,
+    name: seo.brand,
+    applicationCategory: "BusinessApplication",
+    applicationSubCategory: "Field Service Management",
+    operatingSystem: "Web",
+    url: siteUrl,
+    description: seo.description,
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD",
+      description: "Browser demo available",
+    },
+    featureList: capabilities.items.map((item) => item.title),
+    audience: {
+      "@type": "Audience",
+      audienceType: "Field service businesses",
+    },
+    provider: { "@id": `${siteUrl}/#organization` },
+  };
+
+  const howTo = {
+    "@type": "HowTo",
+    "@id": `${siteUrl}/#howto`,
+    name: howItWorks.title,
+    description: howItWorks.supporting,
+    step: howItWorks.steps.map((step, index) => ({
+      "@type": "HowToStep",
+      position: index + 1,
+      name: step.title,
+      text: step.body,
+    })),
+  };
+
+  const industryList = {
+    "@type": "ItemList",
+    "@id": `${siteUrl}/#industries`,
+    name: industries.title,
+    description: industries.supporting,
+    itemListElement: industries.items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      description: item.body,
+    })),
+  };
+
+  const webpage = {
+    "@type": "WebPage",
+    "@id": `${siteUrl}/#webpage`,
+    url: siteUrl,
+    name: seo.title,
+    description: seo.description,
+    isPartOf: { "@id": `${siteUrl}/#website` },
+    about: { "@id": `${siteUrl}/#software` },
+    primaryImageOfPage: {
+      "@type": "ImageObject",
+      url: `${siteUrl}/opengraph-image`,
+    },
+    speakable: {
+      "@type": "SpeakableSpecification",
+      cssSelector: ["#hero-heading", "#answer-heading"],
+    },
+    inLanguage: "en-US",
+  };
+
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      organization,
+      website,
+      software,
+      howTo,
+      industryList,
+      webpage,
+    ],
+  };
+}
+
+export function buildFaqJsonLd(
+  items: readonly { question: string; answer: string }[],
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  };
+}
