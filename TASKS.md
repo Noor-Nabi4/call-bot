@@ -323,10 +323,12 @@ Only after booking/CRM are stable:
 
 ## Phase 8 — Human handoff & multi-agent (only if needed)
 
-- [ ] Warm transfer to **tenant** human queue  
-- [ ] Escalation rules (billing disputes, emergencies, abuse)  
-- [ ] Optional specialist agents via LiveKit handoffs/tasks  
-- [ ] Keep latency budget; avoid monolithic mega-prompt  
+- [x] Warm transfer to **tenant** human queue (`WarmTransferTask` when trunk configured)  
+- [x] Escalation rules (billing disputes, emergencies, abuse)  
+- [x] Cold SIP REFER fallback when warm trunk missing  
+- [x] Keep latency budget; avoid monolithic mega-prompt  
+
+**Exit:** configure handoff in ops; SIP escalation tool + tests. See `voice-agent/docs/PHASE8_HANDOFF_CHECKLIST.md`.
 
 ---
 

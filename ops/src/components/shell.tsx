@@ -38,6 +38,9 @@ export function AppShell({
                 <Link href="/knowledge" className="font-medium">
                   Knowledge
                 </Link>
+                <Link href="/handoff" className="font-medium">
+                  Handoff
+                </Link>
               </>
             )}
             {(isTech || user.role === "admin") && (

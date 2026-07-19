@@ -31,8 +31,10 @@ from session.userdata import SessionUserData
 from tenant.resolve import TenantResolveError, resolver_from_env
 from tenant.sip_attrs import extract_sip_context, is_sip_participant
 from tools.crm import build_crm_tools
+from tools.handoff import build_handoff_tools
 from tools.knowledge import build_knowledge_tools
 from tools.platform_crm import PlatformCrmError, crm_client_from_env
+from tools.platform_handoff import handoff_client_from_env
 from tools.platform_knowledge import knowledge_client_from_env
 from tools.platform_scheduling import scheduling_client_from_env
 from tools.scheduling import build_scheduling_tools
@@ -172,6 +174,7 @@ async def entrypoint(ctx: JobContext) -> None:
     crm_client = crm_client_from_env()
     scheduling_client = scheduling_client_from_env()
     knowledge_client = knowledge_client_from_env()
+    handoff_client = handoff_client_from_env()
     session = _build_session(settings)
     agent = VoiceAssistant(instructions=instructions, tools=[])
     lifecycle = CallLifecycle(
@@ -333,6 +336,7 @@ async def entrypoint(ctx: JobContext) -> None:
             *build_crm_tools(crm_client),
             *build_scheduling_tools(scheduling_client),
             *build_knowledge_tools(knowledge_client),
+            *build_handoff_tools(handoff_client),
         ]
     )
 
