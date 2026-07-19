@@ -38,11 +38,23 @@ Browser playground
 
 The token route is for **local playground use**. Do not expose it publicly without authentication.
 
-## Scripts
+## Docker
 
-| Command | Purpose |
-|---|---|
-| `npm run dev` | Local playground |
-| `npm run build` | Production build |
-| `npm run start` | Serve production build |
-| `npm run lint` | ESLint |
+Playground image:
+
+```bash
+cd playground
+docker build -t call-bot-playground .
+docker run --rm -p 3000:3000 --env-file .env.local call-bot-playground
+```
+
+Full stack (agent + playground) from repo root:
+
+```bash
+# Ensure voice-agent/.env.local and playground/.env.local exist
+docker compose up --build
+```
+
+- Playground: http://localhost:3000  
+- Voice agent joins LiveKit Cloud using credentials from `voice-agent/.env.local`  
+- Do not commit secrets into images; pass them via `--env-file` / Compose `env_file`

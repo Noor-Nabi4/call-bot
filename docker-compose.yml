@@ -1,0 +1,33 @@
+# Local development / demo compose.
+# Secrets come from env files — never bake them into images.
+
+services:
+  voice-agent:
+    build:
+      context: ./voice-agent
+      dockerfile: Dockerfile
+    container_name: call-bot-voice-agent
+    restart: unless-stopped
+    env_file:
+      - ./voice-agent/.env.local
+    environment:
+      # LiveKit Cloud agent mode
+      PYTHONUNBUFFERED: "1"
+    # Agent worker connects outbound to LiveKit; no host ports required.
+
+  playground:
+    build:
+      context: ./playground
+      dockerfile: Dockerfile
+    container_name: call-bot-playground
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./playground/.env.local
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+    depends_on:
+      - voice-agent

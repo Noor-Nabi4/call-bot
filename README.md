@@ -54,9 +54,25 @@ uv run pytest tests/test_config.py tests/test_prompt.py tests/test_state.py test
 ```text
 call-bot/
 ├── TASKS.md                 # phased product plan
+├── docker-compose.yml       # voice-agent + playground
 ├── .github/workflows/       # CI
-├── voice-agent/             # LiveKit voice worker (v1)
-└── playground/              # Next.js browser playground
+├── voice-agent/             # LiveKit voice worker (v1) + Dockerfile
+└── playground/              # Next.js browser playground + Dockerfile
+```
+
+## Docker
+
+```bash
+# from repo root (requires both .env.local files)
+docker compose up --build
+```
+
+Playground only:
+
+```bash
+cd playground
+docker build -t call-bot-playground .
+docker run --rm -p 3000:3000 --env-file .env.local call-bot-playground
 ```
 
 ## Secrets
