@@ -21,6 +21,8 @@ dependencies = [
     "httpx>=0.28.0",
     "twilio>=9.4.0",
     "livekit-api>=1.0.0",
+    "bcrypt>=4.2.0",
+    "PyJWT>=2.10.0",
 ]
 
 [dependency-groups]

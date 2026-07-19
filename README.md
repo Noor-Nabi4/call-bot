@@ -9,7 +9,10 @@ production **LiveKit + OpenAI Realtime** voice agent.
 - Voice agent details: [`voice-agent/README.md`](./voice-agent/README.md)
 - Phase 2 telephony checklist: [`voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md`](./voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md)
 - Phase 3 CRM checklist: [`voice-agent/docs/PHASE3_CRM_CHECKLIST.md`](./voice-agent/docs/PHASE3_CRM_CHECKLIST.md)
+- Phase 4 booking checklist: [`voice-agent/docs/PHASE4_BOOKING_CHECKLIST.md`](./voice-agent/docs/PHASE4_BOOKING_CHECKLIST.md)
+- Phase 5 jobs checklist: [`voice-agent/docs/PHASE5_JOBS_CHECKLIST.md`](./voice-agent/docs/PHASE5_JOBS_CHECKLIST.md)
 - Platform API: [`platform/README.md`](./platform/README.md)
+- Ops app: [`ops/README.md`](./ops/README.md)
 
 ## Architecture decisions (Phase 0)
 
@@ -59,10 +62,22 @@ call-bot/
 ├── TASKS.md                 # phased product plan
 ├── docker-compose.yml       # voice-agent + playground
 ├── .github/workflows/       # CI
-├── platform/                # FastAPI telephony + tenant DID API
+├── platform/                # FastAPI telephony + CRM + scheduling + jobs
 ├── voice-agent/             # LiveKit voice worker (v1) + Dockerfile
-└── playground/              # Next.js browser playground + /telephony wizard
+├── playground/              # Next.js LiveKit playground + /telephony wizard
+└── ops/                     # Next.js dispatch board + technician mobile
 ```
+
+## Quick start (ops dispatch)
+
+```bash
+cd ops
+cp .env.example .env.local
+npm install
+npm run dev   # http://localhost:3001
+```
+
+Bootstrap the first tenant admin via `POST /auth/bootstrap` (see `ops/README.md`).
 
 ## Quick start (platform telephony API)
 

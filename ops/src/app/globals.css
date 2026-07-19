@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #1a1f24;
+  --color-ink-muted: #5c6b7a;
+  --color-surface: #eef1f4;
+  --color-panel: #ffffff;
+  --color-line: #d0d8e0;
+  --color-accent: #1f6f5b;
+  --color-accent-soft: #d8efe8;
+  --color-warn: #9a5b00;
+  --color-warn-soft: #fff1d6;
+  --color-danger: #9b1c1c;
+  --color-danger-soft: #fde8e8;
+  --font-sans: var(--font-ops-sans), "Segoe UI", sans-serif;
+  --font-mono: var(--font-ops-mono), ui-monospace, monospace;
+}
+
+@layer base {
+  html,
+  body {
+    @apply m-0 min-h-screen bg-surface text-ink font-sans;
+  }
+
+  a {
+    @apply text-accent no-underline;
+  }
+
+  button {
+    @apply cursor-pointer;
+  }
+}
+
+.status-pill {
+  @apply inline-flex items-center rounded px-2 py-0.5 text-xs font-medium uppercase tracking-wide;
+}

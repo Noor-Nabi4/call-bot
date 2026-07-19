@@ -10,16 +10,30 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env.local")
 
+from callbot_platform.api.auth_routes import router as auth_router  # noqa: E402
 from callbot_platform.api.crm_routes import router as crm_router  # noqa: E402
 from callbot_platform.api.crm_routes import tenant_settings_router  # noqa: E402
+from callbot_platform.api.jobs_routes import router as jobs_router  # noqa: E402
 from callbot_platform.api.routes import router  # noqa: E402
 from callbot_platform.api.scheduling_routes import router as scheduling_router  # noqa: E402
+from callbot_platform.config import get_settings  # noqa: E402
 from callbot_platform.db import init_db  # noqa: E402
+
+_settings = get_settings()
+_cors_origins = list(_settings.ops_cors_origin_list)
+for _extra in (
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+):
+    if _extra not in _cors_origins:
+        _cors_origins.append(_extra)
 
 app = FastAPI(title="Call Bot Platform", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -27,6 +41,8 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(crm_router)
 app.include_router(scheduling_router)
+app.include_router(auth_router)
+app.include_router(jobs_router)
 app.include_router(tenant_settings_router)
 
 
@@ -43,13 +59,13 @@ def on_startup() -> None:
 def main() -> None:
     import uvicorn
 
-    from callbot_platform.config import get_settings
+    from callbot_platform.config import get_settings as gs
 
-    settings = get_settings()
+    cfg = gs()
     uvicorn.run(
         "callbot_platform.main:app",
-        host=settings.platform_api_host,
-        port=settings.platform_api_port,
+        host=cfg.platform_api_host,
+        port=cfg.platform_api_port,
         reload=False,
     )
 

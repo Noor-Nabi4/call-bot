@@ -182,7 +182,13 @@ class AppointmentRepository:
                 )
             )
             if existing is not None:
-                return self._serialize(existing)
+                from callbot_platform.jobs.repos import JobRepository
+
+                job = JobRepository(self._session).create_from_appointment(existing)
+                result = self._serialize(existing)
+                if job is not None:
+                    result["job"] = job
+                return result
 
         customer = self._session.scalar(
             select(Customer)
@@ -262,8 +268,14 @@ class AppointmentRepository:
             idempotency_key=idempotency_key,
             payload_summary={"starts_at": starts.isoformat()},
         )
+        # Auto-create a scheduled job so ops can dispatch after voice booking.
+        from callbot_platform.jobs.repos import JobRepository
+
+        job = JobRepository(self._session).create_from_appointment(appt)
         result = self._serialize(appt)
         result["notifications"] = notifications
+        if job is not None:
+            result["job"] = job
         return result
 
     def reschedule(

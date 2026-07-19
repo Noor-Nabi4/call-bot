@@ -33,9 +33,30 @@ Tenant agent settings: `GET|PUT /tenants/{id}/agent-settings`
 
 Availability uses tenant timezone + `tenant_schedule_settings` (default Mon–Fri 09:00–17:00). SMS via Twilio when configured; email rows stay in `notification_outbox`.
 
+Booking an appointment auto-creates a `scheduled` job for the dispatch board.
+
+## Auth + jobs (Phase 5)
+
+Public auth:
+
+- `POST /auth/login` (sets HTTP-only session cookie)
+- `POST /auth/logout`
+- `GET /auth/me`
+- `POST /auth/bootstrap` (first admin only; requires `X-Internal-Token`)
+
+Session-authenticated ops API (`/api/...`):
+
+- Technicians list/create
+- Jobs list/get/create/assign/transition/checklist/notes
+- `POST /api/tech/location`
+
+Set `SESSION_SECRET` and `OPS_CORS_ORIGINS` (include `http://localhost:3001`).
+
 ## Docs
 
 - Path A / Path B checklist: `../voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md`
 - CRM checklist: `../voice-agent/docs/PHASE3_CRM_CHECKLIST.md`
 - Booking checklist: `../voice-agent/docs/PHASE4_BOOKING_CHECKLIST.md`
+- Jobs checklist: `../voice-agent/docs/PHASE5_JOBS_CHECKLIST.md`
+- Ops UI: `../ops/README.md`
 - LiveKit Twilio SIP: https://docs.livekit.io/telephony/start/providers/twilio/

@@ -280,16 +280,17 @@ Manual checklist: [`voice-agent/docs/PHASE3_CRM_CHECKLIST.md`](./voice-agent/doc
 
 **Outcome:** tenant ops can run jobs after intake.
 
-- [ ] Job statuses: new → scheduled → dispatched → in_progress → completed → canceled  
-- [ ] Dispatch board (web) — tenant-scoped  
-- [ ] Technician assignment rules (manual first)  
-- [ ] Technician mobile view (job details, checklist, notes)  
-- [ ] Job completion notes back to customer record  
-- [ ] Optional: agent can quote ETA / status on inbound “where is my tech?” calls  
+- [x] Job statuses: new → scheduled → dispatched → in_progress → completed → canceled  
+- [x] Dispatch board (web) — tenant-scoped (`ops/` app)  
+- [x] Technician assignment rules (manual first)  
+- [x] Technician mobile view (job details, checklist, notes)  
+- [x] Job completion notes back to customer record (via `job_notes`)  
+- [ ] Optional: agent can quote ETA / status on inbound “where is my tech?” calls *(deferred)*  
 
 **Exit criteria**
 
-- One job can be created by voice and completed by a tech in that tenant  
+- One job can be created by voice and completed by a tech in that tenant *(operator — see `voice-agent/docs/PHASE5_JOBS_CHECKLIST.md`)*  
+- Automated auth isolation / transitions / appointment→job tests pass *(in `platform/tests/test_jobs_auth.py`)*  
 
 ---
 

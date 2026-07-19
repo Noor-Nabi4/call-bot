@@ -37,10 +37,23 @@ class Settings(BaseSettings):
     )
     metadata_hmac_secret: str = Field(default="", alias="METADATA_HMAC_SECRET")
     internal_service_token: str = Field(default="", alias="INTERNAL_SERVICE_TOKEN")
+    session_secret: str = Field(default="", alias="SESSION_SECRET")
+    ops_cors_origins: str = Field(
+        default="http://localhost:3001",
+        alias="OPS_CORS_ORIGINS",
+    )
+    session_cookie_name: str = Field(
+        default="callbot_ops_session", alias="SESSION_COOKIE_NAME"
+    )
+    session_ttl_hours: int = Field(default=72, alias="SESSION_TTL_HOURS")
 
     allow_env_tenant_fallback: bool = Field(
         default=True, alias="ALLOW_ENV_TENANT_FALLBACK"
     )
+
+    @property
+    def ops_cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.ops_cors_origins.split(",") if o.strip()]
 
     @property
     def livekit_origination_uri(self) -> str:
