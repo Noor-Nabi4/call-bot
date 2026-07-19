@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Phone } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { formatWhen } from "@/lib/api";
@@ -47,7 +49,9 @@ function formatDuration(
   return `${secs}s`;
 }
 
-export default function CallsPage() {
+function CallsWorkspace() {
+  const searchParams = useSearchParams();
+  const statusFilter = (searchParams.get("status") || "").toLowerCase().trim();
   const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
   const [rows, setRows] = useState<Call[]>([]);
   const [search, setSearch] = useState("");
@@ -79,16 +83,18 @@ export default function CallsPage() {
   }, [user, load]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return rows;
-    const q = search.toLowerCase();
-    return rows.filter(
-      (c) =>
+    return rows.filter((c) => {
+      if (statusFilter && c.status.toLowerCase() !== statusFilter) return false;
+      if (!search.trim()) return true;
+      const q = search.toLowerCase();
+      return (
         c.status.toLowerCase().includes(q) ||
         (c.caller_number || "").includes(q) ||
         (c.called_number || "").includes(q) ||
-        c.room_name.toLowerCase().includes(q),
-    );
-  }, [rows, search]);
+        c.room_name.toLowerCase().includes(q)
+      );
+    });
+  }, [rows, search, statusFilter]);
 
   const columns: DataTableColumn<Call>[] = [
     {
@@ -183,6 +189,20 @@ export default function CallsPage() {
         }
       />
 
+      {statusFilter ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+          <span className="rounded-lg border border-border bg-surface-muted px-2.5 py-1 text-text-secondary">
+            Status:{" "}
+            <span className="font-medium text-text-primary">
+              {statusFilter.replace(/_/g, " ")}
+            </span>
+          </span>
+          <Link href="/calls" className="text-xs text-cyan hover:underline">
+            Clear status filter
+          </Link>
+        </div>
+      ) : null}
+
       {error ? (
         <ErrorState
           className="mb-4"
@@ -208,7 +228,9 @@ export default function CallsPage() {
           empty={
             <EmptyState
               icon={<Phone className="size-8" />}
-              title={search ? "No matching calls" : "No calls yet"}
+              title={
+                search || statusFilter ? "No matching calls" : "No calls yet"
+              }
               description="Call records appear when the voice agent handles sessions."
             />
           }
@@ -261,5 +283,19 @@ export default function CallsPage() {
         ) : null}
       </DetailDrawer>
     </AppShell>
+  );
+}
+
+export default function CallsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6">
+          <LoadingSkeleton rows={6} />
+        </div>
+      }
+    >
+      <CallsWorkspace />
+    </Suspense>
   );
 }

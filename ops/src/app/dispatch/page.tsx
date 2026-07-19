@@ -109,6 +109,7 @@ function DispatchWorkspace() {
     const view = searchParams.get("view");
     return view && SAVED_VIEW_IDS.has(view) ? view : "all";
   });
+  const statusFilter = (searchParams.get("status") || "").toLowerCase().trim();
   const [moreOpen, setMoreOpen] = useState(false);
   const [previewJob, setPreviewJob] = useState<Job | null>(null);
   const [jobDrawerOpen, setJobDrawerOpen] = useState(false);
@@ -201,6 +202,7 @@ function DispatchWorkspace() {
         deriveUrgency(job.scheduled_starts_at) !== "overdue"
       )
         return false;
+      if (statusFilter && job.status.toLowerCase() !== statusFilter) return false;
       return true;
     });
   }, [
@@ -211,16 +213,27 @@ function DispatchWorkspace() {
     urgencyFilter,
     areaFilter,
     savedView,
+    statusFilter,
   ]);
+
+  const boardColumns = useMemo(() => {
+    if (
+      statusFilter &&
+      !(COLUMNS as readonly string[]).includes(statusFilter)
+    ) {
+      return [...COLUMNS, statusFilter] as string[];
+    }
+    return [...COLUMNS] as string[];
+  }, [statusFilter]);
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const col of COLUMNS) counts[col] = 0;
+    for (const col of boardColumns) counts[col] = 0;
     for (const job of filteredJobs) {
       if (counts[job.status] !== undefined) counts[job.status] += 1;
     }
     return counts;
-  }, [filteredJobs]);
+  }, [filteredJobs, boardColumns]);
 
   const moreActive = Boolean(urgencyFilter || areaFilter);
 
@@ -341,7 +354,24 @@ function DispatchWorkspace() {
         />
       ) : null}
 
-      <StatusStrip columns={COLUMNS} counts={statusCounts} className="mb-2" />
+      <StatusStrip columns={boardColumns} counts={statusCounts} className="mb-2" />
+
+      {statusFilter ? (
+        <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
+          <span className="rounded-lg border border-border bg-surface-muted px-2.5 py-1 text-text-secondary">
+            Status:{" "}
+            <span className="font-medium text-text-primary">
+              {statusFilter.replace(/_/g, " ")}
+            </span>
+          </span>
+          <Link
+            href="/dispatch"
+            className="text-xs text-cyan hover:underline"
+          >
+            Clear status filter
+          </Link>
+        </div>
+      ) : null}
 
       <div
         className="mb-2 flex flex-wrap items-center gap-2"
@@ -463,7 +493,7 @@ function DispatchWorkspace() {
         />
       ) : (
         <KanbanBoard>
-          {COLUMNS.map((status) => {
+          {boardColumns.map((status) => {
             const columnJobs = filteredJobs.filter((j) => j.status === status);
             return (
               <KanbanColumn

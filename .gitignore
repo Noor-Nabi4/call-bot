@@ -25,4 +25,5 @@ ops/.next/
 platform/.venv/
 platform/.env.local
 .tmp-techverseo/
+.tmp-raffle/
 *.tsbuildinfo

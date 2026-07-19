@@ -15,12 +15,20 @@ import {
   JobsActivityChart,
   TechnicianWorkloadChart,
 } from "@/components/ops/charts";
+import {
+  DistributionPieChart,
+  colorForCallStatus,
+  colorForJobStatus,
+} from "@/components/ops/raffle-charts";
 import type { DateRangeDays } from "@/components/ops/charts-shared";
 import {
   buildDayBuckets,
   countByDay,
+  inRange,
   isHandledCall,
+  rangeStart,
 } from "@/lib/chart-data";
+import { useRouter } from "next/navigation";
 import {
   Button,
   DetailDrawer,
@@ -85,6 +93,7 @@ function isSameDay(iso: string | null | undefined, day: Date): boolean {
 
 export default function DashboardPage() {
   const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const router = useRouter();
   const toast = useToast();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [techs, setTechs] = useState<Technician[]>([]);
@@ -428,6 +437,44 @@ export default function DashboardPage() {
       .slice(0, 6);
   }, [techs, jobs]);
 
+  const jobsByStatusPie = useMemo(() => {
+    const start = rangeStart(chartRange, now);
+    const end = now;
+    const counts = new Map<string, number>();
+    for (const j of jobs) {
+      const ts = j.created_at || j.updated_at;
+      if (!inRange(ts, start, end)) continue;
+      counts.set(j.status, (counts.get(j.status) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([status, value]) => ({
+        name: status.replace(/_/g, " "),
+        status,
+        value,
+        color: colorForJobStatus(status),
+      }));
+  }, [jobs, chartRange, now]);
+
+  const callsByStatusPie = useMemo(() => {
+    const start = rangeStart(chartRange, now);
+    const end = now;
+    const counts = new Map<string, number>();
+    for (const c of calls) {
+      if (!inRange(c.started_at, start, end)) continue;
+      const key = (c.status || "unknown").toLowerCase();
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([status, value]) => ({
+        name: status.replace(/_/g, " "),
+        status,
+        value,
+        color: colorForCallStatus(status),
+      }));
+  }, [calls, chartRange, now]);
+
   if (loading || !user) {
     return (
       <div className="p-6">
@@ -603,6 +650,30 @@ export default function DashboardPage() {
             data={technicianWorkload}
             loading={fetching && jobs.length === 0}
           />
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <DistributionPieChart
+              title="Jobs by status"
+              description={`Job mix for the last ${chartRange} days. Click a slice to open dispatch.`}
+              data={jobsByStatusPie}
+              loading={fetching && jobs.length === 0}
+              onSliceClick={(point) => {
+                const status = point.status || point.name.replace(/ /g, "_");
+                router.push(`/dispatch?status=${encodeURIComponent(status)}`);
+              }}
+            />
+            <DistributionPieChart
+              title="Calls by status"
+              description={`Call outcomes for the last ${chartRange} days. Click a slice to open the call log.`}
+              data={callsByStatusPie}
+              loading={fetching && jobs.length === 0}
+              emptyMessage="No call status data is available for this period."
+              onSliceClick={(point) => {
+                const status = point.status || point.name.replace(/ /g, "_");
+                router.push(`/calls?status=${encodeURIComponent(status)}`);
+              }}
+            />
+          </div>
 
           <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
             <Panel title="Recent activity">
