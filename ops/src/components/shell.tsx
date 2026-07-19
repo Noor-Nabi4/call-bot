@@ -35,12 +35,29 @@ export function AppShell({
                 <Link href="/board" className="font-medium">
                   Board
                 </Link>
+                <Link href="/customers" className="font-medium">
+                  Customers
+                </Link>
+                <Link href="/calls" className="font-medium">
+                  Calls
+                </Link>
+                <Link href="/appointments" className="font-medium">
+                  Appts
+                </Link>
+                <Link href="/metrics" className="font-medium">
+                  Metrics
+                </Link>
                 <Link href="/knowledge" className="font-medium">
                   Knowledge
                 </Link>
                 <Link href="/handoff" className="font-medium">
                   Handoff
                 </Link>
+                {user.role === "admin" && (
+                  <Link href="/settings" className="font-medium">
+                    Settings
+                  </Link>
+                )}
               </>
             )}
             {(isTech || user.role === "admin") && (

@@ -86,6 +86,9 @@ class Tenant(Base):
     handoff_settings: Mapped[TenantHandoffSettings | None] = relationship(
         back_populates="tenant", uselist=False, cascade="all, delete-orphan"
     )
+    retention_settings: Mapped[TenantRetentionSettings | None] = relationship(
+        back_populates="tenant", uselist=False, cascade="all, delete-orphan"
+    )
 
 
 class TenantPhoneNumber(Base):
@@ -763,6 +766,41 @@ class TenantHandoffSettings(Base):
     )
 
     tenant: Mapped[Tenant] = relationship(back_populates="handoff_settings")
+
+
+class TenantRetentionSettings(Base):
+    __tablename__ = "tenant_retention_settings"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", name="uq_tenant_retention_settings_tenant"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    recording_retention_days: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=30
+    )
+    transcript_retention_days: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=90
+    )
+    audit_retention_days: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=365
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        onupdate=_utcnow,
+        server_default=func.now(),
+    )
+
+    tenant: Mapped[Tenant] = relationship(back_populates="retention_settings")
 
 
 class TelephonyIdempotencyKey(Base):

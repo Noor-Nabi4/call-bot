@@ -334,12 +334,14 @@ Only after booking/CRM are stable:
 
 ## Phase 9 — Admin product & analytics
 
-- [ ] Admin login / roles (**tenant-scoped**; platform super-admin separate)  
-- [ ] Tenant onboarding (create tenant, invite users, assign phone number)  
-- [ ] Customers, calls, jobs, appointments UI (always filtered by session tenant)  
-- [ ] Call metrics dashboard per tenant  
-- [ ] Recording/transcript retention policy (legal/compliance), per tenant where required  
-- [ ] Audit log for tool writes (`tenant_id` on every audit row)  
+- [x] Admin login / roles (**tenant-scoped**; platform super-admin via internal token)  
+- [x] Tenant onboarding (invite users; phone assign still Path A/B)  
+- [x] Customers, calls, jobs, appointments UI (ops, session tenant)  
+- [x] Call metrics dashboard per tenant  
+- [x] Recording/transcript retention policy settings per tenant  
+- [x] Audit log for tool writes (`tenant_id` on every audit row; ops view)  
+
+**Exit:** ops admin surfaces + `platform/tests/test_admin.py`. See `voice-agent/docs/PHASE9_ADMIN_CHECKLIST.md`.
 
 ---
 
