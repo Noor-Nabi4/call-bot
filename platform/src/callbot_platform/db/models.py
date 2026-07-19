@@ -80,6 +80,9 @@ class Tenant(Base):
     jobs: Mapped[list[Job]] = relationship(
         back_populates="tenant", cascade="all, delete-orphan"
     )
+    knowledge_articles: Mapped[list[KnowledgeArticle]] = relationship(
+        back_populates="tenant", cascade="all, delete-orphan"
+    )
 
 
 class TenantPhoneNumber(Base):
@@ -693,6 +696,38 @@ class JobNote(Base):
 
     job: Mapped[Job] = relationship(back_populates="notes")
     author: Mapped[TenantUser | None] = relationship(back_populates="job_notes")
+
+
+class KnowledgeArticle(Base):
+    __tablename__ = "knowledge_articles"
+    __table_args__ = (
+        Index("ix_knowledge_articles_tenant_id", "tenant_id"),
+        Index("ix_knowledge_articles_tenant_active", "tenant_id", "is_active"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    category: Mapped[str] = mapped_column(String(64), nullable=False, default="faq")
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    tags: Mapped[list[Any]] = mapped_column(JsonType, nullable=False, default=list)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        onupdate=_utcnow,
+        server_default=func.now(),
+    )
+
+    tenant: Mapped[Tenant] = relationship(back_populates="knowledge_articles")
 
 
 class TelephonyIdempotencyKey(Base):

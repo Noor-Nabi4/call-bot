@@ -14,6 +14,10 @@ from callbot_platform.api.auth_routes import router as auth_router  # noqa: E402
 from callbot_platform.api.crm_routes import router as crm_router  # noqa: E402
 from callbot_platform.api.crm_routes import tenant_settings_router  # noqa: E402
 from callbot_platform.api.jobs_routes import router as jobs_router  # noqa: E402
+from callbot_platform.api.knowledge_routes import (  # noqa: E402
+    internal_router as knowledge_internal_router,
+)
+from callbot_platform.api.knowledge_routes import ops_router as knowledge_ops_router  # noqa: E402
 from callbot_platform.api.routes import router  # noqa: E402
 from callbot_platform.api.scheduling_routes import router as scheduling_router  # noqa: E402
 from callbot_platform.config import get_settings  # noqa: E402
@@ -43,6 +47,8 @@ app.include_router(crm_router)
 app.include_router(scheduling_router)
 app.include_router(auth_router)
 app.include_router(jobs_router)
+app.include_router(knowledge_internal_router)
+app.include_router(knowledge_ops_router)
 app.include_router(tenant_settings_router)
 
 

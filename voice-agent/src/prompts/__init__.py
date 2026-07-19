@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from prompts.business import BusinessFacts, business_information
 from prompts.crm import crm_intake_rules
+from prompts.knowledge import knowledge_rules
 from prompts.safety import safety_rules
 from prompts.scheduling import scheduling_rules
 from prompts.system import (
@@ -35,6 +36,7 @@ def build_system_instructions(
             conversation_rules(),
             crm_intake_rules(),
             scheduling_rules(),
+            knowledge_rules(),
             unsupported_request_rules(),
             safety_rules(),
             call_ending_rules(),

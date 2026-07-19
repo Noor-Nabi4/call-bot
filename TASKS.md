@@ -296,6 +296,8 @@ Manual checklist: [`voice-agent/docs/PHASE3_CRM_CHECKLIST.md`](./voice-agent/doc
 
 ## Phase 6 — Money (estimates, invoices, payments)
 
+**Status:** skipped for now (no payments required yet)
+
 - [ ] Estimate generation (manual/ops first; voice later)  
 - [ ] Invoice creation from completed jobs  
 - [ ] Payment link / card processor (tenant merchant accounts later)  
@@ -308,12 +310,14 @@ Manual checklist: [`voice-agent/docs/PHASE3_CRM_CHECKLIST.md`](./voice-agent/doc
 
 Only after booking/CRM are stable:
 
-- [ ] Curated knowledge base **per tenant** (hours, service areas, FAQs)  
-- [ ] Retrieval tool filtered by `tenant_id`  
-- [ ] Prompt injection protections for retrieved text  
-- [ ] Evaluation set for FAQ accuracy  
+- [x] Curated knowledge base **per tenant** (hours, service areas, FAQs)  
+- [x] Retrieval tool filtered by `tenant_id`  
+- [x] Prompt injection protections for retrieved text  
+- [x] Evaluation set for FAQ accuracy  
 
-**Do not** build vector DB before Phase 3–4 are working.
+**Note:** Keyword retrieval over curated articles (no vector DB in this phase).
+
+**Exit:** FAQ eval + isolation tests in `platform/tests/test_knowledge.py`; ops `/knowledge` UI.
 
 ---
 

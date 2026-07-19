@@ -31,9 +31,14 @@ export function AppShell({
           </div>
           <nav className="flex items-center gap-3 text-sm">
             {!isTech && (
-              <Link href="/board" className="font-medium">
-                Board
-              </Link>
+              <>
+                <Link href="/board" className="font-medium">
+                  Board
+                </Link>
+                <Link href="/knowledge" className="font-medium">
+                  Knowledge
+                </Link>
+              </>
             )}
             {(isTech || user.role === "admin") && (
               <Link href="/tech" className="font-medium">
