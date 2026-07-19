@@ -10,7 +10,12 @@
 *.egg-info/
 .idea/
 .vscode/
+node_modules/
+.next/
 
-# Nested agent venv / local env
+# Nested agent / playground local env
 voice-agent/.venv/
 voice-agent/.env.local
+playground/.env.local
+playground/node_modules/
+playground/.next/

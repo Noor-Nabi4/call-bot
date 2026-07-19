@@ -99,7 +99,8 @@ Already in progress under `voice-agent/`:
 - [x] Multi-tenant product decision recorded  
 - [x] Phase 0 hygiene (README, CI, business facts, env check)  
 - [x] Phase 1 code: prompts/guardrails, observability, checklist, unit+eval tests  
-- [ ] Browser playground verified end-to-end *(manual; needs `OPENAI_API_KEY`)*  
+- [x] Next.js browser playground (`playground/`) with token + agent dispatch  
+- [ ] Browser playground verified end-to-end *(manual; needs `OPENAI_API_KEY` + worker)*  
 - [ ] `OPENAI_API_KEY` filled in `.env.local` (LiveKit keys present)  
 - [ ] Telephony (SIP) not started  
 - [x] Optional `tenant_id` on CallState / Settings (env `TENANT_ID`)  

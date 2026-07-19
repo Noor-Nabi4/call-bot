@@ -28,6 +28,20 @@ uv run src/agent.py console  # local mic test
 uv run src/agent.py dev      # LiveKit Cloud dev worker
 ```
 
+## Quick start (browser playground)
+
+With the voice worker running (`uv run src/agent.py dev`):
+
+```bash
+cd playground
+cp .env.example .env.local
+# Fill LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET
+npm install
+npm run dev
+```
+
+Open http://localhost:3000 and click **Start call**.
+
 Unit tests (no live providers):
 
 ```bash
@@ -41,7 +55,8 @@ uv run pytest tests/test_config.py tests/test_prompt.py tests/test_state.py test
 call-bot/
 ├── TASKS.md                 # phased product plan
 ├── .github/workflows/       # CI
-└── voice-agent/             # LiveKit voice worker (v1)
+├── voice-agent/             # LiveKit voice worker (v1)
+└── playground/              # Next.js browser playground
 ```
 
 ## Secrets
