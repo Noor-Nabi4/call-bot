@@ -16,6 +16,8 @@ import {
   Surface,
   useToast,
 } from "@/components/ui";
+import { errors, handoff as copy } from "@/lib/copy";
+import { maskSecret, safeUserError } from "@/lib/safe-error";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
@@ -35,10 +37,11 @@ export default function HandoffPage() {
   const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showConnectionId, setShowConnectionId] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`${API_BASE}/api/handoff`, { credentials: "include" });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) throw new Error(errors.loadFailed);
     const data = await res.json();
     setSettings(data.settings);
   }, []);
@@ -49,7 +52,7 @@ export default function HandoffPage() {
     queueMicrotask(() => {
       if (cancelled) return;
       load()
-        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .catch((e) => setError(safeUserError(e, errors.loadFailed)))
         .finally(() => {
           if (!cancelled) setFetching(false);
         });
@@ -79,12 +82,12 @@ export default function HandoffPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(errors.saveFailed);
       const data = await res.json();
       setSettings(data.settings);
-      toast.push("Handoff rules saved", "success");
+      toast.push("Transfer rules saved", "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(safeUserError(err, errors.saveFailed));
     } finally {
       setSaving(false);
     }
@@ -92,10 +95,7 @@ export default function HandoffPage() {
 
   return (
     <AppShell user={user}>
-      <PageHeader
-        title="Human handoff"
-        description="Escalation rules for warm or cold SIP transfer from the voice agent."
-      />
+      <PageHeader title={copy.title} description={copy.description} />
 
       {error ? (
         <ErrorState
@@ -105,7 +105,7 @@ export default function HandoffPage() {
             setError(null);
             setFetching(true);
             load()
-              .catch((e) => setError(e.message))
+              .catch((e) => setError(safeUserError(e, errors.loadFailed)))
               .finally(() => setFetching(false));
           }}
         />
@@ -128,28 +128,27 @@ export default function HandoffPage() {
                 />
                 <span>
                   <span className="block text-sm font-medium text-text-primary">
-                    Enable human transfer
+                    {copy.enableTitle}
                   </span>
                   <span className="text-sm text-text-secondary">
-                    Allow the voice agent to escalate callers to a live operator.
+                    {copy.enableBody}
                   </span>
                 </span>
               </label>
 
-              <Field label="Transfer mode">
+              <Field label={copy.transferMode}>
                 <Select
                   value={settings.mode}
-                  onChange={(e) => setSettings({ ...settings, mode: e.target.value })}
+                  onChange={(e) =>
+                    setSettings({ ...settings, mode: e.target.value })
+                  }
                 >
-                  <option value="warm">Warm (agent-assisted)</option>
-                  <option value="cold">Cold (SIP REFER)</option>
+                  <option value="warm">{copy.warm}</option>
+                  <option value="cold">{copy.cold}</option>
                 </Select>
               </Field>
 
-              <Field
-                label="Escalation phone (E.164)"
-                hint="Destination number for human operators"
-              >
+              <Field label={copy.escalationPhone} hint={copy.escalationHint}>
                 <Input
                   value={settings.escalation_phone_e164 || ""}
                   onChange={(e) =>
@@ -162,11 +161,9 @@ export default function HandoffPage() {
                 />
               </Field>
 
-              <Field
-                label="Outbound SIP trunk ID"
-                hint="Required for warm transfer via LiveKit SIP"
-              >
+              <Field label={copy.connectionId} hint={copy.connectionHint}>
                 <Input
+                  type={showConnectionId ? "text" : "password"}
                   value={settings.sip_outbound_trunk_id || ""}
                   onChange={(e) =>
                     setSettings({
@@ -174,11 +171,19 @@ export default function HandoffPage() {
                       sip_outbound_trunk_id: e.target.value,
                     })
                   }
+                  autoComplete="off"
                 />
+                <button
+                  type="button"
+                  className="mt-1 text-xs text-text-muted underline-offset-2 hover:underline"
+                  onClick={() => setShowConnectionId((v) => !v)}
+                >
+                  {showConnectionId ? "Hide value" : "Show value"}
+                </button>
               </Field>
 
               <Button type="submit" disabled={saving}>
-                {saving ? "Saving…" : "Save rules"}
+                {saving ? copy.saving : copy.save}
               </Button>
             </form>
           </Surface>
@@ -187,31 +192,37 @@ export default function HandoffPage() {
             <Surface className="p-4">
               <div className="flex items-center gap-2">
                 <Shield className="size-4 text-brand" aria-hidden />
-                <h2 className="text-sm font-semibold">Current rules</h2>
+                <h2 className="text-sm font-semibold">{copy.currentRules}</h2>
               </div>
               <dl className="mt-3 space-y-3 text-sm">
                 <div>
                   <dt className="text-xs text-text-muted uppercase">Status</dt>
                   <dd className="mt-1">
-                    <StatusPill status={settings.enabled ? "active" : "inactive"} />
+                    <StatusPill
+                      status={settings.enabled ? "active" : "inactive"}
+                    />
                   </dd>
                 </div>
                 <div>
                   <dt className="text-xs text-text-muted uppercase">Mode</dt>
                   <dd className="mt-1">
-                    <StatusPill status={settings.mode} />
+                    {settings.mode === "warm" ? copy.warm : copy.cold}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-text-muted uppercase">Escalation</dt>
+                  <dt className="text-xs text-text-muted uppercase">Transfer to</dt>
                   <dd className="mt-1 font-mono text-xs">
-                    {settings.escalation_phone_e164 || "Not set"}
+                    {settings.escalation_phone_e164 || copy.maskedUnset}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-text-muted uppercase">SIP trunk</dt>
-                  <dd className="mt-1 font-mono text-xs break-all">
-                    {settings.sip_outbound_trunk_id || "Not set"}
+                  <dt className="text-xs text-text-muted uppercase">
+                    {copy.connectionSummary}
+                  </dt>
+                  <dd className="mt-1 font-mono text-xs">
+                    {settings.sip_outbound_trunk_id
+                      ? maskSecret(settings.sip_outbound_trunk_id)
+                      : copy.maskedUnset}
                   </dd>
                 </div>
               </dl>
@@ -220,18 +231,19 @@ export default function HandoffPage() {
             <Surface className="p-4 text-sm text-text-secondary">
               <div className="flex items-center gap-2 text-text-primary">
                 <PhoneForwarded className="size-4" aria-hidden />
-                <p className="font-medium">When handoff triggers</p>
+                <p className="font-medium">{copy.whenTriggers}</p>
               </div>
               <ul className="mt-2 list-disc space-y-1 pl-4">
-                <li>Agent detects caller needs a human</li>
+                <li>{copy.triggerNeedHuman}</li>
                 <li>
-                  {settings.mode === "warm"
-                    ? "Warm mode connects operator before releasing caller"
-                    : "Cold mode transfers caller via SIP REFER"}
+                  {settings.mode === "warm" ? copy.triggerWarm : copy.triggerCold}
                 </li>
                 <li>
-                  Calls route to{" "}
-                  {settings.escalation_phone_e164 || "configured escalation number"}
+                  {copy.triggerRoute.replace(
+                    "the configured transfer number",
+                    settings.escalation_phone_e164 ||
+                      "the configured transfer number",
+                  )}
                 </li>
               </ul>
             </Surface>

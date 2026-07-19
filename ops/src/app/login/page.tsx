@@ -4,6 +4,8 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/lib/api";
 import { Button, Field, Input, ErrorState } from "@/components/ui";
+import { login as copy } from "@/lib/copy";
+import { safeUserError } from "@/lib/safe-error";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -26,7 +28,7 @@ export default function LoginPage() {
       if (user.role === "technician") router.replace("/tech");
       else router.replace("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      setError(safeUserError(err, copy.failedMessage));
     } finally {
       setBusy(false);
     }
@@ -40,26 +42,24 @@ export default function LoginPage() {
         className="glass-panel relative z-[1] w-full max-w-md p-6"
       >
         <p className="text-[11px] font-medium tracking-[0.16em] text-text-muted uppercase">
-          Call Bot Ops
+          {copy.brand}
         </p>
         <h1 className="mt-1 font-heading text-2xl font-semibold tracking-tight">
-          Sign in
+          {copy.heading}
         </h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Tenant-scoped dispatcher and technician access.
-        </p>
+        <p className="mt-1 text-sm text-text-secondary">{copy.supporting}</p>
 
         <div className="mt-5 grid gap-3">
-          <Field label="Tenant slug">
+          <Field label={copy.businessId}>
             <Input
               value={tenantSlug}
               onChange={(e) => setTenantSlug(e.target.value)}
               required
               autoComplete="organization"
-              placeholder="acme-hvac"
+              placeholder="your-business"
             />
           </Field>
-          <Field label="Email">
+          <Field label={copy.email}>
             <Input
               type="email"
               value={email}
@@ -68,7 +68,7 @@ export default function LoginPage() {
               autoComplete="username"
             />
           </Field>
-          <Field label="Password">
+          <Field label={copy.password}>
             <Input
               type="password"
               value={password}
@@ -80,11 +80,15 @@ export default function LoginPage() {
         </div>
 
         {error ? (
-          <ErrorState className="mt-4" title="Sign-in failed" message={error} />
+          <ErrorState
+            className="mt-4"
+            title={copy.failedTitle}
+            message={error}
+          />
         ) : null}
 
         <Button type="submit" disabled={busy} className="mt-5 w-full" size="lg">
-          {busy ? "Signing in…" : "Sign in"}
+          {busy ? copy.submitting : copy.submit}
         </Button>
       </form>
     </div>

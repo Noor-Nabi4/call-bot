@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Users } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
+import { customers as copy, errors } from "@/lib/copy";
+import { safeUserError } from "@/lib/safe-error";
 import {
   DataTable,
   EmptyState,
@@ -55,7 +57,7 @@ export default function CustomersPage() {
       fetch(`${API}/api/admin/customers`, { credentials: "include" }),
       fetch(`${API}/api/jobs`, { credentials: "include" }),
     ]);
-    if (!custRes.ok) throw new Error(await custRes.text());
+    if (!custRes.ok) throw new Error(errors.loadFailed);
     const custData = await custRes.json();
     setRows(custData.customers || []);
 
@@ -76,7 +78,7 @@ export default function CustomersPage() {
     queueMicrotask(() => {
       if (cancelled) return;
       load()
-        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .catch((e) => setError(safeUserError(e, errors.loadFailed)))
         .finally(() => {
           if (!cancelled) setFetching(false);
         });
@@ -156,8 +158,8 @@ export default function CustomersPage() {
   return (
     <AppShell user={user}>
       <PageHeader
-        title="Customers"
-        description="Tenant customer records from calls, appointments, and jobs."
+        title={copy.title}
+        description={copy.description}
         actions={
           <SearchInput
             className="w-full sm:w-64"
@@ -177,7 +179,7 @@ export default function CustomersPage() {
             setError(null);
             setFetching(true);
             load()
-              .catch((e) => setError(e.message))
+              .catch((e) => setError(safeUserError(e, errors.loadFailed)))
               .finally(() => setFetching(false));
           }}
         />
@@ -192,11 +194,9 @@ export default function CustomersPage() {
           empty={
             <EmptyState
               icon={<Users className="size-8" />}
-              title={search ? "No matching customers" : "No customers yet"}
+              title={search ? "No matching customers" : copy.empty}
               description={
-                search
-                  ? "Try a different search term."
-                  : "Customers appear when calls and jobs are created."
+                search ? "Try a different search term." : copy.emptyHint
               }
             />
           }

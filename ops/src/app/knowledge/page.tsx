@@ -4,6 +4,8 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { BookOpen, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
+import { errors, knowledge as copy } from "@/lib/copy";
+import { safeUserError } from "@/lib/safe-error";
 import {
   Button,
   ConfirmDialog,
@@ -41,7 +43,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
     credentials: "include",
     headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(errors.generic);
   return res.json();
 }
 
@@ -74,7 +76,7 @@ export default function KnowledgePage() {
     queueMicrotask(() => {
       if (cancelled) return;
       refresh()
-        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .catch((e) => setError(safeUserError(e, errors.loadFailed)))
         .finally(() => {
           if (!cancelled) setFetching(false);
         });
@@ -128,7 +130,7 @@ export default function KnowledgePage() {
       await refresh();
       toast.push("Article created", "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create failed");
+      setError(safeUserError(err, errors.createFailed));
     }
   }
 
@@ -142,7 +144,7 @@ export default function KnowledgePage() {
       await refresh();
       toast.push("Article deleted", "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Delete failed");
+      setError(safeUserError(err, errors.deleteFailed));
     } finally {
       setDeleteBusy(false);
     }
@@ -151,11 +153,11 @@ export default function KnowledgePage() {
   return (
     <AppShell user={user}>
       <PageHeader
-        title="Knowledge base"
-        description="Curated FAQs and policies the voice agent can retrieve."
+        title={copy.title}
+        description={copy.description}
         actions={
           <Button size="sm" onClick={() => setShowForm((v) => !v)}>
-            {showForm ? "Hide form" : "New article"}
+            {showForm ? "Hide form" : copy.add}
           </Button>
         }
       />
@@ -197,7 +199,7 @@ export default function KnowledgePage() {
               </Field>
             </div>
             <Button type="submit" className="w-fit">
-              Add article
+              {copy.add}
             </Button>
           </form>
         </Surface>
@@ -220,8 +222,8 @@ export default function KnowledgePage() {
           aria-label="Filter by status"
         >
           <option value="">All</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
+          <option value="active">{copy.ready}</option>
+          <option value="inactive">{copy.needsAttention}</option>
         </Select>
       </FilterBar>
 
@@ -230,12 +232,12 @@ export default function KnowledgePage() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={<BookOpen className="size-8" />}
-          title={search || statusFilter ? "No matching articles" : "No articles yet"}
-          description="Create articles for the voice agent to retrieve during calls."
+          title={search || statusFilter ? "No matching articles" : copy.empty}
+          description={copy.emptyHint}
           action={
             !showForm ? (
               <Button size="sm" onClick={() => setShowForm(true)}>
-                New article
+                {copy.add}
               </Button>
             ) : undefined
           }
@@ -249,7 +251,7 @@ export default function KnowledgePage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-semibold text-text-primary">{a.title}</h3>
-                      <StatusPill status={a.is_active ? "active" : "inactive"} />
+                      <StatusPill status={a.is_active ? "ready" : "needs_attention"} />
                     </div>
                     <p className="mt-0.5 text-xs font-medium uppercase tracking-wide text-text-muted">
                       {a.category}
@@ -281,8 +283,8 @@ export default function KnowledgePage() {
 
       <ConfirmDialog
         open={!!deleteId}
-        title="Delete article?"
-        description="This removes the article from the knowledge base. The voice agent will no longer retrieve it."
+        title={copy.deleteTitle}
+        description={copy.deleteBody}
         confirmLabel="Delete"
         danger
         busy={deleteBusy}

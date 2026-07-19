@@ -78,15 +78,12 @@ function TenantSwitcher({ user }: { user: OpsUser }) {
   return (
     <div
       className="flex items-center gap-2 rounded-[10px] border border-border bg-surface px-2.5 py-1.5"
-      title="Active tenant (session-scoped)"
+      title="Active business"
     >
       <span className="size-1.5 shrink-0 rounded-full bg-brand" aria-hidden />
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-text-primary">
           {user.tenant_name}
-        </p>
-        <p className="truncate font-mono text-[10px] text-text-muted">
-          {user.tenant_slug}
         </p>
       </div>
     </div>
@@ -224,7 +221,7 @@ function MobileNavDrawer({
       />
       <aside className="absolute top-0 bottom-0 left-0 flex w-64 flex-col border-r border-border bg-surface shadow-[var(--shadow-elevated)]">
         <div className="flex items-center justify-between border-b border-border px-3 py-3">
-          <p className="text-sm font-semibold">Call Bot Ops</p>
+          <p className="text-sm font-semibold">Call Bot</p>
           <button
             type="button"
             className="rounded-[10px] p-1.5 text-text-muted hover:bg-surface-muted"
@@ -435,14 +432,11 @@ export function AppShell({
         <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-border bg-background/80 p-4 backdrop-blur-xl lg:flex">
           <div className="px-3">
             <Link href="/dashboard" className="block text-text-primary">
-              <p className="text-[10px] font-medium tracking-[0.14em] text-text-muted uppercase">
+              <p className="font-heading text-base font-semibold tracking-tight">
                 Call Bot
               </p>
-              <p className="font-heading text-base font-semibold tracking-tight">
-                Ops
-              </p>
             </Link>
-            <p className="mt-1 text-[11px] text-text-muted">Operations console</p>
+            <p className="mt-1 text-[11px] text-text-muted">Operations</p>
             <div className="mt-4">
               <TenantSwitcher user={user} />
             </div>

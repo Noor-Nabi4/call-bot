@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { BarChart3 } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
+import { errors, metrics as copy } from "@/lib/copy";
+import { safeUserError } from "@/lib/safe-error";
 import {
   EmptyState,
   ErrorState,
@@ -34,7 +36,7 @@ const DAY_OPTIONS = [7, 30, 90];
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(`${API}${path}`, { credentials: "include" });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(errors.loadFailed);
   return res.json();
 }
 
@@ -58,7 +60,7 @@ export default function MetricsPage() {
     queueMicrotask(() => {
       if (cancelled) return;
       load(days)
-        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .catch((e) => setError(safeUserError(e, errors.loadFailed)))
         .finally(() => {
           if (!cancelled) setFetching(false);
         });
@@ -84,8 +86,8 @@ export default function MetricsPage() {
   return (
     <AppShell user={user}>
       <PageHeader
-        title="Metrics"
-        description="Call, appointment, and job activity for this tenant."
+        title={copy.title}
+        description={copy.description}
         actions={
           <FilterBar className="mb-0 border-0 bg-transparent p-0">
             <Select
@@ -115,7 +117,7 @@ export default function MetricsPage() {
             setError(null);
             setFetching(true);
             load(days)
-              .catch((e) => setError(e.message))
+              .catch((e) => setError(safeUserError(e, errors.loadFailed)))
               .finally(() => setFetching(false));
           }}
         />
@@ -126,8 +128,8 @@ export default function MetricsPage() {
       ) : !metrics ? (
         <EmptyState
           icon={<BarChart3 className="size-8" />}
-          title="No metrics available"
-          description="Metrics will appear once activity is recorded."
+          title={copy.empty}
+          description={copy.emptyHint}
         />
       ) : (
         <>

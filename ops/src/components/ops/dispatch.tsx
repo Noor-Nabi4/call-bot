@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import { StatusPill, TechnicianAvatar, urgencyEdgeClass } from "@/components/ui";
 import { formatWhen, type Job, type Technician } from "@/lib/api";
 import { Select } from "@/components/ui";
+import { jobStatusLabels } from "@/lib/copy";
 
 export function StatusStrip({
   columns,
@@ -26,8 +27,8 @@ export function StatusStrip({
     >
       {columns.map((status) => (
         <span key={status} className="inline-flex items-center gap-1.5">
-          <span className="text-text-secondary capitalize">
-            {status.replace(/_/g, " ")}
+          <span className="text-text-secondary">
+            {jobStatusLabels[status] || status.replace(/_/g, " ")}
           </span>
           <span className="font-mono text-xs font-semibold tabular-nums text-text-primary">
             {counts[status] ?? 0}
@@ -176,10 +177,10 @@ export function KanbanColumn({
   return (
     <section
       className="glass-panel flex w-[13.5rem] shrink-0 flex-col"
-      aria-label={`${status.replace(/_/g, " ")} column`}
+      aria-label={`${jobStatusLabels[status] || status.replace(/_/g, " ")} column`}
     >
       <header className="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-border bg-surface px-2.5 py-2">
-        <span className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-text-secondary capitalize">
+        <span className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-text-secondary">
           <span
             className={cn(
               "size-1.5 rounded-full",
@@ -191,7 +192,7 @@ export function KanbanColumn({
             )}
             aria-hidden
           />
-          {status.replace(/_/g, " ")}
+          {jobStatusLabels[status] || status.replace(/_/g, " ")}
         </span>
         <span className="font-mono text-[11px] tabular-nums text-text-muted">
           {count}

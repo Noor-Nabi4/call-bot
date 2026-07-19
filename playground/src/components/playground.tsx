@@ -12,6 +12,8 @@ import { Phone, PhoneOff } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/cn";
 import { Button, ErrorBanner } from "@/components/ui";
+import { voice } from "@/lib/copy";
+import { safeConnectionError, safeUserError } from "@/lib/safe-error";
 
 type ConnectionDetails = {
   serverUrl: string;
@@ -52,6 +54,17 @@ function mapAgentState(state: string | undefined): CallPhase {
   return "listening";
 }
 
+const PHASE_LABELS: Record<CallPhase, string> = {
+  idle: voice.ready,
+  connecting: voice.connecting,
+  listening: voice.listening,
+  thinking: voice.preparing,
+  speaking: voice.speaking,
+  interrupted: voice.interrupted,
+  disconnected: voice.ended,
+  error: voice.connectionProblem,
+};
+
 function CallTimer({ connected }: { connected: boolean }) {
   const [elapsed, setElapsed] = useState(0);
 
@@ -90,26 +103,15 @@ function AgentStage({
     return agentTranscriptions[agentTranscriptions.length - 1]?.text ?? null;
   }, [agentTranscriptions]);
 
-  const labels: Record<CallPhase, string> = {
-    idle: "Idle",
-    connecting: "Connecting",
-    listening: "Listening",
-    thinking: "Thinking",
-    speaking: "Speaking",
-    interrupted: "Interrupted",
-    disconnected: "Disconnected",
-    error: "Error",
-  };
-
   return (
     <section aria-live="polite" className="grid gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="m-0 text-[0.7rem] tracking-[0.16em] text-text-muted uppercase">
-            Live status
+            {voice.sessionLabel}
           </p>
-          <p className="mt-1 font-display text-2xl font-semibold tracking-tight capitalize sm:text-3xl">
-            {labels[phase]}
+          <p className="mt-1 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+            {PHASE_LABELS[phase]}
           </p>
         </div>
         <CallTimer key={timerKey} connected />
@@ -143,8 +145,7 @@ function AgentStage({
           </p>
         ) : (
           <p className="m-0 text-base leading-relaxed text-text-muted">
-            Waiting for the agent to speak. Allow microphone access when
-            prompted.
+            {voice.waitingHint}
           </p>
         )}
       </div>
@@ -170,13 +171,13 @@ export function Playground() {
       });
       const payload = await response.json();
       if (!response.ok) {
-        throw new Error(payload.error || "Token request failed");
+        throw new Error(payload.error || voice.startFailed);
       }
       setDetails(payload as ConnectionDetails);
     } catch (err) {
       setDetails(null);
       setPhase("error");
-      setError(err instanceof Error ? err.message : "Unable to connect");
+      setError(safeUserError(err, voice.startFailed));
     } finally {
       setConnecting(false);
     }
@@ -195,19 +196,6 @@ export function Playground() {
   if (details) {
     return (
       <div className="glass-panel animate-[rise_420ms_ease-out] w-full max-w-xl p-[clamp(1.25rem,3vw,1.75rem)]">
-        <div className="mb-5 flex flex-wrap gap-2 text-xs text-text-muted">
-          <span className="rounded-full border border-border bg-surface-strong px-2.5 py-1">
-            Room {details.roomName}
-          </span>
-          <span className="rounded-full border border-border bg-surface-strong px-2.5 py-1">
-            Agent {details.agentName}
-          </span>
-          {details.tenantId ? (
-            <span className="rounded-full border border-border bg-surface-strong px-2.5 py-1">
-              Tenant {details.tenantId}
-            </span>
-          ) : null}
-        </div>
         <LiveKitRoom
           token={details.participantToken}
           serverUrl={details.serverUrl}
@@ -218,24 +206,36 @@ export function Playground() {
             setPhase("disconnected");
             disconnect();
           }}
-          onError={(err) => {
+          onError={() => {
             setPhase("error");
-            setError(err.message);
+            setError(voice.interruptedError);
           }}
           className="grid gap-5"
         >
-          <AgentStage key={details.roomName} timerKey={details.roomName} onPhase={onPhase} />
+          <AgentStage
+            key={details.roomName}
+            timerKey={details.roomName}
+            onPhase={onPhase}
+          />
           <RoomAudioRenderer />
           <div className="controls flex flex-col items-center gap-3">
             <VoiceAssistantControlBar controls={{ leave: true }} />
-            <Button variant="danger" onClick={disconnect} className="w-full max-w-xs">
+            <Button
+              variant="danger"
+              onClick={disconnect}
+              className="w-full max-w-xs"
+            >
               <PhoneOff className="size-4" aria-hidden />
-              End call
+              {voice.endCall}
             </Button>
           </div>
         </LiveKitRoom>
-        {error ? <div className="mt-4"><ErrorBanner message={error} /></div> : null}
-        <p className="sr-only">Current phase: {phase}</p>
+        {error ? (
+          <div className="mt-4">
+            <ErrorBanner message={safeConnectionError(error)} />
+          </div>
+        ) : null}
+        <p className="sr-only">Current phase: {PHASE_LABELS[phase]}</p>
       </div>
     );
   }
@@ -245,16 +245,10 @@ export function Playground() {
       <div className="mb-6 flex items-center justify-between gap-3">
         <div>
           <p className="m-0 text-[0.7rem] tracking-[0.16em] text-text-muted uppercase">
-            Session
+            {voice.sessionLabel}
           </p>
           <p className="mt-1 font-display text-2xl font-semibold tracking-tight">
-            {phase === "error"
-              ? "Connection error"
-              : phase === "disconnected"
-                ? "Disconnected"
-                : phase === "connecting"
-                  ? "Connecting…"
-                  : "Ready to talk"}
+            {PHASE_LABELS[phase === "idle" ? "idle" : phase]}
           </p>
         </div>
         <CallTimer key="idle" connected={false} />
@@ -271,9 +265,7 @@ export function Playground() {
       </div>
 
       <p className="mb-6 text-[0.95rem] leading-relaxed text-text-secondary">
-        Start a browser session against your LiveKit{" "}
-        <code className="text-brand-bright">voice-agent</code> worker. A
-        short-lived token is minted and the agent is dispatched into the room.
+        {voice.idleHint}
       </p>
 
       <Button
@@ -283,7 +275,7 @@ export function Playground() {
         aria-busy={connecting}
       >
         <Phone className="size-4" aria-hidden />
-        {connecting ? "Connecting…" : "Start call"}
+        {connecting ? voice.connectingAction : voice.startCall}
       </Button>
 
       {error ? (

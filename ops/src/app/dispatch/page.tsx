@@ -26,6 +26,8 @@ import {
 import { deriveUrgency } from "@/lib/schedule";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/use-auth";
+import { dispatch as copy, errors } from "@/lib/copy";
+import { safeUserError } from "@/lib/safe-error";
 import {
   Button,
   DetailDrawer,
@@ -149,7 +151,7 @@ function DispatchWorkspace() {
     queueMicrotask(() => {
       if (cancelled) return;
       Promise.all([refresh(), loadCustomers()])
-        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .catch((e) => setError(safeUserError(e, errors.loadFailed)))
         .finally(() => {
           if (!cancelled) setFetching(false);
         });
@@ -307,7 +309,7 @@ function DispatchWorkspace() {
       await refresh();
       toast.push("Technician created", "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create failed");
+      setError(safeUserError(err, errors.createFailed));
     } finally {
       setFormBusy(false);
     }
@@ -318,10 +320,10 @@ function DispatchWorkspace() {
       <header className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-lg font-semibold tracking-tight text-text-primary">
-            Dispatch
+            {copy.title}
           </h1>
           <p className="mt-0.5 text-sm text-text-secondary">
-            Assign technicians and move jobs through the field pipeline.
+            {copy.description}
           </p>
           <p className="mt-1 text-xs text-text-muted">
             {activeJobCount} active job{activeJobCount === 1 ? "" : "s"}
@@ -331,7 +333,9 @@ function DispatchWorkspace() {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => refresh().catch((e) => setError(e.message))}
+            onClick={() =>
+              refresh().catch((e) => setError(safeUserError(e, errors.loadFailed)))
+            }
           >
             <RefreshCw className="size-3.5" aria-hidden />
             Refresh
@@ -349,7 +353,7 @@ function DispatchWorkspace() {
           message={error}
           onRetry={() => {
             setError(null);
-            refresh().catch((e) => setError(e.message));
+            refresh().catch((e) => setError(safeUserError(e, errors.loadFailed)));
           }}
         />
       ) : null}
@@ -483,8 +487,8 @@ function DispatchWorkspace() {
         <EmptyState
           className="py-10"
           icon={<LayoutGrid className="size-7" />}
-          title="No jobs match filters"
-          description="Clear filters or create a job to get started."
+          title={copy.noMatch}
+          description={copy.noMatchHint}
           action={
             <Button size="sm" onClick={() => setJobDrawerOpen(true)}>
               Create job
@@ -522,7 +526,7 @@ function DispatchWorkspace() {
                 ))}
                 {columnJobs.length === 0 ? (
                   <li className="px-1 py-4 text-center text-[11px] text-text-muted">
-                    Empty
+                    {copy.emptyStage}
                   </li>
                 ) : null}
               </KanbanColumn>
@@ -648,7 +652,7 @@ function DispatchWorkspace() {
         open={techDrawerOpen}
         onClose={() => setTechDrawerOpen(false)}
         title="Add technician"
-        description="Create a field technician account for this tenant."
+        description="Create a field technician account for your organization."
         width="sm"
         footer={
           <div className="flex justify-end gap-2">

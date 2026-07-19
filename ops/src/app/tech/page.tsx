@@ -17,6 +17,8 @@ import {
 import { deriveUrgency } from "@/lib/schedule";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/use-auth";
+import { errors, tech as copy } from "@/lib/copy";
+import { safeUserError } from "@/lib/safe-error";
 import {
   Button,
   EmptyState,
@@ -54,7 +56,7 @@ export default function TechHomePage() {
     queueMicrotask(() => {
       if (cancelled) return;
       refresh()
-        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .catch((e) => setError(safeUserError(e, errors.loadFailed)))
         .finally(() => {
           if (!cancelled) setFetching(false);
         });
@@ -106,7 +108,9 @@ export default function TechHomePage() {
           await pingLocation(pos.coords.latitude, pos.coords.longitude);
           setLocMsg("Location updated");
         } catch (e) {
-          setLocMsg(e instanceof Error ? e.message : "Location failed");
+          setLocMsg(
+            safeUserError(e, "We could not update your location. Please try again."),
+          );
         } finally {
           setLocBusy(false);
         }
@@ -129,8 +133,8 @@ export default function TechHomePage() {
   return (
     <AppShell user={user}>
       <PageHeader
-        title="My jobs"
-        description="Today's assigned field work."
+        title={copy.title}
+        description={copy.description}
       />
 
       {error ? (
@@ -141,7 +145,7 @@ export default function TechHomePage() {
             setError(null);
             setFetching(true);
             refresh()
-              .catch((e) => setError(e.message))
+              .catch((e) => setError(safeUserError(e, errors.loadFailed)))
               .finally(() => setFetching(false));
           }}
         />
@@ -238,8 +242,8 @@ export default function TechHomePage() {
             {sorted.length === 0 && (
               <EmptyState
                 icon={<Briefcase className="size-8" />}
-                title="No active assigned jobs"
-                description="New assignments will appear here when dispatched."
+                title={copy.empty}
+                description={copy.emptyHint}
               />
             )}
           </ul>

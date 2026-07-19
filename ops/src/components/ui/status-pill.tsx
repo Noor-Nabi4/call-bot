@@ -12,6 +12,8 @@ const tones: Record<string, string> = {
   canceled: "bg-danger-soft text-danger",
   active: "bg-brand/20 text-cyan",
   inactive: "bg-white/5 text-text-muted",
+  ready: "bg-success-soft text-success",
+  needs_attention: "bg-warn-soft text-warn",
   connected: "bg-success-soft text-success",
   failed: "bg-danger-soft text-danger",
   pending: "bg-warn-soft text-warn",

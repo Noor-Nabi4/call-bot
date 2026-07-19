@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Sans } from "next/font/google";
+import { site } from "@/lib/copy";
 import "./globals.css";
 
 const display = Fraunces({
@@ -14,8 +15,8 @@ const body = IBM_Plex_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Call Bot Playground",
-  description: "Browser playground for the LiveKit voice agent",
+  title: site.title,
+  description: site.description,
 };
 
 export default function RootLayout({

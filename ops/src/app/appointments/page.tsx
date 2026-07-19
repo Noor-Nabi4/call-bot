@@ -5,6 +5,8 @@ import { Calendar } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { formatWhen } from "@/lib/api";
 import { useAuth } from "@/lib/use-auth";
+import { appointments as copy, errors } from "@/lib/copy";
+import { safeUserError } from "@/lib/safe-error";
 import {
   EmptyState,
   ErrorState,
@@ -61,7 +63,7 @@ export default function AppointmentsPage() {
       fetch(`${API}/api/admin/appointments`, { credentials: "include" }),
       fetch(`${API}/api/admin/customers`, { credentials: "include" }),
     ]);
-    if (!apptRes.ok) throw new Error(await apptRes.text());
+    if (!apptRes.ok) throw new Error(errors.loadFailed);
     const apptData = await apptRes.json();
     setRows(apptData.appointments || []);
 
@@ -81,7 +83,7 @@ export default function AppointmentsPage() {
     queueMicrotask(() => {
       if (cancelled) return;
       load()
-        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .catch((e) => setError(safeUserError(e, errors.loadFailed)))
         .finally(() => {
           if (!cancelled) setFetching(false);
         });
@@ -147,8 +149,8 @@ export default function AppointmentsPage() {
   return (
     <AppShell user={user}>
       <PageHeader
-        title="Appointments"
-        description="Scheduled service visits booked through the voice agent."
+        title={copy.title}
+        description={copy.description}
       />
 
       <FilterBar>
@@ -191,7 +193,7 @@ export default function AppointmentsPage() {
             setError(null);
             setFetching(true);
             load()
-              .catch((e) => setError(e.message))
+              .catch((e) => setError(safeUserError(e, errors.loadFailed)))
               .finally(() => setFetching(false));
           }}
         />
@@ -202,8 +204,8 @@ export default function AppointmentsPage() {
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={<Calendar className="size-8" />}
-          title="No appointments"
-          description="Appointments appear when customers book through the agent."
+          title={copy.empty}
+          description={copy.emptyHint}
         />
       ) : (
         <div className="space-y-6">

@@ -1,5 +1,8 @@
 /** Browser client for platform ops APIs (cookie session). */
 
+import { safeUserError } from "@/lib/safe-error";
+import { errors } from "@/lib/copy";
+
 const API_BASE =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
   "http://localhost:8000";
@@ -63,7 +66,7 @@ async function api<T>(
     },
   });
   if (!res.ok) {
-    let message = res.statusText;
+    let message: string = errors.generic;
     try {
       const body = await res.json();
       const detail = body?.detail;
@@ -72,7 +75,7 @@ async function api<T>(
     } catch {
       /* ignore */
     }
-    throw new Error(message || `Request failed (${res.status})`);
+    throw new Error(safeUserError(message, errors.generic));
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

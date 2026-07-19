@@ -7,6 +7,8 @@ import { Phone } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { formatWhen } from "@/lib/api";
 import { useAuth } from "@/lib/use-auth";
+import { calls as copy, errors } from "@/lib/copy";
+import { safeUserError } from "@/lib/safe-error";
 import {
   DataTable,
   DetailDrawer,
@@ -61,7 +63,7 @@ function CallsWorkspace() {
 
   const load = useCallback(async () => {
     const res = await fetch(`${API}/api/admin/calls`, { credentials: "include" });
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) throw new Error(errors.loadFailed);
     const data = await res.json();
     setRows(data.calls || []);
   }, []);
@@ -72,7 +74,7 @@ function CallsWorkspace() {
     queueMicrotask(() => {
       if (cancelled) return;
       load()
-        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .catch((e) => setError(safeUserError(e, errors.loadFailed)))
         .finally(() => {
           if (!cancelled) setFetching(false);
         });
@@ -90,8 +92,7 @@ function CallsWorkspace() {
       return (
         c.status.toLowerCase().includes(q) ||
         (c.caller_number || "").includes(q) ||
-        (c.called_number || "").includes(q) ||
-        c.room_name.toLowerCase().includes(q)
+        (c.called_number || "").includes(q)
       );
     });
   }, [rows, search, statusFilter]);
@@ -145,7 +146,7 @@ function CallsWorkspace() {
               {
                 id: "started",
                 title: "Call started",
-                detail: selected.room_name,
+                detail: "Call connected",
                 time: formatWhen(selected.started_at),
                 tone: "success" as const,
               },
@@ -176,8 +177,8 @@ function CallsWorkspace() {
   return (
     <AppShell user={user}>
       <PageHeader
-        title="Calls"
-        description="Inbound and outbound voice sessions for this tenant."
+        title={copy.title}
+        description={copy.description}
         actions={
           <SearchInput
             className="w-full sm:w-64"
@@ -211,7 +212,7 @@ function CallsWorkspace() {
             setError(null);
             setFetching(true);
             load()
-              .catch((e) => setError(e.message))
+              .catch((e) => setError(safeUserError(e, errors.loadFailed)))
               .finally(() => setFetching(false));
           }}
         />
@@ -229,9 +230,9 @@ function CallsWorkspace() {
             <EmptyState
               icon={<Phone className="size-8" />}
               title={
-                search || statusFilter ? "No matching calls" : "No calls yet"
+                search || statusFilter ? "No matching calls" : copy.empty
               }
-              description="Call records appear when the voice agent handles sessions."
+              description={copy.emptyHint}
             />
           }
         />
@@ -240,8 +241,12 @@ function CallsWorkspace() {
       <DetailDrawer
         open={!!selected}
         onClose={() => setSelected(null)}
-        title="Call detail"
-        description={selected?.room_name}
+        title={copy.detailTitle}
+        description={
+          selected
+            ? `${formatWhen(selected.started_at)} · ${selected.status.replace(/_/g, " ")}`
+            : undefined
+        }
       >
         {selected ? (
           <div className="space-y-5">
@@ -266,17 +271,9 @@ function CallsWorkspace() {
                   {formatDuration(selected.started_at, selected.ended_at)}
                 </dd>
               </div>
-              {selected.customer_id ? (
-                <div>
-                  <dt className="text-xs font-medium text-text-muted uppercase">
-                    Customer ID
-                  </dt>
-                  <dd className="mt-1 font-mono text-xs">{selected.customer_id}</dd>
-                </div>
-              ) : null}
             </dl>
             <div>
-              <h3 className="mb-3 text-sm font-semibold">Lifecycle</h3>
+              <h3 className="mb-3 text-sm font-semibold">Timeline</h3>
               <Timeline items={timelineItems} />
             </div>
           </div>

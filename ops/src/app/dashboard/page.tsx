@@ -51,6 +51,8 @@ import {
 } from "@/lib/api";
 import { deriveUrgency } from "@/lib/schedule";
 import { useAuth } from "@/lib/use-auth";
+import { dashboard as copy, errors } from "@/lib/copy";
+import { safeUserError } from "@/lib/safe-error";
 
 const API =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
@@ -147,7 +149,7 @@ export default function DashboardPage() {
     queueMicrotask(() => {
       if (cancelled) return;
       load()
-        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .catch((e) => setError(safeUserError(e, errors.loadFailed)))
         .finally(() => {
           if (!cancelled) setFetching(false);
         });
@@ -179,15 +181,9 @@ export default function DashboardPage() {
     [techs],
   );
 
-  const openCalls = useMemo(
-    () =>
-      calls.filter((c) => {
-        const s = (c.status || "").toLowerCase();
-        if (["completed", "ended", "failed", "canceled", "cancelled"].includes(s))
-          return false;
-        return !c.ended_at;
-      }),
-    [calls],
+  const callsToday = useMemo(
+    () => calls.filter((c) => isSameDay(c.started_at, now)),
+    [calls, now],
   );
 
   const unassigned = useMemo(
@@ -227,12 +223,12 @@ export default function DashboardPage() {
         href: "/dispatch?view=overdue",
       });
     }
-    if (openCalls.length > 0) {
+    if (callsToday.length > 0) {
       items.push({
-        id: "open-calls",
-        title: "Open calls",
-        count: openCalls.length,
-        explanation: "Calls without an end time yet.",
+        id: "calls-today",
+        title: "Calls today",
+        count: callsToday.length,
+        explanation: "Customer calls received today.",
         href: "/calls",
       });
     }
@@ -242,12 +238,12 @@ export default function DashboardPage() {
         id: "inactive-techs",
         title: "Inactive technicians",
         count: inactiveTechs,
-        explanation: "Technicians marked inactive for this tenant.",
+        explanation: "Technicians marked inactive for your organization.",
         href: "/dispatch",
       });
     }
     return items;
-  }, [unassigned, overdue, openCalls, techs]);
+  }, [unassigned, overdue, callsToday, techs]);
 
   const todayWork = useMemo(() => {
     const rows: {
@@ -501,7 +497,7 @@ export default function DashboardPage() {
       await load();
       toast.push("Job created", "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create failed");
+      setError(safeUserError(err, errors.createFailed));
     } finally {
       setFormBusy(false);
     }
@@ -518,6 +514,9 @@ export default function DashboardPage() {
             {user.tenant_name}
           </h1>
           <p className="mt-1 text-sm text-text-secondary">
+            {copy.attentionLead}
+          </p>
+          <p className="mt-1 text-sm text-text-muted">
             {activeJobs.length} active job
             {activeJobs.length === 1 ? "" : "s"} ·{" "}
             {now.toLocaleDateString(undefined, {
@@ -555,7 +554,7 @@ export default function DashboardPage() {
             setError(null);
             setFetching(true);
             load()
-              .catch((e) => setError(e.message))
+              .catch((e) => setError(safeUserError(e, errors.loadFailed)))
               .finally(() => setFetching(false));
           }}
         />
@@ -567,34 +566,37 @@ export default function DashboardPage() {
         <div className="grid gap-4">
           <SummaryStrip
             items={[
-              { label: "Active jobs", value: activeJobs.length },
-              { label: "Appointments today", value: apptsToday.length },
-              { label: "Available techs", value: availableTechs.length },
-              { label: "Open calls", value: openCalls.length },
+              { label: copy.activeJobs, value: activeJobs.length },
+              { label: copy.appointmentsToday, value: apptsToday.length },
+              {
+                label: copy.availableTechnicians,
+                value: availableTechs.length,
+              },
+              { label: copy.callsToday, value: callsToday.length },
             ]}
           />
 
           <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-            <Panel title="Needs attention">
+            <Panel title={copy.needsAttention}>
               <AttentionList items={attention} />
             </Panel>
 
             <Panel
-              title="Today’s work"
+              title={copy.todaysSchedule}
               action={
                 <Link
                   href="/dispatch?view=today"
                   className="text-xs font-medium text-brand hover:underline"
                 >
-                  View all
+                  {copy.viewAll}
                 </Link>
               }
             >
               {todayWork.length === 0 ? (
                 <EmptyState
                   className="border-0 py-6"
-                  title="No work scheduled for today"
-                  description="New jobs and appointments will appear here."
+                  title={copy.noWorkToday}
+                  description={copy.noWorkHint}
                 />
               ) : (
                 <ul className="divide-y divide-border">
@@ -676,7 +678,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-            <Panel title="Recent activity">
+            <Panel title={copy.recentActivity}>
               <ActivityFeed items={activity} />
             </Panel>
             <Panel title="Quick links">

@@ -124,8 +124,11 @@ export async function POST(req: Request) {
       tenantId: tenantId ?? null,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to create token";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Never expose env names, provider details, or stack traces to the client.
+    console.error("playground token error", error);
+    return NextResponse.json(
+      { error: "We could not start the call. Please try again." },
+      { status: 500 },
+    );
   }
 }

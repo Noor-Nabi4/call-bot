@@ -3,19 +3,17 @@
 import Link from "next/link";
 import { Phone } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { site } from "@/lib/copy";
 
 export function TopNav({ active }: { active?: "voice" | "telephony" }) {
   return (
     <nav
       className="relative z-[1] flex items-center justify-between gap-4"
-      aria-label="Playground"
+      aria-label="Main"
     >
       <Link href="/" className="group flex items-baseline gap-2 text-text-primary">
         <span className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
-          Call Bot
-        </span>
-        <span className="hidden text-xs tracking-[0.14em] text-text-muted uppercase sm:inline">
-          Playground
+          {site.brand}
         </span>
       </Link>
       <div className="flex items-center gap-1 rounded-full border border-border bg-surface-strong/80 p-1 text-sm">
@@ -29,7 +27,7 @@ export function TopNav({ active }: { active?: "voice" | "telephony" }) {
           )}
           aria-current={active === "voice" ? "page" : undefined}
         >
-          Voice
+          {site.navVoice}
         </Link>
         <Link
           href="/telephony"
@@ -42,7 +40,7 @@ export function TopNav({ active }: { active?: "voice" | "telephony" }) {
           aria-current={active === "telephony" ? "page" : undefined}
         >
           <Phone className="size-3.5" aria-hidden />
-          Telephony
+          {site.navPhone}
         </Link>
       </div>
     </nav>

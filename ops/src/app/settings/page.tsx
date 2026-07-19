@@ -4,6 +4,8 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { ScrollText, Shield, Users } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
+import { errors, settings as copy } from "@/lib/copy";
+import { safeUserError } from "@/lib/safe-error";
 import {
   Button,
   DataTable,
@@ -81,7 +83,7 @@ export default function SettingsPage() {
     queueMicrotask(() => {
       if (cancelled) return;
       refresh()
-        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .catch((e) => setError(safeUserError(e, errors.loadFailed)))
         .finally(() => {
           if (!cancelled) setFetching(false);
         });
@@ -155,12 +157,12 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(invite),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(errors.createFailed);
       setInvite({ name: "", email: "", password: "", role: "dispatcher" });
       toast.push("User invited", "success");
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invite failed");
+      setError(safeUserError(err, errors.createFailed));
     } finally {
       setInviteBusy(false);
     }
@@ -177,10 +179,10 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(retention),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(errors.saveFailed);
       toast.push("Retention saved", "success");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(safeUserError(err, errors.saveFailed));
     } finally {
       setRetentionBusy(false);
     }
@@ -188,10 +190,7 @@ export default function SettingsPage() {
 
   return (
     <AppShell user={user}>
-      <PageHeader
-        title="Tenant settings"
-        description="Invite users, set retention policy, and review audit log."
-      />
+      <PageHeader title={copy.title} description={copy.description} />
 
       {error ? (
         <ErrorState
@@ -201,7 +200,7 @@ export default function SettingsPage() {
             setError(null);
             setFetching(true);
             refresh()
-              .catch((e) => setError(e.message))
+              .catch((e) => setError(safeUserError(e, errors.loadFailed)))
               .finally(() => setFetching(false));
           }}
         />
@@ -211,14 +210,17 @@ export default function SettingsPage() {
         <LoadingSkeleton rows={6} />
       ) : (
         <div className="space-y-6">
+          <p className="text-sm text-text-secondary">{copy.privacyData}</p>
           <section>
             <div className="mb-3 flex items-center gap-2">
               <Users className="size-4 text-text-muted" aria-hidden />
-              <h2 className="text-sm font-semibold text-text-primary">Users</h2>
+              <h2 className="text-sm font-semibold text-text-primary">
+                {copy.users}
+              </h2>
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               <Surface className="p-4">
-                <h3 className="text-sm font-medium">Invite user</h3>
+                <h3 className="text-sm font-medium">{copy.invite}</h3>
                 <form onSubmit={onInvite} className="mt-3 grid gap-3">
                   <Field label="Name">
                     <Input
@@ -266,8 +268,8 @@ export default function SettingsPage() {
                 rows={users}
                 empty={
                   <EmptyState
-                    title="No users"
-                    description="Invite team members to access this tenant."
+                    title={copy.noUsers}
+                    description={copy.noUsersHint}
                   />
                 }
               />
@@ -277,15 +279,20 @@ export default function SettingsPage() {
           <section>
             <div className="mb-3 flex items-center gap-2">
               <Shield className="size-4 text-text-muted" aria-hidden />
-              <h2 className="text-sm font-semibold text-text-primary">Retention</h2>
+              <h2 className="text-sm font-semibold text-text-primary">
+                {copy.retention}
+              </h2>
             </div>
             <Surface className="max-w-lg p-4">
+              <p className="mb-3 text-sm text-text-secondary">
+                {copy.privacyRecordings}
+              </p>
               <form onSubmit={onRetention} className="grid gap-3">
                 {(
                   [
-                    ["recording_retention_days", "Recordings"],
-                    ["transcript_retention_days", "Transcripts"],
-                    ["audit_retention_days", "Audit"],
+                    ["recording_retention_days", copy.recordings],
+                    ["transcript_retention_days", copy.transcripts],
+                    ["audit_retention_days", copy.audit],
                   ] as const
                 ).map(([key, label]) => (
                   <Field key={key} label={`${label} (days)`}>
@@ -311,7 +318,9 @@ export default function SettingsPage() {
           <section>
             <div className="mb-3 flex items-center gap-2">
               <ScrollText className="size-4 text-text-muted" aria-hidden />
-              <h2 className="text-sm font-semibold text-text-primary">Audit log</h2>
+              <h2 className="text-sm font-semibold text-text-primary">
+                {copy.audit}
+              </h2>
             </div>
             <DataTable
               columns={auditColumns}
@@ -319,12 +328,13 @@ export default function SettingsPage() {
               className="max-h-96 overflow-y-auto"
               empty={
                 <EmptyState
-                  title="No audit events"
-                  description="Administrative actions will appear here."
+                  title={copy.noAudit}
+                  description={copy.noAuditHint}
                 />
               }
             />
           </section>
+          <p className="text-sm text-text-muted">{copy.privacyConfig}</p>
         </div>
       )}
     </AppShell>

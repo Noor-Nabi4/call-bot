@@ -15,6 +15,8 @@ import {
 } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/use-auth";
+import { errors } from "@/lib/copy";
+import { safeUserError } from "@/lib/safe-error";
 import {
   Breadcrumbs,
   Button,
@@ -52,7 +54,7 @@ export default function JobDetailPage() {
     queueMicrotask(() => {
       if (cancelled) return;
       refresh()
-        .catch((e) => setError(e instanceof Error ? e.message : "Load failed"))
+        .catch((e) => setError(safeUserError(e, errors.loadFailed)))
         .finally(() => {
           if (!cancelled) setFetching(false);
         });
@@ -87,7 +89,7 @@ export default function JobDetailPage() {
           onRetry={() => {
             setFetching(true);
             refresh()
-              .catch((e) => setError(e.message))
+              .catch((e) => setError(safeUserError(e, errors.loadFailed)))
               .finally(() => setFetching(false));
           }}
         />
@@ -113,7 +115,7 @@ export default function JobDetailPage() {
       setJob(updated.job);
       setNote("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Note failed");
+      setError(safeUserError(err, errors.saveFailed));
     } finally {
       setNoteBusy(false);
     }
@@ -129,7 +131,7 @@ export default function JobDetailPage() {
       );
       setJob(updated.job);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Update failed");
+      setError(safeUserError(e, errors.saveFailed));
     }
   }
 

@@ -19,8 +19,9 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Call Bot Ops",
-  description: "Dispatch board and technician jobs",
+  title: "Call Bot — Operations",
+  description:
+    "Manage calls, appointments, and field jobs for your service business.",
 };
 
 export default function RootLayout({
