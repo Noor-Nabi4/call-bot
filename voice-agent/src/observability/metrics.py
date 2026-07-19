@@ -18,8 +18,15 @@ class CallMetrics:
     disconnect_reason: str | None = None
     first_response_latency_ms: float | None = None
     model_latency_ms: float | None = None
+    response_latency_ms: float | None = None
     interruption_count: int = 0
     error_code: str | None = None
+    agent_profile_version: int | None = None
+    requested_language: str | None = None
+    tool_name: str | None = None
+    tool_result_status: str | None = None
+    knowledge_lookup_used: bool = False
+    handoff_requested: bool = False
 
     def mark_ended(
         self,
@@ -41,6 +48,21 @@ class CallMetrics:
     def sync_interruption_count(self, count: int) -> None:
         self.interruption_count = count
 
+    def record_tool(
+        self,
+        tool_name: str,
+        *,
+        ok: bool,
+        knowledge: bool = False,
+        handoff: bool = False,
+    ) -> None:
+        self.tool_name = tool_name
+        self.tool_result_status = "ok" if ok else "error"
+        if knowledge and ok:
+            self.knowledge_lookup_used = True
+        if handoff:
+            self.handoff_requested = True
+
     @property
     def duration_sec(self) -> float | None:
         if self.ended_at is None:
@@ -60,6 +82,13 @@ class CallMetrics:
             "disconnect_reason": self.disconnect_reason,
             "first_response_latency_ms": self.first_response_latency_ms,
             "model_latency_ms": self.model_latency_ms,
+            "response_latency_ms": self.response_latency_ms,
             "interruption_count": self.interruption_count,
             "error_code": self.error_code,
+            "agent_profile_version": self.agent_profile_version,
+            "requested_language": self.requested_language,
+            "tool_name": self.tool_name,
+            "tool_result_status": self.tool_result_status,
+            "knowledge_lookup_used": self.knowledge_lookup_used,
+            "handoff_requested": self.handoff_requested,
         }

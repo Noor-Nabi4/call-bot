@@ -23,16 +23,29 @@ from openai.types.beta.realtime.session import TurnDetection
 from config import ConfigurationError, Settings
 from observability.logging import configure_logging, get_logger, log_event
 from observability.metrics import CallMetrics
-from prompts import build_system_instructions
+from prompts import (
+    bootstrap_instructions,
+    build_system_instructions_from_profile,
+)
 from session.events import attach_realtime_metrics, attach_session_events
 from session.lifecycle import CallLifecycle
 from session.state import CallState
 from session.userdata import SessionUserData
-from tenant.resolve import TenantResolveError, resolver_from_env
+from tenant.agent_profile import CallFacts
+from tenant.resolve import (
+    TenantResolveError,
+    is_console_runtime,
+    resolver_from_env,
+    voice_runtime_mode,
+)
 from tenant.sip_attrs import extract_sip_context, is_sip_participant
 from tools.crm import build_crm_tools
 from tools.handoff import build_handoff_tools
 from tools.knowledge import build_knowledge_tools
+from tools.platform_agent_profile import (
+    PlatformAgentProfileError,
+    agent_profile_client_from_env,
+)
 from tools.platform_crm import PlatformCrmError, crm_client_from_env
 from tools.platform_handoff import handoff_client_from_env
 from tools.platform_knowledge import knowledge_client_from_env
@@ -44,6 +57,11 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env.local")
 
 configure_logging()
 logger = get_logger("voice-agent")
+
+SERVICE_UNAVAILABLE_SPEECH = (
+    "I'm sorry, our phone assistant is temporarily unavailable. "
+    "Please try calling again shortly."
+)
 
 
 class VoiceAssistant(Agent):
@@ -83,14 +101,36 @@ class VoiceAssistant(Agent):
             call_id=lifecycle.state.call_id,
             room_name=lifecycle.state.room_name,
             tenant_id=lifecycle.state.tenant_id,
+            agent_profile_version=lifecycle.metrics.agent_profile_version,
         )
-        await self.session.generate_reply(
-            instructions=(
+        userdata = self.session.userdata
+        greeting_hint = None
+        if isinstance(userdata, SessionUserData) and userdata.agent_profile:
+            greeting_hint = userdata.agent_profile.greeting
+        if greeting_hint:
+            instructions = (
+                "Greet the caller briefly using this guidance as inspiration "
+                f"(paraphrase naturally, do not read it verbatim if awkward): "
+                f"{greeting_hint} "
+                "One or two short sentences only. Ask how you can help."
+            )
+        else:
+            instructions = (
                 "Greet the caller briefly, introduce yourself as the business "
                 "voice assistant, and ask how you can help. One or two short "
                 "sentences only."
             )
-        )
+        await self.session.generate_reply(instructions=instructions)
+
+    async def speak_service_unavailable(self) -> None:
+        # Docs: AgentSession.say for predetermined speech (returns SpeechHandle).
+        try:
+            handle = self.session.say(
+                SERVICE_UNAVAILABLE_SPEECH, allow_interruptions=False
+            )
+            await handle.wait_for_playout()
+        except Exception:
+            logger.exception("service_unavailable_speech_failed")
 
 
 def _build_realtime_model(settings: Settings) -> openai.realtime.RealtimeModel:
@@ -164,17 +204,15 @@ async def entrypoint(ctx: JobContext) -> None:
         room_name=room_name,
         tenant_id=None,
     )
-    instructions = build_system_instructions(
-        business_name=settings.business_name,
-        max_spoken_sentences=settings.max_spoken_sentences,
-        language=settings.language,
-        business_facts=settings.business_facts,
-    )
+    # Bootstrap only — no business identity until the tenant profile loads.
+    # Docs: https://docs.livekit.io/agents/logic/tools/design/#update-in-place
+    instructions = bootstrap_instructions()
 
     crm_client = crm_client_from_env()
     scheduling_client = scheduling_client_from_env()
     knowledge_client = knowledge_client_from_env()
     handoff_client = handoff_client_from_env()
+    profile_client = agent_profile_client_from_env()
     session = _build_session(settings)
     agent = VoiceAssistant(instructions=instructions, tools=[])
     lifecycle = CallLifecycle(
@@ -186,8 +224,6 @@ async def entrypoint(ctx: JobContext) -> None:
     )
     agent.bind_lifecycle(lifecycle)
     attach_session_events(lifecycle, session)
-
-    platform_call_id_holder: dict[str, str | None] = {"id": None}
 
     async def _on_job_shutdown() -> None:
         # Persist CRM call end when possible.
@@ -230,7 +266,20 @@ async def entrypoint(ctx: JobContext) -> None:
         voice=settings.openai_voice,
         end_of_call_summary_webhook=False,
         crm_tools=True,
+        voice_runtime_mode=voice_runtime_mode(),
+        console_helper_active=is_console_runtime(),
+        env_business_facts_unused_after_resolve=True,
     )
+    if is_console_runtime():
+        log_event(
+            logger,
+            "console_helper_active",
+            call_id=call_id,
+            note=(
+                "VOICE_RUNTIME_MODE=console: env TENANT_ID fallback may apply for "
+                "non-SIP only. BUSINESS_* is never used after tenant resolve."
+            ),
+        )
 
     # Docs: https://docs.livekit.io/transport/media/noise-cancellation/
     # BVC for browser/WebRTC; BVCTelephony for SIP callers.
@@ -283,12 +332,53 @@ async def entrypoint(ctx: JobContext) -> None:
             error=str(exc),
             is_sip=sip,
         )
+        await agent.speak_service_unavailable()
         await lifecycle.end_call(reason="tenant_unresolved", error_code=exc.code)
         return
 
     state.tenant_id = resolution.tenant_id
     metrics.tenant_id = resolution.tenant_id
     ctx.log_context_fields["tenant_id"] = resolution.tenant_id
+
+    # Fail closed: no default/env business profile after trusted resolve.
+    try:
+        profile = profile_client.get_profile(resolution.tenant_id)
+    except PlatformAgentProfileError as exc:
+        log_event(
+            logger,
+            "agent_profile_load_failed",
+            call_id=call_id,
+            room_name=room_name,
+            tenant_id=resolution.tenant_id,
+            code=exc.code,
+            error=str(exc),
+        )
+        await agent.speak_service_unavailable()
+        await lifecycle.end_call(
+            reason="agent_profile_unavailable",
+            error_code=exc.code,
+        )
+        return
+
+    if profile.tenant_id != resolution.tenant_id:
+        log_event(
+            logger,
+            "agent_profile_tenant_mismatch",
+            call_id=call_id,
+            room_name=room_name,
+            tenant_id=resolution.tenant_id,
+            profile_tenant_id=profile.tenant_id,
+        )
+        await agent.speak_service_unavailable()
+        await lifecycle.end_call(
+            reason="agent_profile_tenant_mismatch",
+            error_code="agent_profile_tenant_mismatch",
+        )
+        return
+
+    metrics.agent_profile_version = profile.profile_version
+    metrics.requested_language = profile.default_language
+    ctx.log_context_fields["agent_profile_version"] = profile.profile_version
 
     caller_number = None
     if sip:
@@ -318,24 +408,37 @@ async def entrypoint(ctx: JobContext) -> None:
                     extra={"call_id": call_id, "tenant_id": resolution.tenant_id},
                 )
 
+    call_facts = CallFacts(caller_phone=caller_number)
     userdata = SessionUserData(
         tenant_id=resolution.tenant_id,
         call_id=call_id,
         room_name=room_name,
-        business_name=settings.business_name,
+        business_name=profile.business_name,
+        agent_profile=profile,
+        agent_profile_version=profile.profile_version,
+        call_facts=call_facts,
+        requested_language=profile.default_language,
         caller_number=caller_number,
         called_number=called_number,
         is_sip=sip,
     )
     session.userdata = userdata
 
-    # Bind CRM + scheduling tools only after fail-closed tenant resolve.
+    tenant_instructions = build_system_instructions_from_profile(
+        profile,
+        max_spoken_sentences=settings.max_spoken_sentences,
+        call_facts=call_facts,
+    )
+    # Docs: https://docs.livekit.io/agents/logic/tools/design/
+    await agent.update_instructions(tenant_instructions)
+
+    # Bind tools only after fail-closed tenant + profile resolve.
     # Docs: https://docs.livekit.io/agents/logic/tools/definition/
     await agent.update_tools(
         [
             *build_crm_tools(crm_client),
             *build_scheduling_tools(scheduling_client),
-            *build_knowledge_tools(knowledge_client),
+            *build_knowledge_tools(knowledge_client, metrics=metrics),
             *build_handoff_tools(handoff_client),
         ]
     )
@@ -354,7 +457,6 @@ async def entrypoint(ctx: JobContext) -> None:
         )
         platform_call = started.get("call") or {}
         userdata.platform_call_id = platform_call.get("id")
-        platform_call_id_holder["id"] = userdata.platform_call_id
     except PlatformCrmError:
         logger.exception(
             "crm_call_start_failed",
@@ -370,6 +472,8 @@ async def entrypoint(ctx: JobContext) -> None:
         room_name=room_name,
         participant_identity=participant.identity,
         tenant_id=resolution.tenant_id,
+        agent_profile_version=profile.profile_version,
+        requested_language=profile.default_language,
         is_sip=sip,
         resolve_source=resolution.source,
         caller_number=caller_number,
@@ -377,7 +481,7 @@ async def entrypoint(ctx: JobContext) -> None:
         platform_call_id=userdata.platform_call_id,
     )
 
-    # Greeting only after successful tenant resolution (fail-closed for SIP).
+    # Greeting only after successful tenant + profile resolution.
     await agent.speak_greeting()
 
 

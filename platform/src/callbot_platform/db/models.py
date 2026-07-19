@@ -218,6 +218,25 @@ class TenantAgentSettings(Base):
     voice: Mapped[str] = mapped_column(String(64), nullable=False, default="marin")
     language: Mapped[str] = mapped_column(String(16), nullable=False, default="en")
     greeting: Mapped[str | None] = mapped_column(Text, nullable=True)
+    assistant_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    business_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    supported_languages: Mapped[list[Any]] = mapped_column(
+        JsonType, nullable=False, default=list
+    )
+    response_style: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    service_areas: Mapped[list[Any]] = mapped_column(
+        JsonType, nullable=False, default=list
+    )
+    business_hours_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    booking_rules: Mapped[str | None] = mapped_column(Text, nullable=True)
+    pricing_disclosure_policy: Mapped[str | None] = mapped_column(Text, nullable=True)
+    handoff_rules_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    restricted_topics: Mapped[list[Any]] = mapped_column(
+        JsonType, nullable=False, default=list
+    )
+    custom_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
+    profile_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow, server_default=func.now()
     )

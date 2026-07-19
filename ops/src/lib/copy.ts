@@ -111,6 +111,45 @@ export const settings = {
     "Call recordings and transcripts are stored only when enabled by your organization.",
   privacyConfig:
     "Sensitive configuration values are never displayed publicly.",
+  assistantLink: "Voice assistant",
+  assistantLinkHint: "Edit how the phone assistant greets and helps callers.",
+} as const;
+
+export const assistantSettings = {
+  title: "Voice assistant",
+  description:
+    "Configure how your voice assistant sounds and what business facts it may share.",
+  identity: "Identity",
+  conversation: "Conversation",
+  businessRules: "Business rules",
+  escalation: "Escalation",
+  advanced: "Advanced",
+  businessName: "Business name",
+  assistantName: "Assistant name",
+  businessDescription: "Business description",
+  greeting: "Greeting",
+  greetingHint: "Guidance for the opening line — spoken naturally, not read verbatim.",
+  tone: "Tone",
+  responseStyle: "Response style",
+  defaultLanguage: "Default language",
+  supportedLanguages: "Supported languages",
+  serviceAreas: "Service areas",
+  businessHours: "Business hours summary",
+  bookingRules: "Booking rules",
+  pricingPolicy: "Pricing disclosure policy",
+  handoffRules: "Handoff rules",
+  restrictedTopics: "Restricted topics",
+  customInstructions: "Custom instructions",
+  customHint:
+    "Configuration only. Cannot override safety, privacy, or tenant isolation rules.",
+  profileVersion: "Profile version",
+  lastUpdated: "Last updated",
+  commaHint: "Comma-separated values",
+  noPrompt:
+    "System prompts and internal tooling are never shown here — only approved editable fields.",
+  save: "Save assistant profile",
+  saving: "Saving…",
+  saved: "Assistant profile saved",
 } as const;
 
 export const handoff = {

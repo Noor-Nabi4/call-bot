@@ -55,9 +55,7 @@ def appointments(
     user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
-    return {
-        "appointments": AdminRepository(session).list_appointments(user.tenant_id)
-    }
+    return {"appointments": AdminRepository(session).list_appointments(user.tenant_id)}
 
 
 @router.get("/metrics")
@@ -67,9 +65,7 @@ def metrics(
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     return {
-        "metrics": AdminRepository(session).metrics_summary(
-            user.tenant_id, days=days
-        )
+        "metrics": AdminRepository(session).metrics_summary(user.tenant_id, days=days)
     }
 
 
@@ -136,3 +132,77 @@ def put_retention(
         actor=user.email,
     )
     return {"settings": settings}
+
+
+class AgentSettingsUpdateBody(BaseModel):
+    """Tenant-editable agent profile fields. tenant_id is never accepted."""
+
+    model_config = {"extra": "forbid"}
+
+    voice: str | None = None
+    language: str | None = None
+    greeting: str | None = None
+    assistant_name: str | None = None
+    business_description: str | None = None
+    tone: str | None = None
+    supported_languages: list[str] | None = None
+    response_style: str | None = None
+    service_areas: list[str] | None = None
+    business_hours_summary: str | None = None
+    booking_rules: str | None = None
+    pricing_disclosure_policy: str | None = None
+    handoff_rules_text: str | None = None
+    restricted_topics: list[str] | None = None
+    custom_instructions: str | None = None
+
+
+@router.get("/agent-settings")
+def get_agent_settings(
+    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN)),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    from callbot_platform.crm.repos import AgentSettingsRepository
+
+    settings = AgentSettingsRepository(session).get(user.tenant_id)
+    return {
+        "settings": settings,
+        "business_name": user.tenant_name,
+    }
+
+
+@router.put("/agent-settings")
+def put_agent_settings(
+    body: AgentSettingsUpdateBody,
+    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN)),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    """Admin-only. Always scoped to the session tenant — never path/body tenant_id."""
+    from callbot_platform.api.crm_routes import (
+        AgentSettingsBody,
+        apply_agent_settings_upsert,
+    )
+    from callbot_platform.security.rate_limit import (
+        AGENT_SETTINGS_RATE_LIMITER,
+        RateLimitExceeded,
+    )
+
+    try:
+        AGENT_SETTINGS_RATE_LIMITER.check(f"admin:{user.user_id}")
+    except RateLimitExceeded as exc:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "rate_limited",
+                "message": "Too many agent settings updates. Try again shortly.",
+            },
+            headers={"Retry-After": str(int(exc.retry_after_sec) + 1)},
+        ) from exc
+
+    payload = AgentSettingsBody(**body.model_dump(exclude_unset=True))
+    settings = apply_agent_settings_upsert(
+        session,
+        tenant_id=user.tenant_id,
+        body=payload,
+        actor=user.email,
+    )
+    return {"settings": settings, "business_name": user.tenant_name}

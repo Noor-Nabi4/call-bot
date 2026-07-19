@@ -122,7 +122,7 @@ class Settings:
             inactivity_check_interval_sec=_float_env(
                 "INACTIVITY_CHECK_INTERVAL_SEC", 10.0
             ),
-            max_spoken_sentences=_int_env("MAX_SPOKEN_SENTENCES", 3),
+            max_spoken_sentences=_int_env("MAX_SPOKEN_SENTENCES", 2),
             agent_name=os.getenv("AGENT_NAME", "voice-agent").strip() or "voice-agent",
             tenant_id=_optional("TENANT_ID"),
         )

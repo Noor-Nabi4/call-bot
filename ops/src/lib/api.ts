@@ -183,6 +183,48 @@ export function pingLocation(lat: number, lng: number) {
   });
 }
 
+export type AgentSettings = {
+  assistant_name?: string | null;
+  business_description?: string | null;
+  greeting?: string | null;
+  tone?: string | null;
+  response_style?: string | null;
+  language?: string | null;
+  supported_languages?: string[] | null;
+  service_areas?: string[] | null;
+  business_hours_summary?: string | null;
+  booking_rules?: string | null;
+  pricing_disclosure_policy?: string | null;
+  handoff_rules_text?: string | null;
+  restricted_topics?: string[] | null;
+  custom_instructions?: string | null;
+  profile_version?: number | null;
+  updated_at?: string | null;
+  voice?: string | null;
+  tenant_id?: string;
+};
+
+export function getAgentSettings() {
+  return api<{ settings: AgentSettings | null; business_name: string }>(
+    "/api/admin/agent-settings",
+  );
+}
+
+export function updateAgentSettings(
+  body: Omit<
+    AgentSettings,
+    "profile_version" | "updated_at" | "tenant_id"
+  >,
+) {
+  return api<{ settings: AgentSettings; business_name: string }>(
+    "/api/admin/agent-settings",
+    {
+      method: "PUT",
+      body: JSON.stringify(body),
+    },
+  );
+}
+
 export function formatWhen(iso?: string | null) {
   if (!iso) return "—";
   try {

@@ -19,8 +19,7 @@ def _userdata(context: RunContext) -> SessionUserData:
     data = context.session.userdata
     if not isinstance(data, SessionUserData):
         raise ToolError(
-            "I cannot save that yet because the call is not linked to a business. "
-            "Please try again in a moment."
+            "I couldn't complete that right now. Would you like me to try again?"
         )
     return data
 
@@ -69,8 +68,7 @@ def build_crm_tools(client: PlatformCrmClient) -> list[Any]:
             result = client.lookup_customer(tenant_id=data.tenant_id, phone=phone)
         except PlatformCrmError as exc:
             raise ToolError(
-                "I could not look up that customer right now. Please confirm the "
-                "phone number and try again."
+                "I couldn't complete that right now. Would you like me to try again?"
             ) from exc
         if result.get("found") and result.get("customer"):
             customer = result["customer"]
@@ -115,7 +113,7 @@ def build_crm_tools(client: PlatformCrmClient) -> list[Any]:
             )
         except PlatformCrmError as exc:
             raise ToolError(
-                "I could not save the customer details. Please confirm them and try again."
+                "I couldn't complete that right now. Would you like me to try again?"
             ) from exc
         customer = result.get("customer") or {}
         data.customer_id = customer.get("id")
@@ -172,7 +170,7 @@ def build_crm_tools(client: PlatformCrmClient) -> list[Any]:
             )
         except PlatformCrmError as exc:
             raise ToolError(
-                "I could not create the job request. Please try confirming again."
+                "I couldn't complete that right now. Would you like me to try again?"
             ) from exc
         lead = result.get("lead") or {}
         return {

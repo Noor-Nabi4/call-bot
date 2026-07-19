@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { ScrollText, Shield, Users } from "lucide-react";
+import { Mic, ScrollText, Shield, Users } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
 import { errors, settings as copy } from "@/lib/copy";
@@ -211,6 +212,25 @@ export default function SettingsPage() {
       ) : (
         <div className="space-y-6">
           <p className="text-sm text-text-secondary">{copy.privacyData}</p>
+          <Surface className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="flex items-start gap-2">
+              <Mic className="mt-0.5 size-4 text-text-muted" aria-hidden />
+              <div>
+                <h2 className="text-sm font-semibold text-text-primary">
+                  {copy.assistantLink}
+                </h2>
+                <p className="text-sm text-text-secondary">
+                  {copy.assistantLinkHint}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/settings/assistant"
+              className="rounded-[10px] border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-2"
+            >
+              Open
+            </Link>
+          </Surface>
           <section>
             <div className="mb-3 flex items-center gap-2">
               <Users className="size-4 text-text-muted" aria-hidden />

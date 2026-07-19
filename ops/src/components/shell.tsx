@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   LogOut,
   Menu,
+  Mic,
   Phone,
   PhoneForwarded,
   Search,
@@ -52,6 +53,12 @@ const OPS_NAV: NavItem[] = [
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
   { href: "/handoff", label: "Handoff", icon: PhoneForwarded },
   { href: "/settings", label: "Settings", icon: Settings, roles: ["admin"] },
+  {
+    href: "/settings/assistant",
+    label: "Assistant",
+    icon: Mic,
+    roles: ["admin"],
+  },
   { href: "/tech", label: "Tech", icon: Wrench, roles: ["admin"] },
 ];
 

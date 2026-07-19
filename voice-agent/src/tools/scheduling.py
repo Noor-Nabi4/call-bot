@@ -16,8 +16,7 @@ def _userdata(context: RunContext) -> SessionUserData:
     data = context.session.userdata
     if not isinstance(data, SessionUserData):
         raise ToolError(
-            "I cannot book that yet because the call is not linked to a business. "
-            "Please try again in a moment."
+            "I couldn't complete that right now. Would you like me to try again?"
         )
     return data
 
@@ -58,8 +57,7 @@ def build_scheduling_tools(client: PlatformSchedulingClient) -> list[Any]:
             )
         except PlatformSchedulingError as exc:
             raise ToolError(
-                "I could not look up available times right now. "
-                "Please try again in a moment."
+                "I couldn't complete that right now. Would you like me to try again?"
             ) from exc
         slots = result.get("slots") or []
         # Keep responses short for voice: first few slots.
@@ -118,7 +116,7 @@ def build_scheduling_tools(client: PlatformSchedulingClient) -> list[Any]:
                     "That time was just taken. Please offer another available slot."
                 ) from exc
             raise ToolError(
-                "I could not book that appointment. Please confirm the time and try again."
+                "I couldn't complete that right now. Would you like me to try again?"
             ) from exc
         appointment = result.get("appointment") or {}
         data.extra["appointment_id"] = appointment.get("id")
@@ -161,7 +159,7 @@ def build_scheduling_tools(client: PlatformSchedulingClient) -> list[Any]:
                     "That new time is not available. Please offer another slot."
                 ) from exc
             raise ToolError(
-                "I could not reschedule that appointment. Please try again."
+                "I couldn't complete that right now. Would you like me to try again?"
             ) from exc
         appointment = result.get("appointment") or {}
         return {
@@ -196,7 +194,7 @@ def build_scheduling_tools(client: PlatformSchedulingClient) -> list[Any]:
             )
         except PlatformSchedulingError as exc:
             raise ToolError(
-                "I could not cancel that appointment. Please try again."
+                "I couldn't complete that right now. Would you like me to try again?"
             ) from exc
         appointment = result.get("appointment") or {}
         return {"ok": True, "appointment": appointment}

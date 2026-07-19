@@ -46,3 +46,6 @@ async def test_search_uses_userdata_tenant() -> None:
     result = await tool(ctx, query="hours")
     assert result["count"] == 1
     assert client.queries[0][0] == "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+    assert "id" not in result["articles"][0]
+    assert result["articles"][0]["title"] == "Hours"
+    assert ctx.session.userdata.knowledge_lookup_used is True

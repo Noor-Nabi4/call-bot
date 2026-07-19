@@ -8,23 +8,23 @@ Production **voice-only** LiveKit agent using **OpenAI Realtime** speech-to-spee
 
 ## Scope
 
-Version one does exactly this:
+Production voice agent for multi-tenant field service:
 
-> A user joins through a browser (or later a phone call), LiveKit connects them to one Python voice agent, OpenAI Realtime handles speech-to-speech conversation, the agent follows a production system prompt, remembers the current call only, supports natural interruption, records operational metrics, handles failures, and disconnects cleanly.
+> After trusted tenant resolve, load that tenant's Agent Profile from the Platform API, compose concise tenant-aware instructions, and run OpenAI Realtime speech-to-speech with CRM / scheduling / knowledge / handoff tools scoped to that tenant only.
 
 **Included**
 
-- LiveKit `AgentSession` + OpenAI Realtime model
-- Separated prompts (identity, business, voice, safety, call ending)
-- Per-call `CallState` (no long-term memory / DB)
-- Semantic VAD turn detection and barge-in (`interrupt_response=True`)
-- Silence / max-duration lifecycle handling
-- Structured operational logs and metrics
-- Server-side noise cancellation (Krisp BVC / BVCTelephony)
+- Fail-closed tenant resolve + Agent Profile fetch (`GET /internal/tenants/{id}/agent-profile`)
+- Versioned prompt composition (platform safety → voice → tenant identity/rules/prefs → tools → call context)
+- Concise voice policy (answer the question first; one–two sentences default)
+- Short-lived profile cache keyed by `tenant_id` + `profile_version`
+- Per-call `CallState` / `CallFacts` (no long-term memory unless Platform API supports it)
+- Semantic VAD turn detection and barge-in
+- Structured operational logs and metrics (tenant_id, profile version, tool status)
 
-**Not included (yet)**
+**Not used as tenant fallback**
 
-RAG, CRM, booking, multi-agent handoffs, Redis memory, analytics dashboards, human handoff.
+Env `BUSINESS_*` facts are for local/console helpers and tests only. After resolve, production calls never fall back to env business configuration.
 
 ## Architecture
 
@@ -131,6 +131,10 @@ Only after browser audio is stable: Twilio SIP trunk → LiveKit SIP → this sa
 Implementation follows current LiveKit documentation for:
 
 - [OpenAI Realtime plugin](https://docs.livekit.io/agents/models/realtime/plugins/openai/)
-- [Agent sessions](https://docs.livekit.io/agents/logic/sessions/)
+- [Agent sessions / userdata](https://docs.livekit.io/agents/logic/sessions/)
+- [Agents + userdata state](https://docs.livekit.io/agents/logic/agents-handoffs/)
+- [Update instructions/tools in place](https://docs.livekit.io/agents/logic/tools/design/)
+- [Function tools](https://docs.livekit.io/agents/logic/tools/definition/)
 - [Turns / interruptions](https://docs.livekit.io/agents/logic/turns/)
+- [Testing & evaluation](https://docs.livekit.io/agents/start/testing/)
 - [Realtime metrics](https://docs.livekit.io/reference/recipes/metrics_realtime/)

@@ -21,7 +21,16 @@ Internal routes (require `X-Internal-Token`):
 - `POST /internal/crm/calls/start`
 - `POST /internal/crm/calls/end`
 
-Tenant agent settings: `GET|PUT /tenants/{id}/agent-settings`
+Tenant agent settings (admin session cookie):
+
+- `GET|PUT /api/admin/agent-settings` — tenant admin only; scoped to session tenant
+- Legacy `GET|PUT /tenants/{id}/agent-settings` — returns `401` (removed)
+
+Internal agent profile (voice-agent / platform token, requires `X-Internal-Token`):
+
+- `GET /internal/tenants/{id}/agent-profile` — fail-closed when missing/inactive
+- `GET /internal/tenants/{id}/agent-profile/meta` — version check for cache invalidation
+- `PUT /internal/tenants/{id}/agent-settings` — platform override (rate-limited)
 
 ## Scheduling (Phase 4)
 

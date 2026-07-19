@@ -117,7 +117,9 @@ class PlatformTenantResolver:
             return TenantResolution(
                 tenant_id=str(meta["tenant_id"]),
                 phone_number_id=(
-                    str(meta["phone_number_id"]) if meta.get("phone_number_id") else None
+                    str(meta["phone_number_id"])
+                    if meta.get("phone_number_id")
+                    else None
                 ),
                 e164=str(meta["did"]) if meta.get("did") else called_number,
                 source="signed_metadata_local",
@@ -215,11 +217,28 @@ class PlatformTenantResolver:
 
 
 def resolver_from_env() -> PlatformTenantResolver:
+    runtime_mode = os.getenv("VOICE_RUNTIME_MODE", "production").strip().lower() or (
+        "production"
+    )
+    raw_fallback = os.getenv("ALLOW_ENV_TENANT_FALLBACK", "").strip().lower()
+    if raw_fallback:
+        allow_env_fallback = raw_fallback in {"1", "true", "yes"}
+    else:
+        # Default: env tenant fallback only for explicit console mode.
+        allow_env_fallback = runtime_mode == "console"
+
     return PlatformTenantResolver(
         platform_base_url=os.getenv("PLATFORM_API_URL", "").strip(),
         internal_token=os.getenv("INTERNAL_SERVICE_TOKEN", "").strip(),
         metadata_hmac_secret=os.getenv("METADATA_HMAC_SECRET", "").strip(),
         env_tenant_id=os.getenv("TENANT_ID", "").strip() or None,
-        allow_env_fallback=os.getenv("ALLOW_ENV_TENANT_FALLBACK", "true").lower()
-        in {"1", "true", "yes"},
+        allow_env_fallback=allow_env_fallback,
     )
+
+
+def voice_runtime_mode() -> str:
+    return os.getenv("VOICE_RUNTIME_MODE", "production").strip().lower() or "production"
+
+
+def is_console_runtime() -> bool:
+    return voice_runtime_mode() == "console"
