@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agent-starter-python"
+name = "voice-agent"
 version = "1.0.0"
-description = "Simple voice AI assistant built with LiveKit Agents for Python"
+description = "Production voice-only LiveKit agent using OpenAI Realtime speech-to-speech"
 requires-python = ">=3.10, <3.15"
 
 dependencies = [
-    "livekit-agents>=1.6.1",
-    "livekit-plugins-ai-coustics~=0.2",
+    "livekit-agents[openai]>=1.6.1",
+    "livekit-plugins-noise-cancellation>=0.3.0",
     "python-dotenv",
 ]
 
@@ -35,10 +35,11 @@ where = ["src"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "B", "A", "C4", "UP", "SIM", "RUF"]

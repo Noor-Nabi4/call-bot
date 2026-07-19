@@ -1,0 +1,47 @@
+"""Tests for validated Settings."""
+
+from __future__ import annotations
+
+import pytest
+
+from config import ConfigurationError, Settings
+
+
+def test_from_env_requires_core_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
+    for key in (
+        "LIVEKIT_URL",
+        "LIVEKIT_API_KEY",
+        "LIVEKIT_API_SECRET",
+        "OPENAI_API_KEY",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    with pytest.raises(ConfigurationError, match="LIVEKIT_URL"):
+        Settings.from_env()
+
+
+def test_from_env_loads_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LIVEKIT_URL", "wss://example.livekit.cloud")
+    monkeypatch.setenv("LIVEKIT_API_KEY", "key")
+    monkeypatch.setenv("LIVEKIT_API_SECRET", "secret")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.delenv("BUSINESS_NAME", raising=False)
+    monkeypatch.delenv("OPENAI_TEMPERATURE", raising=False)
+
+    settings = Settings.from_env()
+    assert settings.openai_realtime_model == "gpt-realtime"
+    assert settings.openai_voice == "marin"
+    assert settings.temperature == 0.8
+    assert settings.max_call_duration_sec == 900.0
+    assert settings.business_name == "our business"
+
+
+def test_temperature_out_of_range(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LIVEKIT_URL", "wss://example.livekit.cloud")
+    monkeypatch.setenv("LIVEKIT_API_KEY", "key")
+    monkeypatch.setenv("LIVEKIT_API_SECRET", "secret")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENAI_TEMPERATURE", "0.1")
+
+    with pytest.raises(ConfigurationError, match="OPENAI_TEMPERATURE"):
+        Settings.from_env()

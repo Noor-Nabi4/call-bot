@@ -2,156 +2,125 @@
   <img src="./.github/assets/livekit-mark.png" alt="LiveKit logo" width="100" height="100">
 </a>
 
-# LiveKit Agents Starter - Python
+# Voice Agent (v1)
 
-A complete starter project for building voice AI apps with [LiveKit Agents for Python](https://github.com/livekit/agents) and [LiveKit Cloud](https://cloud.livekit.io/).
+Production **voice-only** LiveKit agent using **OpenAI Realtime** speech-to-speech.
 
-The starter project includes:
+## Scope
 
-- A simple voice AI assistant, ready for extension and customization
-- A voice AI pipeline built on [LiveKit Inference](https://docs.livekit.io/agents/models/inference)
-  with [models](https://docs.livekit.io/agents/models) from OpenAI, Cartesia, and Deepgram. More than 50 other model providers are supported, including [Realtime models](https://docs.livekit.io/agents/models/realtime)
-- Eval suite based on the LiveKit Agents [testing & evaluation framework](https://docs.livekit.io/agents/start/testing/)
-- [LiveKit Turn Detector](https://docs.livekit.io/agents/logic/turns/turn-detector/), an end-of-turn model that listens to the user's audio directly, combining semantic understanding with acoustic cues for state-of-the-art accuracy across 14 languages
-- [Background voice cancellation](https://docs.livekit.io/transport/media/noise-cancellation/)
-- Deep session insights from LiveKit [Agent Observability](https://docs.livekit.io/deploy/observability/)
-- A Dockerfile ready for [production deployment to LiveKit Cloud](https://docs.livekit.io/deploy/agents/)
+Version one does exactly this:
 
-This starter app is compatible with any [custom web/mobile frontend](https://docs.livekit.io/frontends/) or [telephony](https://docs.livekit.io/telephony/).
+> A user joins through a browser (or later a phone call), LiveKit connects them to one Python voice agent, OpenAI Realtime handles speech-to-speech conversation, the agent follows a production system prompt, remembers the current call only, supports natural interruption, records operational metrics, handles failures, and disconnects cleanly.
 
-## Using coding agents
+**Included**
 
-This project is designed to work with coding agents like [Claude Code](https://claude.com/product/claude-code), [Cursor](https://www.cursor.com/), and [Codex](https://openai.com/codex/).
+- LiveKit `AgentSession` + OpenAI Realtime model
+- Separated prompts (identity, business, voice, safety, call ending)
+- Per-call `CallState` (no long-term memory / DB)
+- Semantic VAD turn detection and barge-in (`interrupt_response=True`)
+- Silence / max-duration lifecycle handling
+- Structured operational logs and metrics
+- Server-side noise cancellation (Krisp BVC / BVCTelephony)
 
-For your convenience, LiveKit offers both a CLI and an [MCP server](https://docs.livekit.io/reference/developer-tools/docs-mcp/) that can be used to browse and search its documentation. The [LiveKit CLI](https://docs.livekit.io/intro/basics/cli/) (`lk docs`) works with any coding agent that can run shell commands. Install it for your platform:
+**Not included (yet)**
 
-**macOS:**
+RAG, CRM, booking, multi-agent handoffs, Redis memory, analytics dashboards, human handoff.
 
-```console
-brew install livekit-cli
+## Architecture
+
+```text
+Caller / Browser
+       │
+       ▼
+LiveKit Room (SIP later)
+       │
+       ▼
+LiveKit AgentSession
+       │
+       ▼
+OpenAI Realtime Model
+       │
+       ▼
+Audio response through LiveKit
 ```
 
-**Linux:**
+## Project layout
 
-```console
-curl -sSL https://get.livekit.io/cli | bash
+```text
+voice-agent/
+├── src/
+│   ├── agent.py
+│   ├── config.py
+│   ├── prompts/
+│   ├── session/
+│   └── observability/
+├── tests/
+├── .env.example
+├── Dockerfile
+└── pyproject.toml
 ```
 
-**Windows:**
-
-```console
-winget install LiveKit.LiveKitCLI
-```
-
-The `lk docs` subcommand requires version 2.15.0 or higher. Check your version with `lk --version` and update if needed. Once installed, your coding agent can search and browse LiveKit documentation directly from the terminal:
-
-```console
-lk docs search "voice agents"
-lk docs get-page /agents/start/voice-ai-quickstart
-```
-
-See the [Using coding agents](https://docs.livekit.io/intro/coding-agents/) guide for more details, including MCP server setup.
-
-The project includes a complete [AGENTS.md](AGENTS.md) file for these assistants. You can modify this file to suit your needs. To learn more about this file, see [https://agents.md](https://agents.md).
-
-## Dev Setup
-
-Create a project from this template with the LiveKit CLI (recommended):
+## Setup
 
 ```bash
-lk cloud auth
-lk agent init my-agent --template agent-starter-python
-```
-
-The CLI clones the template and configures your environment. Then follow the rest of this guide from [Run the agent](#run-the-agent).
-
-<details>
-<summary>Alternative: Manual setup without the CLI</summary>
-
-Clone the repository and install dependencies to a virtual environment:
-
-```console
-cd agent-starter-python
+cd voice-agent
 uv sync
+cp .env.example .env.local
 ```
 
-Sign up for [LiveKit Cloud](https://cloud.livekit.io/) then set up the environment by copying `.env.example` to `.env.local` and filling in the required keys:
+Fill in `.env.local`:
 
-- `LIVEKIT_URL`
-- `LIVEKIT_API_KEY`
-- `LIVEKIT_API_SECRET`
+| Variable | Required | Purpose |
+|---|---|---|
+| `LIVEKIT_URL` | yes | LiveKit Cloud WebSocket URL |
+| `LIVEKIT_API_KEY` | yes | LiveKit API key |
+| `LIVEKIT_API_SECRET` | yes | LiveKit API secret |
+| `OPENAI_API_KEY` | yes | OpenAI Realtime access |
+| `BUSINESS_NAME` | no | Spoken business identity |
 
-You can load the LiveKit environment automatically using the [LiveKit CLI](https://docs.livekit.io/intro/basics/cli/):
+## Run
+
+Console / playground:
 
 ```bash
-lk cloud auth
-lk app env --write --destination .env.local
+uv run src/agent.py console
 ```
 
-</details>
+Dev worker (LiveKit Cloud):
 
-## Run the agent
-
-Run this command to speak to your agent directly in your terminal:
-
-```console
-uv run python src/agent.py console
+```bash
+uv run src/agent.py dev
 ```
 
-To run the agent for use with a frontend or telephony, use the `dev` command:
+Production worker:
 
-```console
-uv run python src/agent.py dev
+```bash
+uv run src/agent.py start
 ```
 
-In production, use the `start` command:
+## Tests
 
-```console
-uv run python src/agent.py start
+Unit tests (no live providers required):
+
+```bash
+uv run pytest tests/test_config.py tests/test_prompt.py tests/test_state.py tests/test_lifecycle.py -v
 ```
 
-## Frontend & Telephony
+Behavior evals (requires LiveKit credentials for inference judge models):
 
-Get started quickly with our pre-built frontend starter apps, or add telephony support:
-
-| Platform | Link | Description |
-|----------|----------|-------------|
-| **Web** | [`livekit-examples/agent-starter-react`](https://github.com/livekit-examples/agent-starter-react) | Web voice AI assistant with React & Next.js |
-| **iOS/macOS** | [`livekit-examples/agent-starter-swift`](https://github.com/livekit-examples/agent-starter-swift) | Native iOS, macOS, and visionOS voice AI assistant |
-| **Flutter** | [`livekit-examples/agent-starter-flutter`](https://github.com/livekit-examples/agent-starter-flutter) | Cross-platform voice AI assistant app |
-| **React Native** | [`livekit-examples/voice-assistant-react-native`](https://github.com/livekit-examples/voice-assistant-react-native) | Native mobile app with React Native & Expo |
-| **Android** | [`livekit-examples/agent-starter-android`](https://github.com/livekit-examples/agent-starter-android) | Native Android app with Kotlin & Jetpack Compose |
-| **Web Embed** | [`livekit-examples/agent-starter-embed`](https://github.com/livekit-examples/agent-starter-embed) | Voice AI widget for any website |
-| **Telephony** | [Documentation](https://docs.livekit.io/telephony/) | Add inbound or outbound calling to your agent |
-
-For advanced customization, see the [complete frontend guide](https://docs.livekit.io/frontends/).
-
-## Tests and evals
-
-This project includes a complete suite of evals, based on the LiveKit Agents [testing & evaluation framework](https://docs.livekit.io/agents/start/testing/). To run them, use `pytest`.
-
-```console
-uv run pytest
+```bash
+uv run pytest tests/test_agent.py -v
 ```
 
-## Using this template repo for your own project
+## Telephony (phase 4)
 
-Once you've started your own project based on this repo, you should:
+Only after browser audio is stable: Twilio SIP trunk → LiveKit SIP → this same agent. No telephony code is required for v1 browser audio.
 
-1. **Check in your `uv.lock`**: This file is currently untracked for the template, but you should commit it to your repository for reproducible builds and proper configuration management. (The same applies to `livekit.toml`, if you run your agents in LiveKit Cloud)
+## Docs verified
 
-2. **Remove the git tracking test**: Delete the "Check files not tracked in git" step from `.github/workflows/tests.yml` since you'll now want this file to be tracked. These are just there for development purposes in the template repo itself.
+Implementation follows current LiveKit documentation for:
 
-3. **Add your own repository secrets**: You must [add secrets](https://docs.github.com/en/actions/how-tos/writing-workflows/choosing-what-your-workflow-does/using-secrets-in-github-actions) for `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET` so that the tests can run in CI.
-
-## Deploying to production
-
-This project is production-ready and includes a working `Dockerfile`. To deploy it to LiveKit Cloud or another environment, see the [deploying to production](https://docs.livekit.io/deploy/agents/) guide.
-
-## Self-hosted LiveKit
-
-You can also self-host LiveKit instead of using LiveKit Cloud. See the [self-hosting](https://docs.livekit.io/transport/self-hosting/local/) guide for more information. If you choose to self-host, you'll need to also use [model plugins](https://docs.livekit.io/agents/models/#plugins) instead of LiveKit Inference and will need to remove the [LiveKit Cloud noise cancellation](https://docs.livekit.io/transport/media/noise-cancellation/) plugin.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- [OpenAI Realtime plugin](https://docs.livekit.io/agents/models/realtime/plugins/openai/)
+- [Agent sessions](https://docs.livekit.io/agents/logic/sessions/)
+- [Turns / interruptions](https://docs.livekit.io/agents/logic/turns/)
+- [Realtime metrics](https://docs.livekit.io/reference/recipes/metrics_realtime/)
