@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/landing/button";
+import { Reveal } from "@/components/landing/reveal";
 
 export type PricingPlanOption = {
   key: string;
@@ -104,7 +105,7 @@ export function PricingSection({
 
       <div className="relative z-[1] content-width">
         <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-14">
-          <div className="flex flex-col gap-10">
+          <Reveal variant="left" className="flex flex-col gap-10">
             <div>
               <p className="m-0 mb-3 inline-flex rounded-[var(--radius-sm)] bg-teal-soft px-2.5 py-1 text-[11px] font-semibold tracking-[0.12em] text-teal-deep uppercase">
                 Pricing
@@ -135,10 +136,10 @@ export function PricingSection({
                     role="option"
                     aria-selected={active}
                     onClick={() => setSelectedKey(plan.key)}
-                    className={`flex w-full items-center justify-between gap-4 rounded-[16px] px-5 py-4 text-left transition-[background-color,box-shadow,opacity,transform] duration-200 ${
+                    className={`flex w-full items-center justify-between gap-4 rounded-[16px] px-5 py-4 text-left transition-[background-color,box-shadow,opacity,transform] duration-300 ease-out ${
                       active
-                        ? "bg-bg shadow-[5px_8px_18px_rgba(12,26,30,0.12)]"
-                        : "bg-transparent opacity-60 hover:opacity-90"
+                        ? "translate-x-0 bg-bg shadow-[5px_8px_18px_rgba(12,26,30,0.12)]"
+                        : "bg-transparent opacity-60 hover:translate-x-0.5 hover:opacity-90"
                     }`}
                   >
                     <span className="min-w-0">
@@ -150,7 +151,7 @@ export function PricingSection({
                       </span>
                     </span>
                     <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors ${
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-300 ${
                         active
                           ? "border-teal bg-teal text-white"
                           : "border-line text-transparent"
@@ -178,69 +179,72 @@ export function PricingSection({
             >
               {compareLabel} →
             </Link>
-          </div>
+          </Reveal>
 
           {selected ? (
-            <article
-              className="pricing-detail-card flex flex-col gap-10 rounded-[24px] p-7 text-white sm:p-8"
-              aria-live="polite"
-            >
-              <div className="flex flex-col gap-6">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10">
-                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-                      <path
-                        d="M4 13V5M9 13V3M14 13V7"
-                        stroke="rgba(255,255,255,0.9)"
-                        strokeWidth="1.6"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </span>
-                  <h3 className="font-display m-0 text-[1.7rem] font-medium tracking-[-0.04em]">
-                    {selected.name}
-                  </h3>
-                </div>
-
-                <div>
-                  <p className="m-0 flex items-baseline gap-2">
-                    <span className="font-display text-[2.5rem] font-semibold tracking-[-0.05em]">
-                      {selected.price}
+            <Reveal variant="right" className="min-w-0">
+              <article
+                key={selected.key}
+                className="pricing-detail-card pricing-detail-enter flex flex-col gap-10 rounded-[24px] p-7 text-white sm:p-8"
+                aria-live="polite"
+              >
+                <div className="flex flex-col gap-6">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10">
+                      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                        <path
+                          d="M4 13V5M9 13V3M14 13V7"
+                          stroke="rgba(255,255,255,0.9)"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                        />
+                      </svg>
                     </span>
-                    {selected.price !== "Custom" ? (
-                      <span className="text-lg text-white/80">/ mo</span>
-                    ) : null}
-                  </p>
-                  <p className="mt-3 m-0 max-w-sm text-base leading-relaxed text-white/80">
-                    {selected.tagline}
-                  </p>
-                </div>
+                    <h3 className="font-display m-0 text-[1.7rem] font-medium tracking-[-0.04em]">
+                      {selected.name}
+                    </h3>
+                  </div>
 
-                <Link
-                  href={selected.href}
-                  className="inline-flex w-fit items-center gap-3 rounded-[12px] bg-[#eef4f1] py-2 pl-4 pr-2 text-sm font-medium tracking-[-0.02em] text-hero shadow-[0_5px_15px_rgba(0,0,0,0.18)] transition-[transform,background-color] duration-200 hover:-translate-y-px hover:bg-white"
-                >
-                  {selected.cta}
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-hero text-white">
-                    <ArrowIcon />
-                  </span>
-                </Link>
-              </div>
+                  <div>
+                    <p className="m-0 flex items-baseline gap-2">
+                      <span className="font-display text-[2.5rem] font-semibold tracking-[-0.05em]">
+                        {selected.price}
+                      </span>
+                      {selected.price !== "Custom" ? (
+                        <span className="text-lg text-white/80">/ mo</span>
+                      ) : null}
+                    </p>
+                    <p className="mt-3 m-0 max-w-sm text-base leading-relaxed text-white/80">
+                      {selected.tagline}
+                    </p>
+                  </div>
 
-              <ul className="m-0 grid list-none gap-2.5 p-0">
-                {selected.features.slice(0, 6).map((feature) => (
-                  <li
-                    key={feature}
-                    className="flex items-start gap-2.5 text-[15px] leading-snug text-white/80"
+                  <Link
+                    href={selected.href}
+                    className="inline-flex w-fit items-center gap-3 rounded-[12px] bg-[#eef4f1] py-2 pl-4 pr-2 text-sm font-medium tracking-[-0.02em] text-hero shadow-[0_5px_15px_rgba(0,0,0,0.18)] transition-[transform,background-color] duration-200 hover:-translate-y-px hover:bg-white"
                   >
-                    <span className="mt-0.5 shrink-0">
-                      <CheckIcon />
+                    {selected.cta}
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-hero text-white transition-transform duration-200 group-hover:translate-x-0.5">
+                      <ArrowIcon />
                     </span>
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </article>
+                  </Link>
+                </div>
+
+                <ul className="m-0 grid list-none gap-2.5 p-0">
+                  {selected.features.slice(0, 6).map((feature) => (
+                    <li
+                      key={feature}
+                      className="flex items-start gap-2.5 text-[15px] leading-snug text-white/80"
+                    >
+                      <span className="mt-0.5 shrink-0">
+                        <CheckIcon />
+                      </span>
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            </Reveal>
           ) : null}
         </div>
       </div>

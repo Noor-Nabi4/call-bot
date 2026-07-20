@@ -6,6 +6,7 @@ type RevealProps = {
   children: ReactNode;
   className?: string;
   delay?: 0 | 1 | 2 | 3;
+  variant?: "up" | "left" | "right" | "scale" | "fade";
   as?: "div" | "li" | "article" | "section";
 };
 
@@ -13,6 +14,7 @@ export function Reveal({
   children,
   className = "",
   delay = 0,
+  variant = "up",
   as: Tag = "div",
 }: RevealProps) {
   const ref = useRef<HTMLElement | null>(null);
@@ -36,7 +38,7 @@ export function Reveal({
           }
         }
       },
-      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" },
+      { threshold: 0.14, rootMargin: "0px 0px -48px 0px" },
     );
 
     observer.observe(node);
@@ -52,10 +54,21 @@ export function Reveal({
           ? "reveal-delay-3"
           : "";
 
+  const variantClass =
+    variant === "left"
+      ? "reveal-left"
+      : variant === "right"
+        ? "reveal-right"
+        : variant === "scale"
+          ? "reveal-scale"
+          : variant === "fade"
+            ? "reveal-fade"
+            : "reveal-up";
+
   return (
     <Tag
       ref={ref as never}
-      className={`reveal ${delayClass} ${className}`.trim()}
+      className={`reveal ${variantClass} ${delayClass} ${className}`.trim()}
     >
       {children}
     </Tag>

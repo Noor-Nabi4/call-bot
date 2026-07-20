@@ -336,7 +336,7 @@ export default async function LandingPage() {
                 "radial-gradient(70% 60% at 50% 0%, rgba(20,184,160,0.28), transparent 60%)",
             }}
           />
-          <div className="relative z-[1] mx-auto flex max-w-3xl flex-col items-start gap-6 sm:items-center sm:text-center">
+          <Reveal variant="scale" className="relative z-[1] mx-auto flex max-w-3xl flex-col items-start gap-6 sm:items-center sm:text-center">
             <h2
               id="close-heading"
               className="font-display m-0 text-[clamp(2rem,4.5vw,3.25rem)] font-semibold leading-[1.05] tracking-[-0.04em]"
@@ -362,7 +362,7 @@ export default async function LandingPage() {
                 Book Demo
               </Button>
             </div>
-          </div>
+          </Reveal>
         </section>
 
         <Footer />

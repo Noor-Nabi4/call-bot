@@ -148,6 +148,16 @@ body {
   min-height: 100%;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 body {
   margin: 0;
   color: var(--ink);
@@ -221,27 +231,150 @@ body {
 
 .reveal {
   opacity: 0;
-  transform: translateY(24px);
   transition:
-    opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 750ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 750ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.reveal-up {
+  transform: translateY(28px);
+}
+
+.reveal-left {
+  transform: translateX(-28px);
+}
+
+.reveal-right {
+  transform: translateX(28px);
+}
+
+.reveal-scale {
+  transform: translateY(16px) scale(0.96);
+}
+
+.reveal-fade {
+  transform: none;
 }
 
 .reveal.is-visible {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) translateX(0) scale(1);
 }
 
 .reveal-delay-1 {
-  transition-delay: 80ms;
+  transition-delay: 90ms;
 }
 
 .reveal-delay-2 {
-  transition-delay: 160ms;
+  transition-delay: 180ms;
 }
 
 .reveal-delay-3 {
-  transition-delay: 240ms;
+  transition-delay: 270ms;
+}
+
+@keyframes detail-swap {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes preview-in {
+  from {
+    opacity: 0;
+    transform: translateX(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes logo-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.pricing-detail-enter {
+  animation: detail-swap 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.step-preview-enter {
+  animation: preview-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.logo-chip {
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    background-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.logo-chip:hover {
+  transform: translateY(-2px);
+  border-color: rgba(14, 143, 125, 0.35);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.faq-item {
+  transition:
+    background-color 220ms ease,
+    box-shadow 220ms ease,
+    border-color 220ms ease;
+}
+
+.faq-answer {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.faq-item[open] .faq-answer {
+  grid-template-rows: 1fr;
+}
+
+.faq-answer-inner {
+  overflow: hidden;
+}
+
+.faq-answer-inner > p {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 280ms ease 40ms,
+    transform 280ms ease 40ms;
+}
+
+.faq-item[open] .faq-answer-inner > p {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.how-step-card {
+  transition:
+    flex-grow 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 280ms ease,
+    box-shadow 280ms ease,
+    border-color 280ms ease,
+    transform 280ms ease;
+}
+
+.cta-band {
+  transition: opacity 700ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -253,14 +386,30 @@ body {
   .animate-float,
   .animate-float-slow,
   .glow-orb,
-  .mesh-bg {
+  .mesh-bg,
+  .pricing-detail-enter,
+  .step-preview-enter {
     animation: none !important;
+  }
+
+  .reveal,
+  .logo-chip,
+  .faq-item,
+  .faq-answer,
+  .faq-answer-inner > p,
+  .how-step-card {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 
   .reveal {
     opacity: 1;
     transform: none;
-    transition: none;
+  }
+
+  .logo-chip:hover {
+    transform: none;
   }
 }
 
