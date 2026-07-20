@@ -62,7 +62,7 @@ for _extra in (
     if _extra not in _cors_origins:
         _cors_origins.append(_extra)
 
-app = FastAPI(title="Call Bot Platform", version="0.1.0")
+app = FastAPI(title="VoxPilot Platform", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,

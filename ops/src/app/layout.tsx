@@ -1,30 +1,39 @@
 import type { Metadata } from "next";
-import { DM_Sans, JetBrains_Mono, Outfit } from "next/font/google";
+import { IBM_Plex_Mono, Inter } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const display = Outfit({
-  subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
-});
-
-const sans = DM_Sans({
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
 });
 
-const mono = JetBrains_Mono({
+const display = Inter({
   subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
   variable: "--font-mono",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "CallBot — Operations",
+  title: "VoxPilot — Operations",
   description:
     "Manage calls, appointments, and field jobs for your service business.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/branding/favicon.svg", type: "image/svg+xml" },
+      { url: "/branding/favicon-32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
 };
 
 export default function RootLayout({
@@ -35,7 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${display.variable} ${sans.variable} ${mono.variable} antialiased`}
+        className={`${inter.variable} ${display.variable} ${mono.variable} antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

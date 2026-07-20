@@ -1,7 +1,7 @@
-# Call Bot
+# VoxPilot
 
-Multi-tenant field-service platform (ServiceTitan-style), starting with a
-production **LiveKit + OpenAI Realtime** voice agent.
+Multi-tenant AI voice platform for service businesses and call centers
+(**LiveKit + OpenAI Realtime** voice agent).
 
 ## Docs
 

@@ -1,18 +1,18 @@
-/** Site copy for the CallBot marketing landing. */
+/** Site copy for the VoxPilot marketing landing. */
 
 export const site = {
-  brand: "CallBot",
-  title: "CallBot | AI Voice Platform for Service Businesses & Call Centers",
+  brand: "VoxPilot",
+  title: "VoxPilot | AI Voice Platform for Service Businesses & Call Centers",
   description:
-    "CallBot is an AI voice platform for service businesses and call centers. Deploy AI receptionists, support agents, and sales agents that book appointments, answer from your knowledge base, and hand off to humans.",
+    "VoxPilot is an AI voice platform for service businesses and call centers. Deploy AI receptionists, support agents, and sales agents that book appointments, answer from your knowledge base, and hand off to humans.",
 } as const;
 
 export const hero = {
-  brand: "CallBot",
+  brand: "VoxPilot",
   eyebrow: "AI Voice Platform",
-  headline: "Answer Every Call With AI",
+  headline: "Build AI Voice Agents for Any Business.",
   supporting:
-    "The AI voice platform for service businesses and call centers. Deploy receptionists, support agents, and sales agents that book work, answer from your knowledge base, and hand off to humans.",
+    "Answer every call, automate conversations, and help your team focus on what matters.",
   primaryCta: "Start Free Trial",
   secondaryCta: "Try Voice Demo",
   trustItems: [
@@ -23,7 +23,7 @@ export const hero = {
 } as const;
 
 export const voiceDemo = {
-  title: "Talk to CallBot before you sign up",
+  title: "Talk to VoxPilot before you sign up",
   supporting:
     "Start a live browser call and hear how an AI voice agent greets callers, answers questions, and keeps the conversation moving.",
   sessionLabel: "Live voice demo",
@@ -43,7 +43,7 @@ export const voiceDemo = {
   endCall: "End call",
   startFailed: "We could not start the demo. Please try again.",
   interruptedError: "The call was interrupted. You can start again.",
-  privacy: "Demo calls are short-lived and used only to show CallBot in action.",
+  privacy: "Demo calls are short-lived and used only to show VoxPilot in action.",
   ctaAfter: "Like what you heard? Start a free trial.",
 } as const;
 
@@ -151,12 +151,12 @@ export const industries = {
 } as const;
 
 export const howItWorks = {
-  title: "How CallBot works",
+  title: "How VoxPilot works",
   supporting: "From signup to live answering in a few guided steps.",
   steps: [
     {
       title: "Create your workspace",
-      body: "Open a CallBot account and invite the teammates who run the phones.",
+      body: "Open a VoxPilot account and invite the teammates who run the phones.",
     },
     {
       title: "Pick a template and configure",
@@ -164,7 +164,7 @@ export const howItWorks = {
     },
     {
       title: "Connect a number and go live",
-      body: "Point a business line at CallBot and monitor outcomes from one operations console.",
+      body: "Point a business line at VoxPilot and monitor outcomes from one operations console.",
     },
   ],
 } as const;
@@ -179,18 +179,18 @@ export const pricingPreview = {
 
 export const faq = {
   title: "Frequently asked questions",
-  supporting: "Straight answers about CallBot for service businesses and call centers.",
+  supporting: "Straight answers about VoxPilot for service businesses and call centers.",
 } as const;
 
 export const close = {
   title: "Ready to answer every call?",
-  body: "Start a free trial, configure your first voice agent, and put CallBot on a number your customers already dial.",
+  body: "Start a free trial, configure your first voice agent, and put VoxPilot on a number your customers already dial.",
   primaryCta: "Start Free Trial",
   secondaryCta: "Try voice demo",
 } as const;
 
 export const pricing = {
-  brand: "CallBot",
+  brand: "VoxPilot",
   title: "Voice minutes. Real ops. Clear limits.",
   supporting:
     "Pick the plan that matches your call volume and crew — not a seat count.",
@@ -201,13 +201,13 @@ export const pricing = {
   annualNote:
     "Pay annually and get about two months free: Starter $990 · Growth $2,490 · Pro $4,990.",
   note: "Plans activate after Stripe confirms payment. SaaS billing uses our platform Stripe account — separate from any future Connect payouts.",
-  contactSalesHref: "mailto:sales@callbot.example?subject=CallBot%20Enterprise",
+  contactSalesHref: "mailto:sales@voxpilot.example?subject=VoxPilot%20Enterprise",
   primaryCta: "Start with Growth",
 } as const;
 
 export const signup = {
-  brand: "CallBot",
-  heading: "Create your CallBot workspace",
+  brand: "VoxPilot",
+  heading: "Create your VoxPilot workspace",
   supporting:
     "A few details about your business, then choose a plan and finish checkout.",
   stepBusiness: "Business",
@@ -249,7 +249,7 @@ export const signup = {
 } as const;
 
 export const footer = {
-  tagline: "AI Voice Platform for service businesses and call centers.",
+  tagline: "AI Voice Platform for Service Businesses & Call Centers",
   note: "Reception, support, sales, booking, and handoff — one multi-tenant platform.",
   columns: [
     {

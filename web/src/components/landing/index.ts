@@ -1,4 +1,5 @@
 export { AnimatedBackground } from "./animated-background";
+export { BrandLogo } from "./brand-logo";
 export { BenefitCard } from "./benefit-card";
 export { Button } from "./button";
 export { Faq } from "./faq";

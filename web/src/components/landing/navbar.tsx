@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useId, useState } from "react";
+import { BrandLogo } from "@/components/landing/brand-logo";
 import { Button } from "@/components/landing/button";
 import { track } from "@/lib/analytics";
 import { opsLoginUrl } from "@/lib/site-urls";
@@ -49,14 +49,12 @@ export function Navbar({ brand }: NavbarProps) {
       }`}
     >
       <div className="content-width flex items-center justify-between gap-4 px-6 py-4 sm:px-10 lg:px-12">
-        <Link
-          href="/"
-          className={`font-display text-xl font-semibold tracking-[-0.03em] no-underline sm:text-2xl ${
-            solid ? "text-ink" : "text-white"
-          }`}
-        >
-          {brand}
-        </Link>
+        <BrandLogo
+          variant={solid ? "dark" : "light"}
+          priority
+          className={!solid ? "brightness-100" : undefined}
+        />
+        <span className="sr-only">{brand}</span>
 
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
           {links.map((link) => (

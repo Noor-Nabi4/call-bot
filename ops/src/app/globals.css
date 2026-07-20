@@ -1,36 +1,35 @@
 @import "tailwindcss";
 
 /**
- * Ops design tokens — aligned with marketing `web/` (Outfit + DM Sans,
- * teal/blue neutrals, soft elevation). App chrome only; not a Figma clone.
+ * Ops design tokens — aligned with marketing VoxPilot palette (Inter + IBM Plex Mono).
  */
 :root {
-  --bg: #f3f5f7;
-  --bg-elevated: #eef1f4;
+  --bg: #fafafa;
+  --bg-elevated: #f3f4f6;
   --surface: #ffffff;
-  --ink: #0c1a1e;
-  --ink-soft: #1a2f35;
-  --muted: #5c6d74;
-  --muted-soft: #7a8b92;
-  --line: rgba(12, 26, 30, 0.1);
-  --line-strong: rgba(12, 26, 30, 0.16);
-  --teal: #0e8f7d;
-  --teal-deep: #0a6b5d;
-  --teal-bright: #14b8a0;
-  --teal-soft: #e5f6f3;
-  --blue: #2f6fad;
-  --blue-soft: #e8f1f9;
-  --hero: #071416;
-  --hero-muted: #9bb0b6;
+  --ink: #111827;
+  --ink-soft: #1f2937;
+  --muted: #6b7280;
+  --muted-soft: #9ca3af;
+  --line: #e5e7eb;
+  --line-strong: #d1d5db;
+  --teal: #0f766e;
+  --teal-deep: #0d5f59;
+  --teal-bright: #14b8a6;
+  --teal-soft: #ccfbf1;
+  --blue: #0ea5e9;
+  --blue-soft: #e0f2fe;
+  --hero: #0f172a;
+  --hero-muted: #94a3b8;
   --paper: var(--surface);
   --fog: var(--bg);
   --fog-deep: var(--bg-elevated);
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
-  --shadow-sm: 0 2px 8px rgba(12, 26, 30, 0.04);
-  --shadow-md: 0 8px 28px rgba(12, 26, 30, 0.08);
-  --shadow-lg: 0 16px 48px rgba(12, 26, 30, 0.12);
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 8px 28px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.12);
 
   --ops-bg: var(--bg);
   --ops-elevated: rgba(255, 255, 255, 0.88);
@@ -43,10 +42,10 @@
   --ops-accent-hover: var(--teal-deep);
   --ops-accent-soft: var(--teal-soft);
   --ops-cyan: var(--teal-bright);
-  --ops-cyan-soft: rgba(20, 184, 160, 0.14);
-  --ops-success: var(--teal);
-  --ops-warn: #b45309;
-  --ops-danger: #b91c1c;
+  --ops-cyan-soft: rgba(20, 184, 166, 0.14);
+  --ops-success: #16a34a;
+  --ops-warn: #f59e0b;
+  --ops-danger: #dc2626;
   --ops-sidebar: var(--hero);
   --ops-sidebar-muted: var(--hero-muted);
 }
@@ -85,10 +84,10 @@
   --color-hero-muted: var(--hero-muted);
   --color-sidebar: var(--ops-sidebar);
   --color-sidebar-muted: var(--ops-sidebar-muted);
-  --font-sans: var(--font-sans), "Segoe UI", sans-serif;
-  --font-display: var(--font-display), "Segoe UI", sans-serif;
-  --font-heading: var(--font-display), "Segoe UI", sans-serif;
-  --font-mono: var(--font-mono), ui-monospace, monospace;
+  --font-sans: var(--font-sans), Inter, system-ui, sans-serif;
+  --font-display: var(--font-display), Inter, system-ui, sans-serif;
+  --font-heading: var(--font-display), Inter, system-ui, sans-serif;
+  --font-mono: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
   --radius-panel: var(--radius-md);
   --shadow-elevated: var(--shadow-md);
   --shadow-drawer: -8px 0 28px rgba(12, 26, 30, 0.12);
@@ -273,7 +272,7 @@
       rgba(47, 111, 173, 0.14),
       transparent 50%
     ),
-    linear-gradient(180deg, #071416 0%, #0a1c20 55%, #0c2228 100%);
+    linear-gradient(180deg, #0F172A 0%, #0d5f59 100%);
   color: #f3f8f5;
   width: 15.5rem;
 }
@@ -290,7 +289,7 @@
       rgba(47, 111, 173, 0.18),
       transparent 50%
     ),
-    linear-gradient(160deg, #071416 0%, #0a1c20 42%, #0e2a32 100%);
+    linear-gradient(160deg, #0F172A 0%, #0F766E 100%);
 }
 
 .glass-card {

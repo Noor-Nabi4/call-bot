@@ -262,7 +262,7 @@ export default function AutomationsPage() {
                       onChange={(e) =>
                         setForm({ ...form, webhook_url: e.target.value })
                       }
-                      placeholder="https://example.com/hooks/callbot"
+                      placeholder="https://example.com/hooks/voxpilot"
                       required
                     />
                   </Field>
@@ -273,7 +273,7 @@ export default function AutomationsPage() {
                       onChange={(e) =>
                         setForm({ ...form, webhook_secret: e.target.value })
                       }
-                      placeholder="Used for X-Callbot-Signature"
+                      placeholder="Used for X-VoxPilot-Signature"
                     />
                   </Field>
                 </>

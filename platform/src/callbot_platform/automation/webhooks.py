@@ -132,13 +132,18 @@ def deliver_webhook(
     body = json.dumps(body_obj, separators=(",", ":"), default=str).encode("utf-8")
     headers = {
         "Content-Type": "application/json",
-        "User-Agent": "CallBot-Webhook/1.0",
+        "User-Agent": "VoxPilot-Webhook/1.0",
+        "X-VoxPilot-Event": event,
+        "X-VoxPilot-Tenant-Id": tenant_id,
+        # Legacy aliases for existing webhook receivers
         "X-Callbot-Event": event,
         "X-Callbot-Tenant-Id": tenant_id,
     }
     if secret:
         digest = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
-        headers["X-Callbot-Signature"] = f"sha256={digest}"
+        signature = f"sha256={digest}"
+        headers["X-VoxPilot-Signature"] = signature
+        headers["X-Callbot-Signature"] = signature
 
     try:
         with httpx.Client(timeout=timeout_sec, follow_redirects=False) as client:

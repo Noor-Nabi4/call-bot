@@ -9,7 +9,7 @@ function ProductPreview() {
   return (
     <div className="relative mx-auto w-full max-w-lg lg:max-w-none">
       <div
-        className="relative overflow-hidden rounded-[var(--radius-xl)] border border-white/10 bg-[#0d1f24]/90 shadow-[var(--shadow-lg)] backdrop-blur-sm"
+        className="relative overflow-hidden rounded-[var(--radius-xl)] border border-white/10 bg-[#0F172A]/90 shadow-[var(--shadow-lg)] backdrop-blur-sm"
         aria-hidden="true"
       >
         <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">

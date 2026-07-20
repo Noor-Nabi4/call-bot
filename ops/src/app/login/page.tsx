@@ -54,9 +54,14 @@ export default function LoginPage() {
         noValidate
         className="relative z-[1] w-full max-w-md rounded-[var(--radius-lg)] border border-white/12 bg-white/95 p-6 shadow-[var(--shadow-lg)] backdrop-blur-md sm:p-8"
       >
-        <p className="font-display text-2xl font-semibold tracking-[-0.03em] text-ink">
-          CallBot
-        </p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/branding/logo-light.svg"
+          alt={copy.brand}
+          width={148}
+          height={32}
+          className="h-8 w-auto"
+        />
         <h1 className="mt-3 font-display text-2xl font-semibold tracking-tight text-ink">
           {copy.heading}
         </h1>

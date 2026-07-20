@@ -1,11 +1,11 @@
-# Call Bot Ops
+# VoxPilot Ops
 
 Tenant-scoped operations console: dashboard overview, dispatch board, and
 technician mobile UI.
 
-Premium ops product: warm-gray canvas, white surfaces, teal brand `#1f6f5b`,
-IBM Plex Sans/Mono, left sidebar navigation. Shared UI under `src/components/ui/`
-and `src/components/ops/`.
+Premium ops product: VoxPilot palette (`#0F766E` / `#14B8A6` / `#0EA5E9`),
+Inter + IBM Plex Mono, left sidebar navigation. Shared UI under `src/components/ui/`
+and `src/components/ops/`. Brand assets: `/branding` and `public/branding`.
 
 ## Routes
 

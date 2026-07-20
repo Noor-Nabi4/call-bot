@@ -1,17 +1,24 @@
 import type { Metadata } from "next";
-import { DM_Sans, Outfit } from "next/font/google";
+import { IBM_Plex_Mono, Inter } from "next/font/google";
 import { buildJsonLd, buildRootMetadata } from "@/lib/metadata";
 import "./globals.css";
 
-const display = Outfit({
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+});
+
+const display = Inter({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
 });
 
-const sans = DM_Sans({
+const mono = IBM_Plex_Mono({
   subsets: ["latin"],
-  variable: "--font-sans",
+  weight: ["400", "500", "600"],
+  variable: "--font-mono",
   display: "swap",
 });
 
@@ -32,7 +39,9 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`${display.variable} ${sans.variable} antialiased`}>
+      <body
+        className={`${inter.variable} ${display.variable} ${mono.variable} antialiased`}
+      >
         <a href="#main-content" className="sr-only">
           Skip to content
         </a>

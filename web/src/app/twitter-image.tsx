@@ -17,10 +17,9 @@ export default function TwitterImage() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "64px",
-          background:
-            "linear-gradient(160deg, #071416 0%, #0c2228 45%, #0a3a36 100%)",
-          color: "#f3f5f7",
-          fontFamily: "system-ui, sans-serif",
+          background: "linear-gradient(160deg, #0F172A 0%, #0F766E 100%)",
+          color: "#FAFAFA",
+          fontFamily: "Inter, system-ui, sans-serif",
         }}
       >
         <div
@@ -29,7 +28,7 @@ export default function TwitterImage() {
             fontSize: 36,
             fontWeight: 600,
             letterSpacing: "-0.03em",
-            color: "#14b8a0",
+            color: "#14B8A6",
           }}
         >
           {seo.brand}
@@ -37,25 +36,24 @@ export default function TwitterImage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div
             style={{
-              fontSize: 58,
+              fontSize: 52,
               fontWeight: 600,
-              lineHeight: 1.05,
+              lineHeight: 1.08,
               letterSpacing: "-0.035em",
               maxWidth: 920,
             }}
           >
-            AI Voice Platform for Service Businesses & Call Centers
+            Build AI Voice Agents for Any Business.
           </div>
           <div
             style={{
               fontSize: 26,
               lineHeight: 1.35,
-              color: "#9bb0b6",
+              color: "#94A3B8",
               maxWidth: 820,
             }}
           >
-            Reception, support, sales, booking, and human handoff — one
-            platform.
+            AI Voice Platform for Service Businesses & Call Centers
           </div>
         </div>
       </div>

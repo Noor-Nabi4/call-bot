@@ -65,8 +65,13 @@ export function buildRootMetadata(): Metadata {
       },
     },
     icons: {
-      icon: [{ url: "/icon", type: "image/png" }],
-      apple: [{ url: "/apple-icon", type: "image/png" }],
+      icon: [
+        { url: "/favicon.ico", sizes: "any" },
+        { url: "/branding/favicon.svg", type: "image/svg+xml" },
+        { url: "/branding/favicon-32.png", sizes: "32x32", type: "image/png" },
+        { url: "/branding/icon.png", sizes: "512x512", type: "image/png" },
+      ],
+      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
     },
     manifest: "/manifest.webmanifest",
   };

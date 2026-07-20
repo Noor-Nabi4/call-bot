@@ -1,4 +1,4 @@
-/** SEO configuration for the CallBot marketing site. */
+/** SEO configuration for the VoxPilot marketing site. */
 
 export function getSiteUrl(): string {
   const raw =
@@ -11,11 +11,11 @@ export function getSiteUrl(): string {
 }
 
 export const seo = {
-  brand: "CallBot",
-  title: "CallBot | AI Voice Platform for Service Businesses & Call Centers",
-  titleTemplate: "%s | CallBot",
+  brand: "VoxPilot",
+  title: "VoxPilot | AI Voice Platform for Service Businesses & Call Centers",
+  titleTemplate: "%s | VoxPilot",
   description:
-    "CallBot is an AI voice platform for service businesses and call centers. Deploy AI receptionists, support agents, and sales agents that book appointments, answer from your knowledge base, and hand off to humans.",
+    "VoxPilot is an AI voice platform for service businesses and call centers. Deploy AI receptionists, support agents, and sales agents that book appointments, answer from your knowledge base, and hand off to humans.",
   keywords: [
     "AI voice platform",
     "AI phone receptionist",
@@ -26,24 +26,24 @@ export const seo = {
     "human handoff voice AI",
     "multi-tenant voice platform",
     "service business phone AI",
-    "CallBot",
+    "VoxPilot",
   ],
   locale: "en_US",
   ogImageAlt:
-    "CallBot — AI voice platform for service businesses and call centers",
+    "VoxPilot — AI voice platform for service businesses and call centers",
   twitterHandle: "",
 } as const;
 
 export const faqItems = [
   {
-    question: "What is CallBot?",
+    question: "What is VoxPilot?",
     answer:
-      "CallBot is an AI voice platform for service businesses and call centers. It answers inbound calls, books appointments, responds from your knowledge base, and hands off to humans when needed.",
+      "VoxPilot is an AI voice platform for service businesses and call centers. It answers inbound calls, books appointments, responds from your knowledge base, and hands off to humans when needed.",
   },
   {
-    question: "Who is CallBot for?",
+    question: "Who is VoxPilot for?",
     answer:
-      "CallBot fits home and field services, healthcare, legal, insurance, real estate, restaurants, call centers, and other teams that cannot afford to miss the phone.",
+      "VoxPilot fits home and field services, healthcare, legal, insurance, real estate, restaurants, call centers, and other teams that cannot afford to miss the phone.",
   },
   {
     question: "Can I try it before signing up?",
@@ -63,10 +63,10 @@ export const faqItems = [
   {
     question: "What happens when a caller needs a person?",
     answer:
-      "CallBot supports human handoff. When transfer is available, the call moves to your team with context. If not, CallBot can take a callback request and queue follow-up.",
+      "VoxPilot supports human handoff. When transfer is available, the call moves to your team with context. If not, VoxPilot can take a callback request and queue follow-up.",
   },
   {
-    question: "Is CallBot multi-tenant?",
+    question: "Is VoxPilot multi-tenant?",
     answer:
       "Yes. Each business keeps isolated numbers, agents, customers, appointments, and knowledge so data never mixes across companies.",
   },

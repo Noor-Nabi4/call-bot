@@ -165,11 +165,15 @@ export default function SignupForm() {
     <div className="min-h-[100svh] bg-bg">
       <header className="border-b border-line bg-surface">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4 sm:px-8">
-          <Link
-            href="/"
-            className="font-display text-xl font-semibold tracking-[-0.03em] text-ink no-underline"
-          >
-            {copy.brand}
+          <Link href="/" className="inline-flex items-center no-underline" aria-label={copy.brand}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/branding/logo-light.svg"
+              alt={copy.brand}
+              width={148}
+              height={32}
+              className="h-7 w-auto"
+            />
           </Link>
           <Link
             href={`${OPS}/login`}

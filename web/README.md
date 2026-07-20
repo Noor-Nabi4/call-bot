@@ -1,6 +1,8 @@
-# CallBot landing
+# VoxPilot landing
 
-Public marketing site for CallBot — AI Voice Platform for service businesses and call centers.
+Public marketing site for VoxPilot — AI Voice Platform for Service Businesses & Call Centers.
+
+Brand assets: see `/branding` (and `public/branding`).
 
 ## Run
 
@@ -33,13 +35,13 @@ Open http://localhost:3002
 
 Signup flow: `/#demo` or `/#pricing` → `/signup` → Stripe Checkout → ops. Subscription activation requires Stripe webhooks on the platform API.
 
-The embedded voice demo is tenant-less (`source=marketing`): visitors talk to a fixed CallBot persona with no CRM/tools. Tenant-specific testing lives in Ops → Playground (`/playground`).
+The embedded voice demo is tenant-less (`source=marketing`): visitors talk to a fixed VoxPilot persona with no CRM/tools. Tenant-specific testing lives in Ops → Playground (`/playground`).
 
 The embedded voice demo requires a running `voice-agent` worker plus LiveKit credentials in `web/.env.local`.
 
 ## Analytics
 
-Conversion events fire via `track()` (`web/src/lib/analytics.ts`): CustomEvent `callbot:analytics`, optional `window.dataLayer`, and optional `window.callbotTrack`.
+Conversion events fire via `track()` (`web/src/lib/analytics.ts`): CustomEvent `voxpilot:analytics` (and legacy `callbot:analytics`), optional `window.dataLayer`, and optional `window.voxpilotTrack` / `window.callbotTrack`.
 
 ## SEO surfaces
 

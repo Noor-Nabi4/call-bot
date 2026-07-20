@@ -2,6 +2,7 @@ import {
   footer as footerCopy,
   site,
 } from "@/lib/copy";
+import { BrandLogo } from "@/components/landing/brand-logo";
 import {
   resolveFooterHref,
   type FooterHrefKind,
@@ -26,9 +27,7 @@ export function Footer() {
       <div className="content-width section-pad pb-10 pt-16">
         <div className="grid gap-12 lg:grid-cols-[1.2fr_2fr]">
           <div>
-            <p className="font-display m-0 text-2xl font-semibold tracking-[-0.03em]">
-              {site.brand}
-            </p>
+            <BrandLogo variant="light" href="/" />
             <p className="mt-3 m-0 max-w-xs text-sm leading-relaxed text-hero-muted">
               {footerCopy.tagline}
             </p>

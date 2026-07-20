@@ -31,9 +31,14 @@ export function MobileNavDrawer({
       />
       <aside className="ops-sidebar absolute top-0 bottom-0 left-0 flex w-64 flex-col border-r border-white/10 shadow-[var(--shadow-elevated)]">
         <div className="flex items-center justify-between border-b border-white/10 px-3 py-3">
-          <p className="font-display text-sm font-semibold tracking-tight text-white">
-            CallBot
-          </p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/branding/logo-dark.svg"
+            alt="VoxPilot"
+            width={120}
+            height={26}
+            className="h-6 w-auto"
+          />
           <button
             type="button"
             className="rounded-[10px] p-1.5 text-hero-muted hover:bg-white/10 hover:text-white"

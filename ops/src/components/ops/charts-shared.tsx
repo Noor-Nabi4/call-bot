@@ -112,7 +112,7 @@ export function ChartEmptyState({
 }
 
 export const CHART_COLORS = {
-  primary: "#0e8f7d",
+  primary: "#0F766E",
   secondary: "#14b8a0",
   tertiary: "#5c6d74",
   grid: "rgba(12, 26, 30, 0.08)",

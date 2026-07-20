@@ -34,7 +34,7 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [branding, setBranding] = useState<Branding | null>(null);
   const isTech = user.role === "technician";
-  const productName = branding?.product_name?.trim() || "Call Bot";
+  const productName = branding?.product_name?.trim() || "VoxPilot";
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -126,9 +126,14 @@ export function AppShell({
                   className="mb-2 h-8 max-w-[160px] object-contain"
                 />
               ) : (
-                <p className="font-display text-xl font-semibold tracking-[-0.03em]">
-                  {productName === "Call Bot" ? "CallBot" : productName}
-                </p>
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src="/branding/logo-dark.svg"
+                  alt={productName}
+                  width={148}
+                  height={32}
+                  className="mb-2 h-7 w-auto"
+                />
               )}
             </Link>
             <p className="mt-1 text-[11px] tracking-[0.08em] text-hero-muted uppercase">

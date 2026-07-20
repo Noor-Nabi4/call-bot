@@ -1,16 +1,16 @@
 /** Customer-facing copy for the operations console. Keep localization-ready. */
 
 export const site = {
-  title: "CallBot — Operations",
+  title: "VoxPilot — Operations",
   description:
     "Manage calls, appointments, and field jobs for your service business.",
-  brand: "CallBot",
+  brand: "VoxPilot",
   product: "Operations",
   tagline: "Operations",
 } as const;
 
 export const login = {
-  brand: "CallBot",
+  brand: "VoxPilot",
   heading: "Sign in",
   supporting: "Access your business dashboard and field operations.",
   businessId: "Business ID",

@@ -26,14 +26,14 @@ import {
 } from "@/components/ops/charts-shared";
 
 export const RAFFLE_COLORS = [
-  "#0e8f7d",
+  "#0F766E",
   "#14b8a0",
   "#2f6fad",
   "#0a6b5d",
   "#b45309",
   "#5c6d74",
   "#eef1f4",
-  "#071416",
+  "#0F172A",
   "#34d399",
   "#f59e0b",
   "#b91c1c",
@@ -43,7 +43,7 @@ export const RAFFLE_COLORS = [
 /** Fixed brand colors for job statuses (not rotating palette). */
 export const JOB_STATUS_COLORS: Record<string, string> = {
   new: "#1aa884",
-  scheduled: "#0e8f7d",
+  scheduled: "#0F766E",
   dispatched: "#14352c",
   in_progress: "#b45309",
   completed: "#0a5a4a",
@@ -57,7 +57,7 @@ export const CALL_STATUS_COLORS: Record<string, string> = {
   initiated: "#1aa884",
   in_progress: "#b45309",
   active: "#b45309",
-  answered: "#0e8f7d",
+  answered: "#0F766E",
   completed: "#0a5a4a",
   ended: "#0a5a4a",
   success: "#0a5a4a",

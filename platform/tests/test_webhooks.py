@@ -80,6 +80,8 @@ def test_normalize_and_deliver_signed_webhook() -> None:
         args, kwargs = mock_client.post.call_args
         assert args[0] == cfg["url"]
         assert kwargs["headers"]["X-Callbot-Signature"].startswith("sha256=")
+        assert kwargs["headers"]["X-VoxPilot-Signature"].startswith("sha256=")
+        assert kwargs["headers"]["User-Agent"] == "VoxPilot-Webhook/1.0"
 
 
 def test_automation_post_webhook_action(session: Session, tenant: Tenant) -> None:

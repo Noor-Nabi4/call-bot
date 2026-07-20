@@ -89,7 +89,7 @@ async function createParticipantToken(
   at.addGrant(grant);
 
   // Explicit agent dispatch — https://docs.livekit.io/agents/server/agent-dispatch/
-  // Marketing demo is tenant-less: voice-agent uses a fixed CallBot persona.
+  // Marketing demo is tenant-less: voice-agent uses a fixed VoxPilot persona.
   const metadataPayload: Record<string, unknown> = {
     source: "marketing",
   };

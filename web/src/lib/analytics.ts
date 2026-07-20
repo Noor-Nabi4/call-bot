@@ -20,6 +20,7 @@ declare global {
   interface Window {
     dataLayer?: Array<Record<string, unknown>>;
     callbotTrack?: (event: string, props?: AnalyticsProps) => void;
+    voxpilotTrack?: (event: string, props?: AnalyticsProps) => void;
   }
 }
 
@@ -33,21 +34,24 @@ export function track(event: AnalyticsEvent, props: AnalyticsProps = {}): void {
     path: window.location.pathname,
   };
 
+  window.dispatchEvent(new CustomEvent("voxpilot:analytics", { detail: payload }));
+  // Back-compat for existing integrators
   window.dispatchEvent(new CustomEvent("callbot:analytics", { detail: payload }));
 
   if (Array.isArray(window.dataLayer)) {
     window.dataLayer.push(payload);
   }
 
-  if (typeof window.callbotTrack === "function") {
+  const tracker = window.voxpilotTrack || window.callbotTrack;
+  if (typeof tracker === "function") {
     try {
-      window.callbotTrack(event, props);
+      tracker(event, props);
     } catch {
       // Ignore integrator errors.
     }
   }
 
   if (process.env.NODE_ENV === "development") {
-    console.debug("[callbot:analytics]", payload);
+    console.debug("[voxpilot:analytics]", payload);
   }
 }

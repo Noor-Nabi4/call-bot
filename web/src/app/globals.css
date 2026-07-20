@@ -1,28 +1,29 @@
 @import "tailwindcss";
 
 /**
- * Design tokens inspired by premium SaaS polish (typography scale, spacing
- * rhythm, soft elevation, generous radius) — original CallBot palette.
- * Not a recreation of any third-party Figma file.
+ * VoxPilot design tokens — premium SaaS polish with the official brand palette.
  */
 :root {
-  --bg: #f3f5f7;
-  --bg-elevated: #eef1f4;
+  --bg: #fafafa;
+  --bg-elevated: #f3f4f6;
   --surface: #ffffff;
-  --ink: #0c1a1e;
-  --ink-soft: #1a2f35;
-  --muted: #5c6d74;
-  --muted-soft: #7a8b92;
-  --line: rgba(12, 26, 30, 0.1);
-  --line-strong: rgba(12, 26, 30, 0.16);
-  --teal: #0e8f7d;
-  --teal-deep: #0a6b5d;
-  --teal-bright: #14b8a0;
-  --teal-soft: #e5f6f3;
-  --blue: #2f6fad;
-  --blue-soft: #e8f1f9;
-  --hero: #071416;
-  --hero-muted: #9bb0b6;
+  --ink: #111827;
+  --ink-soft: #1f2937;
+  --muted: #6b7280;
+  --muted-soft: #9ca3af;
+  --line: #e5e7eb;
+  --line-strong: #d1d5db;
+  --teal: #0f766e;
+  --teal-deep: #0d5f59;
+  --teal-bright: #14b8a6;
+  --teal-soft: #ccfbf1;
+  --blue: #0ea5e9;
+  --blue-soft: #e0f2fe;
+  --hero: #0f172a;
+  --hero-muted: #94a3b8;
+  --success: #16a34a;
+  --warning: #f59e0b;
+  --error: #dc2626;
   /* Back-compat aliases for pricing / signup pages */
   --paper: var(--surface);
   --fog: var(--bg);
@@ -31,9 +32,9 @@
   --radius-md: 14px;
   --radius-lg: 20px;
   --radius-xl: 28px;
-  --shadow-sm: 0 2px 8px rgba(12, 26, 30, 0.04);
-  --shadow-md: 0 8px 28px rgba(12, 26, 30, 0.08);
-  --shadow-lg: 0 16px 48px rgba(12, 26, 30, 0.12);
+  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 8px 28px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.12);
   --space-section: clamp(4.5rem, 8vw, 7rem);
   --content: 72rem;
 }
@@ -59,8 +60,9 @@
   --color-blue-soft: var(--blue-soft);
   --color-hero: var(--hero);
   --color-hero-muted: var(--hero-muted);
-  --font-display: var(--font-display), "Segoe UI", sans-serif;
-  --font-sans: var(--font-sans), "Segoe UI", sans-serif;
+  --font-display: var(--font-display), Inter, system-ui, sans-serif;
+  --font-sans: var(--font-sans), Inter, system-ui, sans-serif;
+  --font-mono: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
   --radius-sm: var(--radius-sm);
   --radius-md: var(--radius-md);
   --radius-lg: var(--radius-lg);
@@ -434,7 +436,7 @@ body {
     radial-gradient(ellipse 80% 60% at 10% 20%, rgba(14, 143, 125, 0.22), transparent 55%),
     radial-gradient(ellipse 70% 50% at 90% 10%, rgba(47, 111, 173, 0.18), transparent 50%),
     radial-gradient(ellipse 60% 40% at 70% 90%, rgba(20, 184, 160, 0.12), transparent 45%),
-    linear-gradient(160deg, #071416 0%, #0c2228 48%, #0a1a1f 100%);
+    linear-gradient(160deg, #0F172A 0%, #0F766E 55%, #0d5f59 100%);
   background-size: 140% 140%;
   animation: gradient-shift 18s ease-in-out infinite;
 }
@@ -582,7 +584,7 @@ body {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: #071416;
+  background: #0F172A;
 }
 
 .hero-glow {
