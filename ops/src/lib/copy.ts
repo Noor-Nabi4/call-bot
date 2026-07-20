@@ -278,9 +278,21 @@ export const appointments = {
 
 export const metrics = {
   title: "Metrics",
-  description: "Call, appointment, and job activity for your business.",
+  description:
+    "Call volume, voice minutes, handoffs, and job activity for your business.",
   empty: "No metrics available",
   emptyHint: "Metrics will appear once activity is recorded.",
+  calls: "Calls",
+  voiceMinutes: "Voice minutes",
+  avgDuration: "Avg duration",
+  handoffs: "Handoffs",
+  appointments: "Appointments",
+  jobs: "Jobs",
+  callsByDay: "Call volume",
+  callOutcomes: "Disconnect reasons",
+  jobsByStatus: "Jobs by status",
+  noCallVolume: "No calls in this window.",
+  noDisconnect: "No ended calls in this window.",
 } as const;
 
 export const tech = {

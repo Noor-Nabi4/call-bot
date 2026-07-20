@@ -9,6 +9,10 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from callbot_platform.billing.usage import (
+    compute_billable_seconds,
+    seconds_to_billable_minutes,
+)
 from callbot_platform.db.models import (
     Appointment,
     Call,
@@ -31,7 +35,9 @@ class AdminRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def list_customers(self, tenant_id: UUID, *, limit: int = 100) -> list[dict[str, Any]]:
+    def list_customers(
+        self, tenant_id: UUID, *, limit: int = 100
+    ) -> list[dict[str, Any]]:
         rows = self._session.scalars(
             select(Customer)
             .where(Customer.tenant_id == tenant_id)
@@ -95,11 +101,26 @@ class AdminRepository:
         ]
 
     def metrics_summary(self, tenant_id: UUID, *, days: int = 30) -> dict[str, Any]:
-        since = datetime.now(UTC) - timedelta(days=max(1, min(days, 365)))
+        window_days = max(1, min(days, 365))
+        since = datetime.now(UTC) - timedelta(days=window_days)
         calls = self._session.scalar(
             select(func.count())
             .select_from(Call)
             .where(Call.tenant_id == tenant_id, Call.started_at >= since)
+        )
+        calls_ended = self._session.scalar(
+            select(func.count())
+            .select_from(Call)
+            .where(
+                Call.tenant_id == tenant_id,
+                Call.started_at >= since,
+                Call.ended_at.is_not(None),
+            )
+        )
+        calls_active = self._session.scalar(
+            select(func.count())
+            .select_from(Call)
+            .where(Call.tenant_id == tenant_id, Call.status == "active")
         )
         jobs = self._session.scalar(
             select(func.count())
@@ -132,19 +153,69 @@ class AdminRepository:
                 .group_by(Job.status)
             ).all()
         )
+
+        call_rows = self._session.scalars(
+            select(Call).where(
+                Call.tenant_id == tenant_id,
+                Call.started_at >= since,
+            )
+        ).all()
+        voice_seconds = 0
+        handoffs = 0
+        appointments_booked_flag = 0
+        disconnect_reasons: dict[str, int] = {}
+        calls_by_day: dict[str, int] = {}
+        for call in call_rows:
+            day_key = call.started_at.astimezone(UTC).date().isoformat()
+            calls_by_day[day_key] = calls_by_day.get(day_key, 0) + 1
+            if call.ended_at is not None:
+                if call.billable_seconds is not None:
+                    voice_seconds += int(call.billable_seconds)
+                else:
+                    voice_seconds += compute_billable_seconds(
+                        call.started_at, call.ended_at
+                    )
+            reason = (call.disconnect_reason or "unknown").strip() or "unknown"
+            if call.ended_at is not None:
+                disconnect_reasons[reason] = disconnect_reasons.get(reason, 0) + 1
+            metrics_blob = call.metrics if isinstance(call.metrics, dict) else {}
+            if metrics_blob.get("handoff_requested"):
+                handoffs += 1
+            if metrics_blob.get("appointment_booked"):
+                appointments_booked_flag += 1
+
+        ended_count = int(calls_ended or 0)
+        avg_duration = round(voice_seconds / ended_count, 1) if ended_count > 0 else 0.0
+        # Fill every calendar day in the window so the Ops chart has a continuous axis.
+        series: list[dict[str, Any]] = []
+        cursor = since.astimezone(UTC).date()
+        today = datetime.now(UTC).date()
+        while cursor <= today:
+            key = cursor.isoformat()
+            series.append({"date": key, "calls": calls_by_day.get(key, 0)})
+            cursor += timedelta(days=1)
+
         return {
-            "window_days": days,
+            "window_days": window_days,
             "calls": int(calls or 0),
+            "calls_ended": ended_count,
+            "calls_active": int(calls_active or 0),
+            "voice_seconds": voice_seconds,
+            "voice_minutes": seconds_to_billable_minutes(voice_seconds),
+            "avg_call_duration_seconds": avg_duration,
+            "handoffs_requested": handoffs,
+            "handoff_rate": round(handoffs / ended_count, 3) if ended_count else 0.0,
+            "appointment_booked_calls": appointments_booked_flag,
             "appointments": int(appts or 0),
             "jobs": int(jobs or 0),
             "jobs_completed": int(completed or 0),
             "customers": int(customers or 0),
             "jobs_by_status": {str(k): int(v) for k, v in by_status.items()},
+            "disconnect_reasons": disconnect_reasons,
+            "calls_by_day": series,
         }
 
-    def list_audit(
-        self, tenant_id: UUID, *, limit: int = 100
-    ) -> list[dict[str, Any]]:
+    def list_audit(self, tenant_id: UUID, *, limit: int = 100) -> list[dict[str, Any]]:
         rows = self._session.scalars(
             select(TelephonyAuditEvent)
             .where(TelephonyAuditEvent.tenant_id == tenant_id)
