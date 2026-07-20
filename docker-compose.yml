@@ -2,6 +2,16 @@
 # Secrets come from env files — never bake them into images.
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: call-bot-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - callbot_redis_data:/data
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+
   voice-agent:
     build:
       context: ./voice-agent
@@ -13,6 +23,9 @@ services:
     environment:
       # LiveKit Cloud agent mode
       PYTHONUNBUFFERED: "1"
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - redis
     # Agent worker connects outbound to LiveKit; no host ports required.
 
   playground:
@@ -31,3 +44,6 @@ services:
       HOSTNAME: 0.0.0.0
     depends_on:
       - voice-agent
+
+volumes:
+  callbot_redis_data:

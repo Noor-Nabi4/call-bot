@@ -118,6 +118,30 @@ class AgentProfile:
             voice=_optional_str(payload.get("voice")),
         )
 
+    def to_api_payload(self) -> dict[str, Any]:
+        """Serialize for cache round-trip (inverse of from_api_payload)."""
+        return {
+            "tenant_id": self.tenant_id,
+            "business_name": self.business_name,
+            "assistant_name": self.assistant_name,
+            "business_description": self.business_description,
+            "greeting": self.greeting,
+            "tone": self.tone,
+            "default_language": self.default_language,
+            "supported_languages": list(self.supported_languages),
+            "response_style": self.response_style,
+            "service_areas": list(self.service_areas),
+            "business_hours_summary": self.business_hours_summary,
+            "booking_rules": self.booking_rules,
+            "pricing_disclosure_policy": self.pricing_disclosure_policy,
+            "handoff_rules": self.handoff_rules,
+            "restricted_topics": list(self.restricted_topics),
+            "custom_instructions": self.custom_instructions,
+            "profile_version": self.profile_version,
+            "updated_at": self.updated_at,
+            "voice": self.voice,
+        }
+
     def supports_language(self, language_code: str) -> bool:
         code = language_code.strip().lower()
         if not code:

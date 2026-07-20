@@ -17,7 +17,7 @@ Production voice agent for multi-tenant field service:
 - Fail-closed tenant resolve + Agent Profile fetch (`GET /internal/tenants/{id}/agent-profile`)
 - Versioned prompt composition (platform safety → voice → tenant identity/rules/prefs → tools → call context)
 - Concise voice policy (answer the question first; one–two sentences default)
-- Short-lived profile cache keyed by `tenant_id` + `profile_version`
+- Short-lived profile cache keyed by `tenant_id` + `profile_version` (in-memory, or shared Redis when `REDIS_URL` is set)
 - Per-call `CallState` / `CallFacts` (no long-term memory unless Platform API supports it)
 - Semantic VAD turn detection and barge-in
 - Structured operational logs and metrics (tenant_id, profile version, tool status)
@@ -79,6 +79,8 @@ Fill in `.env.local`:
 | `BUSINESS_NAME` | no | Spoken business identity |
 | `TENANT_ID` | no | Single-tenant id until multi-tenant dispatch |
 | `BUSINESS_HOURS` / `BUSINESS_SERVICES` / … | no | Facts the agent may speak |
+| `REDIS_URL` | no | Shared Agent Profile cache across job processes (`redis://127.0.0.1:6379/0`). Without it, uses in-process memory cache. |
+| `AGENT_PROFILE_CACHE_TTL_SEC` | no | Profile cache TTL seconds (default `60`) |
 
 Validate without printing secrets:
 
@@ -97,6 +99,15 @@ Dev worker (LiveKit Cloud):
 
 ```bash
 uv run src/agent.py dev
+```
+
+Optional shared profile cache (recommended for lower first-call latency across jobs):
+
+```bash
+# from repo root
+docker compose up -d redis
+# in voice-agent/.env.local
+REDIS_URL=redis://127.0.0.1:6379/0
 ```
 
 Production worker:

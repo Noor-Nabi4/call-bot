@@ -1,12 +1,24 @@
-"""Short-lived in-process cache for tenant Agent Profiles."""
+"""Agent Profile caches: in-process and Redis-backed."""
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 from dataclasses import dataclass
+from typing import Protocol
 
 from tenant.agent_profile import AgentProfile
+
+
+class AgentProfileCacheProto(Protocol):
+    def get(
+        self, tenant_id: str, *, profile_version: int | None = None
+    ) -> AgentProfile | None: ...
+
+    def put(self, profile: AgentProfile) -> None: ...
+
+    def invalidate(self, tenant_id: str) -> None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,9 +100,39 @@ class AgentProfileCache:
             del self._entries[key]
 
 
-# Process-wide cache for call-start latency; TTL keeps config reasonably fresh.
-_DEFAULT_CACHE = AgentProfileCache(ttl_sec=60.0)
+_DEFAULT_CACHE: AgentProfileCacheProto | None = None
+_DEFAULT_CACHE_LOCK = threading.Lock()
 
 
-def default_profile_cache() -> AgentProfileCache:
-    return _DEFAULT_CACHE
+def _ttl_from_env() -> float:
+    raw = os.getenv("AGENT_PROFILE_CACHE_TTL_SEC", "").strip()
+    if not raw:
+        return 60.0
+    return float(raw)
+
+
+def profile_cache_from_env() -> AgentProfileCacheProto:
+    """Select Redis when REDIS_URL is set; otherwise in-process memory cache."""
+    redis_url = os.getenv("REDIS_URL", "").strip()
+    ttl = _ttl_from_env()
+    if redis_url:
+        from tenant.profile_cache_redis import RedisAgentProfileCache
+
+        return RedisAgentProfileCache(redis_url=redis_url, ttl_sec=ttl)
+    return AgentProfileCache(ttl_sec=ttl)
+
+
+def default_profile_cache() -> AgentProfileCacheProto:
+    """Process-wide cache singleton (memory or Redis depending on env)."""
+    global _DEFAULT_CACHE
+    with _DEFAULT_CACHE_LOCK:
+        if _DEFAULT_CACHE is None:
+            _DEFAULT_CACHE = profile_cache_from_env()
+        return _DEFAULT_CACHE
+
+
+def reset_default_profile_cache_for_tests() -> None:
+    """Clear the process-wide default (tests only)."""
+    global _DEFAULT_CACHE
+    with _DEFAULT_CACHE_LOCK:
+        _DEFAULT_CACHE = None

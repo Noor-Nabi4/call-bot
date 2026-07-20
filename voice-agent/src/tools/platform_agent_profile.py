@@ -8,7 +8,7 @@ from typing import Any
 from urllib import error, request
 
 from tenant.agent_profile import AgentProfile, AgentProfileError
-from tenant.profile_cache import AgentProfileCache, default_profile_cache
+from tenant.profile_cache import AgentProfileCacheProto, default_profile_cache
 
 
 class PlatformAgentProfileError(RuntimeError):
@@ -24,7 +24,7 @@ class PlatformAgentProfileClient:
         base_url: str,
         internal_token: str,
         timeout_sec: float = 5.0,
-        cache: AgentProfileCache | None = None,
+        cache: AgentProfileCacheProto | None = None,
     ) -> None:
         self._base = base_url.rstrip("/")
         self._token = internal_token
@@ -139,18 +139,13 @@ class PlatformAgentProfileClient:
 
 
 def agent_profile_client_from_env(
-    *, cache: AgentProfileCache | None = None
+    *, cache: AgentProfileCacheProto | None = None
 ) -> PlatformAgentProfileClient:
     timeout = os.getenv("AGENT_PROFILE_TIMEOUT_SEC", "").strip()
     timeout_sec = float(timeout) if timeout else 5.0
-    ttl = os.getenv("AGENT_PROFILE_CACHE_TTL_SEC", "").strip()
-    if cache is None:
-        cache = (
-            AgentProfileCache(ttl_sec=float(ttl)) if ttl else default_profile_cache()
-        )
     return PlatformAgentProfileClient(
         base_url=os.getenv("PLATFORM_API_URL", "").strip(),
         internal_token=os.getenv("INTERNAL_SERVICE_TOKEN", "").strip(),
         timeout_sec=timeout_sec,
-        cache=cache,
+        cache=cache if cache is not None else default_profile_cache(),
     )

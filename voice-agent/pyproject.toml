@@ -12,6 +12,7 @@ dependencies = [
     "livekit-agents[openai]>=1.6.1",
     "livekit-plugins-noise-cancellation>=0.3.0",
     "python-dotenv",
+    "redis>=5.0.0",
 ]
 
 [dependency-groups]
@@ -19,6 +20,7 @@ dev = [
     "pytest",
     "pytest-asyncio",
     "ruff",
+    "fakeredis>=2.23.0",
 ]
 
 [tool.uv]

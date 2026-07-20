@@ -108,6 +108,8 @@ Wizard UI: http://localhost:3000/telephony (playground) against the platform API
 docker compose up --build
 ```
 
+Compose now includes Redis for the voice-agent shared Agent Profile cache (`REDIS_URL`).
+
 Playground only:
 
 ```bash
