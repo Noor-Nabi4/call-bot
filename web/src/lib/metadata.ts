@@ -18,7 +18,7 @@ export function buildRootMetadata(): Metadata {
     publisher: seo.brand,
     keywords: [...seo.keywords],
     category: "business",
-    classification: "Field Service Software, Voice AI, Business Communications",
+    classification: "Voice AI, Business Communications, Call Center Software",
     referrer: "origin-when-cross-origin",
     formatDetection: {
       email: false,
@@ -86,11 +86,12 @@ export function buildJsonLd() {
     },
     description: seo.description,
     knowsAbout: [
-      "Field service management",
       "AI voice agents",
-      "HVAC call answering",
+      "Phone answering service",
       "Appointment scheduling",
+      "Call center operations",
       "Multi-tenant SaaS",
+      "Industry agent marketplace",
     ],
   };
 

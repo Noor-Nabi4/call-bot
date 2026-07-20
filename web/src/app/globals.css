@@ -166,6 +166,18 @@ body {
   pointer-events: none;
 }
 
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(185, 225, 210, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(185, 225, 210, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 60% at 70% 40%, black, transparent);
+  pointer-events: none;
+  animation: fade-in 1.2s ease-out both;
+}
+
 .hero-glow {
   position: absolute;
   width: min(70vw, 560px);

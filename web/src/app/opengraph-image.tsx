@@ -44,7 +44,7 @@ export default function OpenGraphImage() {
               maxWidth: 900,
             }}
           >
-            Never miss another service call.
+            Your AI phone team, ready in minutes.
           </div>
           <div
             style={{
@@ -55,7 +55,7 @@ export default function OpenGraphImage() {
               fontFamily: "sans-serif",
             }}
           >
-            AI voice intake for HVAC, plumbing, and field-service businesses.
+            Marketplace agents, live ops, and booking — in your brand’s voice.
           </div>
         </div>
       </div>

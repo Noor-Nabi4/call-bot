@@ -2,18 +2,18 @@
 
 export const site = {
   brand: "Call Bot",
-  title: "Call Bot | AI Voice Assistant for Field Service Calls",
+  title: "Call Bot | AI Phone Agents for Growing Businesses",
   description:
-    "Call Bot is an AI phone receptionist for HVAC, plumbing, electrical, and field-service businesses. Answer every call, capture job details, book appointments, hand off when needed, and sync with dispatch — in your brand’s voice.",
+    "Call Bot answers every call in your brand’s voice, books appointments, hands off to humans, and runs multi-tenant ops — with marketplace agents, live monitoring, and a public API.",
 } as const;
 
 export const hero = {
   brand: "Call Bot",
-  headline: "Never miss another service call.",
+  headline: "Your AI phone team, ready in minutes.",
   supporting:
-    "An AI voice assistant that answers for your business, takes the job details, and books the visit.",
+    "Install an industry agent, connect a number, and answer every call — booking, intake, and handoff included.",
   primaryCta: "Try a live demo",
-  secondaryCta: "Open dispatch",
+  secondaryCta: "View pricing",
 } as const;
 
 export const answer = {
@@ -29,79 +29,99 @@ export const book = {
 export const howItWorks = {
   title: "How Call Bot works",
   supporting:
-    "From the first ring to a booked job, every step stays inside your tenant’s data.",
+    "From marketplace install to a live call, every step stays inside your tenant’s data.",
   steps: [
     {
-      title: "Call comes in",
-      body: "Browser or phone. Call Bot resolves the business from trusted telephony or room metadata — never from free-form caller guesses.",
+      title: "Install an agent",
+      body: "Pick a ready-made industry template from the marketplace — HVAC, medical, restaurant, sales, support, and more — or start custom.",
     },
     {
-      title: "Conversation starts",
-      body: "Your tenant Agent Profile loads: greeting, tone, hours, service areas, and language preferences. Replies stay short and human.",
+      title: "Connect your number",
+      body: "Buy or connect a phone line. Call Bot resolves the business from trusted telephony metadata — never from free-form caller guesses.",
     },
     {
-      title: "Details get saved",
-      body: "Customer lookup, lead capture, knowledge answers, and booking tools run only for that tenant. Critical actions ask for confirmation first.",
+      title: "Shape the conversation",
+      body: "Tune greeting, call flow steps, tools, and knowledge. Replies stay short, tenant-scoped, and confirmation-gated for bookings.",
     },
     {
-      title: "Team stays in sync",
-      body: "Ops dispatch, knowledge, and handoff settings use the same platform records your coordinators and technicians already open.",
+      title: "Run ops in one place",
+      body: "Live calls, supervisor view, handoff queue, quality scores, and dispatch use the same platform records your team already opens.",
     },
   ],
 } as const;
 
 export const capabilities = {
-  title: "What the assistant can handle",
+  title: "What the platform includes",
   supporting:
-    "Built for real field-service intake — not a generic chatbot pasted onto a phone line.",
+    "Voice AI plus the operations layer — not a chatbot taped onto a phone line.",
   items: [
     {
-      title: "Voice intake",
-      body: "Greet callers, ask one question at a time, and collect name, phone, address, and service need.",
+      title: "Marketplace agents",
+      body: "One-click industry installs with starter knowledge, prompts, and tool presets you can customize after.",
     },
     {
-      title: "CRM records",
-      body: "Look up customers by phone, create or update profiles, and open leads with reference codes.",
+      title: "Multi-profile routing",
+      body: "Run reception, sales, and support agents under one tenant. Assign each phone number to the right profile.",
     },
     {
-      title: "Scheduling",
-      body: "Check live availability, offer a few real slots, then book, reschedule, or cancel with confirmation.",
+      title: "Scheduling & CRM",
+      body: "Look up customers, open leads, and book real availability — never invented slots or prices.",
     },
     {
-      title: "Business knowledge",
-      body: "Answer FAQs from your curated articles without inventing prices, policies, or coverage.",
+      title: "Call center ops",
+      body: "Live monitoring, supervisor snapshot, quality reviews, and a handoff follow-up queue for your team.",
     },
     {
-      title: "Human handoff",
-      body: "Transfer to a live teammate for emergencies, billing disputes, or when the caller asks for a person.",
+      title: "Automations & webhooks",
+      body: "React to call ended, handoff, or booking events — write audits, create jobs, or POST signed HTTPS webhooks.",
     },
     {
-      title: "Tenant isolation",
-      body: "Every tool and transcript path is scoped to the resolved business. Profiles and knowledge never cross tenants.",
+      title: "Public API & branding",
+      body: "Issue API keys for customers and calls, and white-label Ops with your product name, logo, and colors.",
     },
   ],
 } as const;
 
 export const industries = {
-  title: "Built for field-service trades",
+  title: "Ready for your industry",
   supporting:
-    "Same platform, separate tenants — each company keeps its own phone numbers, customers, and assistant settings.",
+    "Same multi-tenant platform — install a template, keep your own numbers, customers, and knowledge.",
   items: [
     {
-      name: "HVAC",
-      body: "Heating and cooling repair intake, emergency triage language, and weekday booking windows.",
+      name: "Field service",
+      body: "HVAC, plumbing, and electrical intake with emergency language, service-area checks, and weekday booking windows.",
     },
     {
-      name: "Plumbing",
-      body: "Leak and drain calls, service-area checks, and appointment capture when crews are booked solid.",
+      name: "Healthcare & hospitality",
+      body: "Clinic front desk and restaurant reservations — schedule politely without inventing clinical or menu advice.",
     },
     {
-      name: "Electrical",
-      body: "Panel and outlet requests with clear handoff rules for unsafe or urgent situations.",
+      name: "Sales & support",
+      body: "Qualify leads, answer FAQs, triage tickets, and escalate billing or supervisor requests cleanly.",
     },
     {
-      name: "General contractors",
-      body: "Multi-trade service desks that need one answering layer and many tenant brands behind it.",
+      name: "Insurance & collections",
+      body: "Policy intake, claims routing, and respectful payment reminders with clear human handoff rules.",
+    },
+  ],
+} as const;
+
+export const platform = {
+  title: "Built for operators, not demos.",
+  supporting:
+    "Everything your coordinators need after the call starts — without leaving Ops.",
+  items: [
+    {
+      title: "Live & supervisor",
+      body: "See active calls, open handoffs, and today’s volume. Quality-score ended conversations from the call drawer.",
+    },
+    {
+      title: "Handoff queue",
+      body: "When a call ends after a handoff request, it lands in a claimable follow-up queue for your team.",
+    },
+    {
+      title: "Team & billing",
+      body: "Invite seats, enforce plan limits, track voice minutes, and manage Stripe billing from the same console.",
     },
   ],
 } as const;
@@ -112,8 +132,8 @@ export const handoff = {
 } as const;
 
 export const close = {
-  title: "Ready for your next busy season?",
-  body: "Pick a plan, create your business account, and finish checkout. Ops opens once Stripe confirms your subscription.",
+  title: "Ready to answer the next call?",
+  body: "Pick a plan, create your workspace, and finish checkout. Install an agent from the marketplace once Ops opens.",
   primaryCta: "View pricing",
   secondaryCta: "Sign in to ops",
 } as const;
@@ -139,7 +159,7 @@ export const signup = {
   heading: "Open your workspace",
   supporting:
     "Create the business account, then finish payment in Stripe Checkout.",
-  asideTitle: "Answer every call. Dispatch the work.",
+  asideTitle: "Answer every call. Run the work.",
   asideBody:
     "Your plan unlocks after Stripe confirms the subscription — not on the success redirect.",
   businessName: "Business name",
@@ -161,11 +181,11 @@ export const signup = {
 } as const;
 
 export const footer = {
-  note: "Multi-tenant field service voice AI — HVAC, plumbing, electrical, and more.",
+  note: "Multi-tenant voice AI — marketplace agents, call ops, and APIs for growing businesses.",
   links: [
     { label: "Pricing", hrefEnv: "pricing" as const },
     { label: "Voice demo", hrefEnv: "playground" as const },
-    { label: "Dispatch ops", hrefEnv: "ops" as const },
+    { label: "Ops console", hrefEnv: "ops" as const },
     { label: "Sign in", hrefEnv: "login" as const },
   ],
 } as const;

@@ -8,6 +8,7 @@ import {
   hero,
   howItWorks,
   industries,
+  platform,
   site,
 } from "@/lib/copy";
 import { buildFaqJsonLd } from "@/lib/metadata";
@@ -33,17 +34,18 @@ function HeroVisual() {
   return (
     <div className="hero-stage" aria-hidden="true">
       <div className="hero-glow" />
+      <div className="hero-grid" />
       <div
         className="ring"
-        style={{ width: "min(42vw, 340px)", height: "min(42vw, 340px)" }}
+        style={{ width: "min(48vw, 380px)", height: "min(48vw, 380px)" }}
       />
       <div
         className="ring ring-2"
-        style={{ width: "min(42vw, 340px)", height: "min(42vw, 340px)" }}
+        style={{ width: "min(48vw, 380px)", height: "min(48vw, 380px)" }}
       />
       <div
         className="ring ring-3"
-        style={{ width: "min(42vw, 340px)", height: "min(42vw, 340px)" }}
+        style={{ width: "min(48vw, 380px)", height: "min(48vw, 380px)" }}
       />
       <svg
         className="wave-layer"
@@ -100,13 +102,21 @@ export default function LandingPage() {
                 </a>
               </p>
               <nav aria-label="Primary">
-                <ul className="m-0 flex list-none items-center gap-5 p-0">
-                  <li>
+                <ul className="m-0 flex list-none items-center gap-4 p-0 sm:gap-5">
+                  <li className="hidden sm:block">
                     <a
                       href="#how-it-works"
                       className="text-sm font-medium text-[#afc2ba] transition-colors hover:text-[#f3f8f5]"
                     >
                       How it works
+                    </a>
+                  </li>
+                  <li className="hidden md:block">
+                    <a
+                      href="#platform"
+                      className="text-sm font-medium text-[#afc2ba] transition-colors hover:text-[#f3f8f5]"
+                    >
+                      Platform
                     </a>
                   </li>
                   <li>
@@ -149,10 +159,10 @@ export default function LandingPage() {
               </p>
               <div className="animate-rise-delay-2 flex flex-wrap items-center gap-3">
                 <a
-                  href="/pricing"
+                  href="/signup"
                   className="inline-flex items-center justify-center rounded-md bg-[#45d6ac] px-5 py-3 text-sm font-semibold text-[#07120f] transition-[transform,background-color] duration-200 hover:translate-y-[-1px] hover:bg-[#71f0ca]"
                 >
-                  View pricing
+                  Get started
                 </a>
                 <a
                   href={PLAYGROUND}
@@ -262,7 +272,37 @@ export default function LandingPage() {
         </section>
 
         <section
+          id="platform"
           className="border-t border-line bg-fog px-6 py-24 sm:px-10 lg:px-12"
+          aria-labelledby="platform-heading"
+        >
+          <div className="mx-auto max-w-6xl">
+            <h2
+              id="platform-heading"
+              className="font-display m-0 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink"
+            >
+              {platform.title}
+            </h2>
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
+              {platform.supporting}
+            </p>
+            <ul className="mt-12 m-0 grid list-none gap-10 p-0 lg:grid-cols-3">
+              {platform.items.map((item) => (
+                <li key={item.title} className="border-t border-line pt-6">
+                  <h3 className="m-0 text-xl font-semibold tracking-[-0.02em] text-ink">
+                    {item.title}
+                  </h3>
+                  <p className="mt-2 m-0 text-base leading-relaxed text-muted">
+                    {item.body}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section
+          className="border-t border-line bg-paper px-6 py-24 sm:px-10 lg:px-12"
           aria-labelledby="industries-heading"
         >
           <div className="mx-auto max-w-6xl">
@@ -291,7 +331,7 @@ export default function LandingPage() {
         </section>
 
         <section
-          className="border-t border-line bg-paper px-6 py-24 sm:px-10 lg:px-12"
+          className="border-t border-line bg-fog px-6 py-24 sm:px-10 lg:px-12"
           aria-labelledby="handoff-heading"
         >
           <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
@@ -309,7 +349,7 @@ export default function LandingPage() {
 
         <section
           id="faq"
-          className="border-t border-line bg-fog px-6 py-24 sm:px-10 lg:px-12"
+          className="border-t border-line bg-paper px-6 py-24 sm:px-10 lg:px-12"
           aria-labelledby="faq-heading"
         >
           <div className="mx-auto max-w-3xl">
@@ -320,8 +360,8 @@ export default function LandingPage() {
               Frequently asked questions
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted">
-              Common questions about Call Bot for field-service call answering,
-              booking, handoff, and multi-tenant operations.
+              Marketplace agents, multi-tenant ops, booking, handoff, and public
+              APIs.
             </p>
             <div className="mt-10 space-y-6">
               {faqItems.map((item) => (

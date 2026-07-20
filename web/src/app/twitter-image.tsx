@@ -44,7 +44,7 @@ export default function TwitterImage() {
               maxWidth: 900,
             }}
           >
-            Never miss another service call.
+            Your AI phone team, ready in minutes.
           </div>
           <div
             style={{
@@ -55,7 +55,7 @@ export default function TwitterImage() {
               fontFamily: "sans-serif",
             }}
           >
-            AI voice intake for HVAC, plumbing, and field-service businesses.
+            Marketplace agents, live ops, and booking — in your brand’s voice.
           </div>
         </div>
       </div>
