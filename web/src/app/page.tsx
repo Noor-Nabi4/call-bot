@@ -3,6 +3,7 @@ import {
   Button,
   Faq,
   FeatureCard,
+  FeatureShowcase,
   Footer,
   Hero,
   HowItWorksSection,
@@ -111,29 +112,11 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section
-          id="platform"
-          className="section-pad border-t border-line bg-surface"
-          aria-labelledby="platform-heading"
-        >
-          <div className="content-width">
-            <Reveal>
-              <SectionHeader
-                eyebrow="Platform"
-                title={platform.title}
-                supporting={platform.supporting}
-                id="platform-heading"
-              />
-            </Reveal>
-            <div className="mt-12 grid gap-5 sm:grid-cols-2">
-              {platform.items.map((item, index) => (
-                <Reveal key={item.title} delay={(index % 3) as 0 | 1 | 2 | 3}>
-                  <FeatureCard title={item.title} body={item.body} />
-                </Reveal>
-              ))}
-            </div>
-          </div>
-        </section>
+        <FeatureShowcase
+          title={platform.title}
+          supporting={platform.supporting}
+          items={platform.items}
+        />
 
         <section
           id="features"

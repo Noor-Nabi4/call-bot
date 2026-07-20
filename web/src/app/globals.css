@@ -315,6 +315,21 @@ body {
   animation: preview-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+@keyframes showcase-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.showcase-panel-enter {
+  animation: showcase-panel-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 .logo-chip {
   transition:
     transform 220ms ease,
@@ -388,7 +403,8 @@ body {
   .glow-orb,
   .mesh-bg,
   .pricing-detail-enter,
-  .step-preview-enter {
+  .step-preview-enter,
+  .showcase-panel-enter {
     animation: none !important;
   }
 

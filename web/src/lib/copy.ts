@@ -61,25 +61,69 @@ export const whyChoose = {
 } as const;
 
 export const platform = {
-  title: "One platform for every voice workflow",
+  title: "Every capability maps to real phone work",
   supporting:
-    "From first greeting to post-call follow-up, CallBot covers the full conversation lifecycle.",
+    "Reception, support, sales, booking, and handoff — designed so operators stay in control from the first ring.",
   items: [
     {
-      title: "AI Receptionist",
-      body: "Greet callers, answer common questions, route by intent, and keep your front desk covered.",
+      tab: "Receptionist",
+      badge: "Front desk",
+      title: "AI Receptionist that never misses a call",
+      body: "Greet callers in your brand voice, answer hours and service questions, and route by intent so your team stays focused.",
+      previewLabel: "Live receptionist",
+      previewLines: [
+        "Greeting delivered",
+        "Intent: schedule visit",
+        "Routed to booking flow",
+      ],
     },
     {
-      title: "AI Customer Support",
-      body: "Resolve FAQs from your knowledge base, open tickets, and escalate billing or account issues.",
+      tab: "Support",
+      badge: "Help desk",
+      title: "Support answers grounded in your knowledge",
+      body: "Resolve FAQs from approved documents, open follow-ups when needed, and escalate billing or account issues cleanly.",
+      previewLabel: "Support agent",
+      previewLines: [
+        "Knowledge match found",
+        "Answer confirmed",
+        "Ticket created",
+      ],
     },
     {
-      title: "AI Sales Agent",
-      body: "Qualify leads, collect contact details, and schedule demos while interest is still high.",
+      tab: "Sales",
+      badge: "Lead desk",
+      title: "Sales agents that qualify while interest is high",
+      body: "Capture contact details, ask discovery questions, and book demos before the caller hangs up.",
+      previewLabel: "Sales agent",
+      previewLines: [
+        "Lead captured",
+        "Qualified: yes",
+        "Demo slot offered",
+      ],
     },
     {
-      title: "Call Center Automation",
-      body: "Handle overflow, after-hours volume, and routine queues so agents focus on high-value calls.",
+      tab: "Booking",
+      badge: "Scheduling",
+      title: "Appointment booking inside the conversation",
+      body: "Offer real availability, confirm details, and write bookings your team can trust — no invented times.",
+      previewLabel: "Booking flow",
+      previewLines: [
+        "Availability checked",
+        "Thursday 10:30 AM",
+        "Appointment confirmed",
+      ],
+    },
+    {
+      tab: "Handoff",
+      badge: "Human assist",
+      title: "Human handoff with full call context",
+      body: "When a caller needs a person, transfer or queue a callback so your team picks up knowing exactly what happened.",
+      previewLabel: "Handoff queue",
+      previewLines: [
+        "Escalation requested",
+        "Summary attached",
+        "Agent notified",
+      ],
     },
   ],
 } as const;

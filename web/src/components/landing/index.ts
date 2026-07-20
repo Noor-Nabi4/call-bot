@@ -3,6 +3,7 @@ export { BenefitCard } from "./benefit-card";
 export { Button } from "./button";
 export { Faq } from "./faq";
 export { FeatureCard } from "./feature-card";
+export { FeatureShowcase } from "./feature-showcase";
 export { Footer } from "./footer";
 export { Hero } from "./hero";
 export { HowItWorksSection } from "./how-it-works-section";
