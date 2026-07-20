@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
+import { useForm } from "react-hook-form";
 import { signup as signupApi } from "@/lib/api";
 import { signup as copy } from "@/lib/copy";
 import { safeUserError } from "@/lib/safe-error";
@@ -27,8 +28,26 @@ const PLAN_OPTIONS = [
   { key: "pro", name: "Pro", price: "$499", detail: "2k min" },
 ] as const;
 
+type PlanKey = (typeof PLAN_OPTIONS)[number]["key"];
+
+type SignupFormValues = {
+  plan_key: PlanKey;
+  business_name: string;
+  slug: string;
+  timezone: string;
+  name: string;
+  email: string;
+  password: string;
+};
+
 const fieldClass =
   "mt-1 w-full border-0 border-b border-line bg-transparent px-0 py-2 text-sm text-ink outline-none transition-colors placeholder:text-muted/60 focus:border-teal";
+
+const selectClass = `${fieldClass} cursor-pointer appearance-none bg-[length:0.65rem] bg-[right_0_center] bg-no-repeat pr-4`;
+
+const selectChevron = {
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%235c6f67' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")`,
+} as const;
 
 function slugify(value: string): string {
   return value
@@ -39,25 +58,43 @@ function slugify(value: string): string {
     .slice(0, 64);
 }
 
+function resolveInitialPlan(raw: string | null): PlanKey {
+  const plan = (raw || "growth").toLowerCase();
+  return PLAN_OPTIONS.some((p) => p.key === plan)
+    ? (plan as PlanKey)
+    : "growth";
+}
+
 export default function SignupForm() {
   const params = useSearchParams();
-  const initialPlan = useMemo(() => {
-    const raw = (params.get("plan") || "growth").toLowerCase();
-    return PLAN_OPTIONS.some((p) => p.key === raw) ? raw : "growth";
-  }, [params]);
   const canceled = params.get("canceled") === "1";
+  const initialPlan = resolveInitialPlan(params.get("plan"));
+  const initialTimezone = resolveInitialTimezone();
 
-  const [businessName, setBusinessName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugTouched, setSlugTouched] = useState(false);
-  const [timezone, setTimezone] = useState(resolveInitialTimezone);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [planKey, setPlanKey] = useState(initialPlan);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    setError,
+    clearErrors,
+    watch,
+    getFieldState,
+    formState: { errors, isSubmitting, isSubmitSuccessful },
+  } = useForm<SignupFormValues>({
+    defaultValues: {
+      plan_key: initialPlan,
+      business_name: "",
+      slug: "",
+      timezone: initialTimezone,
+      name: "",
+      email: "",
+      password: "",
+    },
+    mode: "onSubmit",
+  });
 
+  const planKey = watch("plan_key");
+  const timezone = watch("timezone");
   const selectedPlan =
     PLAN_OPTIONS.find((p) => p.key === planKey) ?? PLAN_OPTIONS[1];
   const timezoneOptions = useMemo(
@@ -65,26 +102,34 @@ export default function SignupForm() {
     [timezone],
   );
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
+  const businessNameRegister = register("business_name", {
+    required: "Business name is required",
+    minLength: { value: 1, message: "Business name is required" },
+    maxLength: { value: 255, message: "Business name is too long" },
+  });
+
+  const onSubmit = handleSubmit(async (values) => {
+    clearErrors("root");
     try {
       const { checkout_url } = await signupApi({
-        business_name: businessName,
-        slug,
-        timezone,
-        name,
-        email,
-        password,
-        plan_key: planKey,
+        business_name: values.business_name,
+        slug: values.slug,
+        timezone: values.timezone,
+        name: values.name,
+        email: values.email,
+        password: values.password,
+        plan_key: values.plan_key,
       });
       window.location.assign(checkout_url);
     } catch (err) {
-      setError(safeUserError(err, copy.failedMessage));
-      setBusy(false);
+      setError("root", {
+        message: safeUserError(err, copy.failedMessage),
+      });
     }
-  }
+  });
+
+  const rootError = errors.root?.message;
+  const busy = isSubmitting || isSubmitSuccessful;
 
   return (
     <main
@@ -162,11 +207,15 @@ export default function SignupForm() {
             </p>
           ) : null}
 
-          <form onSubmit={onSubmit} className="mt-5 grid gap-5">
+          <form onSubmit={onSubmit} className="mt-5 grid gap-5" noValidate>
             <fieldset className="m-0 border-0 p-0">
               <legend className="mb-2 block text-xs font-medium uppercase tracking-wide text-muted">
                 {copy.plan}
               </legend>
+              <input
+                type="hidden"
+                {...register("plan_key", { required: true })}
+              />
               <div
                 className="grid grid-cols-3 gap-2"
                 role="radiogroup"
@@ -180,7 +229,12 @@ export default function SignupForm() {
                       type="button"
                       role="radio"
                       aria-checked={selected}
-                      onClick={() => setPlanKey(plan.key)}
+                      onClick={() =>
+                        setValue("plan_key", plan.key, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
                       className={
                         selected
                           ? "rounded-md border-2 border-teal bg-fog px-2 py-2.5 text-left"
@@ -208,46 +262,64 @@ export default function SignupForm() {
               <label className="block text-xs font-medium text-ink sm:col-span-2">
                 {copy.businessName}
                 <input
-                  required
-                  value={businessName}
+                  {...businessNameRegister}
                   onChange={(e) => {
-                    const next = e.target.value;
-                    setBusinessName(next);
-                    if (!slugTouched) setSlug(slugify(next));
+                    void businessNameRegister.onChange(e);
+                    if (!getFieldState("slug").isDirty) {
+                      setValue("slug", slugify(e.target.value), {
+                        shouldValidate: false,
+                      });
+                    }
                   }}
                   className={fieldClass}
                   autoComplete="organization"
                   placeholder="Acme HVAC"
                 />
+                {errors.business_name ? (
+                  <span className="mt-1 block text-[11px] text-[#9b2c2c]">
+                    {errors.business_name.message}
+                  </span>
+                ) : null}
               </label>
 
               <label className="block text-xs font-medium text-ink">
                 {copy.businessId}
                 <input
-                  required
-                  value={slug}
-                  onChange={(e) => {
-                    setSlugTouched(true);
-                    setSlug(slugify(e.target.value));
-                  }}
+                  {...register("slug", {
+                    required: "Business ID is required",
+                    pattern: {
+                      value: /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+                      message: "Use lowercase letters, numbers, and hyphens",
+                    },
+                    minLength: {
+                      value: 2,
+                      message: "Business ID must be at least 2 characters",
+                    },
+                    maxLength: {
+                      value: 64,
+                      message: "Business ID must be 64 characters or fewer",
+                    },
+                    setValueAs: (value: string) => slugify(value),
+                  })}
                   className={`${fieldClass} font-mono`}
                   autoComplete="organization"
-                  pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-                  title="Lowercase letters, numbers, and hyphens"
                   placeholder="acme-hvac"
                 />
+                {errors.slug ? (
+                  <span className="mt-1 block text-[11px] text-[#9b2c2c]">
+                    {errors.slug.message}
+                  </span>
+                ) : null}
               </label>
 
               <label className="block text-xs font-medium text-ink">
                 {copy.timezone}
                 <select
-                  required
-                  value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
-                  className={`${fieldClass} cursor-pointer appearance-none bg-[length:0.65rem] bg-[right_0_center] bg-no-repeat pr-4`}
-                  style={{
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%235c6f67' d='M1 1l5 5 5-5'/%3E%3C/svg%3E")`,
-                  }}
+                  {...register("timezone", {
+                    required: "Timezone is required",
+                  })}
+                  className={selectClass}
+                  style={selectChevron}
                 >
                   {timezoneOptions.map((zone) => (
                     <option key={zone.value} value={zone.value}>
@@ -255,6 +327,11 @@ export default function SignupForm() {
                     </option>
                   ))}
                 </select>
+                {errors.timezone ? (
+                  <span className="mt-1 block text-[11px] text-[#9b2c2c]">
+                    {errors.timezone.message}
+                  </span>
+                ) : null}
               </label>
             </fieldset>
 
@@ -263,45 +340,72 @@ export default function SignupForm() {
               <label className="block text-xs font-medium text-ink sm:col-span-2">
                 {copy.yourName}
                 <input
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  {...register("name", {
+                    required: "Name is required",
+                    minLength: { value: 1, message: "Name is required" },
+                    maxLength: {
+                      value: 255,
+                      message: "Name is too long",
+                    },
+                  })}
                   className={fieldClass}
                   autoComplete="name"
                 />
+                {errors.name ? (
+                  <span className="mt-1 block text-[11px] text-[#9b2c2c]">
+                    {errors.name.message}
+                  </span>
+                ) : null}
               </label>
 
               <label className="block text-xs font-medium text-ink">
                 {copy.email}
                 <input
-                  required
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  {...register("email", {
+                    required: "Email is required",
+                    pattern: {
+                      value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                      message: "Enter a valid email",
+                    },
+                  })}
                   className={fieldClass}
                   autoComplete="email"
                 />
+                {errors.email ? (
+                  <span className="mt-1 block text-[11px] text-[#9b2c2c]">
+                    {errors.email.message}
+                  </span>
+                ) : null}
               </label>
 
               <label className="block text-xs font-medium text-ink">
                 {copy.password}
                 <input
-                  required
                   type="password"
-                  minLength={8}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  {...register("password", {
+                    required: "Password is required",
+                    minLength: {
+                      value: 8,
+                      message: "Password must be at least 8 characters",
+                    },
+                  })}
                   className={fieldClass}
                   autoComplete="new-password"
                   placeholder="8+ characters"
                 />
+                {errors.password ? (
+                  <span className="mt-1 block text-[11px] text-[#9b2c2c]">
+                    {errors.password.message}
+                  </span>
+                ) : null}
               </label>
             </fieldset>
 
-            {error ? (
+            {rootError ? (
               <p className="m-0 text-xs text-[#9b2c2c]" role="alert">
                 <span className="font-semibold">{copy.failedTitle}. </span>
-                {error}
+                {rootError}
               </p>
             ) : null}
 
