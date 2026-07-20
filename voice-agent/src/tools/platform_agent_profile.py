@@ -6,6 +6,7 @@ import json
 import os
 from typing import Any
 from urllib import error, request
+from urllib.parse import urlencode
 
 from tenant.agent_profile import AgentProfile, AgentProfileError
 from tenant.profile_cache import AgentProfileCacheProto, default_profile_cache
@@ -31,8 +32,16 @@ class PlatformAgentProfileClient:
         self._timeout = timeout_sec
         self._cache = cache if cache is not None else default_profile_cache()
 
-    def get_meta(self, tenant_id: str) -> dict[str, Any]:
-        payload = self._get(f"/internal/tenants/{tenant_id}/agent-profile/meta")
+    def get_meta(
+        self, tenant_id: str, *, agent_profile_id: str | None = None
+    ) -> dict[str, Any]:
+        if agent_profile_id:
+            path = (
+                f"/internal/tenants/{tenant_id}/agent-profiles/{agent_profile_id}/meta"
+            )
+        else:
+            path = f"/internal/tenants/{tenant_id}/agent-profile/meta"
+        payload = self._get(path)
         meta = payload.get("meta")
         if not isinstance(meta, dict):
             raise PlatformAgentProfileError(
@@ -40,26 +49,48 @@ class PlatformAgentProfileClient:
             )
         return meta
 
-    def get_profile(self, tenant_id: str, *, use_cache: bool = True) -> AgentProfile:
+    def get_profile(
+        self,
+        tenant_id: str,
+        *,
+        agent_profile_id: str | None = None,
+        use_cache: bool = True,
+    ) -> AgentProfile:
         if not tenant_id.strip():
             raise PlatformAgentProfileError(
                 "agent_profile_invalid", "tenant_id is required"
             )
+        cache_key = self._cache_key(tenant_id, agent_profile_id)
         if use_cache:
-            cached = self._cache.get(tenant_id)
+            cached = self._cache.get(cache_key)
             if cached is not None and cached.tenant_id == tenant_id:
-                try:
-                    meta = self.get_meta(tenant_id)
-                    remote_version = int(meta.get("profile_version") or 0)
-                except PlatformAgentProfileError:
-                    self._cache.invalidate(tenant_id)
-                    raise
-                if remote_version == cached.profile_version:
-                    return cached
-                # Configuration changed — drop stale entry before full reload.
-                self._cache.invalidate(tenant_id)
+                if (
+                    agent_profile_id
+                    and cached.agent_profile_id
+                    and cached.agent_profile_id != agent_profile_id
+                ):
+                    self._cache.invalidate(cache_key)
+                else:
+                    try:
+                        meta = self.get_meta(
+                            tenant_id, agent_profile_id=agent_profile_id
+                        )
+                        remote_version = int(meta.get("profile_version") or 0)
+                    except PlatformAgentProfileError:
+                        self._cache.invalidate(cache_key)
+                        raise
+                    if remote_version == cached.profile_version:
+                        return cached
+                    self._cache.invalidate(cache_key)
 
-        payload = self._get(f"/internal/tenants/{tenant_id}/agent-profile")
+        if agent_profile_id:
+            path = f"/internal/tenants/{tenant_id}/agent-profiles/{agent_profile_id}"
+        else:
+            path = f"/internal/tenants/{tenant_id}/agent-profile"
+            if agent_profile_id:
+                path = f"{path}?{urlencode({'agent_profile_id': agent_profile_id})}"
+
+        payload = self._get(path)
         raw = payload.get("profile")
         if not isinstance(raw, dict):
             raise PlatformAgentProfileError(
@@ -74,11 +105,28 @@ class PlatformAgentProfileClient:
                 "agent_profile_tenant_mismatch",
                 "Profile tenant_id does not match resolved tenant",
             )
-        self._cache.put(profile)
+        if (
+            agent_profile_id
+            and profile.agent_profile_id
+            and profile.agent_profile_id != agent_profile_id
+        ):
+            raise PlatformAgentProfileError(
+                "agent_profile_mismatch",
+                "Loaded profile id does not match resolved agent_profile_id",
+            )
+        self._cache.put(profile, cache_key=cache_key)
         return profile
 
-    def invalidate_cache(self, tenant_id: str) -> None:
-        self._cache.invalidate(tenant_id)
+    def invalidate_cache(
+        self, tenant_id: str, *, agent_profile_id: str | None = None
+    ) -> None:
+        self._cache.invalidate(self._cache_key(tenant_id, agent_profile_id))
+
+    @staticmethod
+    def _cache_key(tenant_id: str, agent_profile_id: str | None) -> str:
+        if agent_profile_id:
+            return f"{tenant_id}:{agent_profile_id}"
+        return tenant_id
 
     def _get(self, path: str) -> dict[str, Any]:
         if not self._base or not self._token:

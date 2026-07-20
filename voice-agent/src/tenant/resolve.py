@@ -25,6 +25,7 @@ class TenantResolution:
     source: str
     livekit_inbound_trunk_id: str | None = None
     livekit_dispatch_rule_id: str | None = None
+    agent_profile_id: str | None = None
 
 
 def verify_signed_metadata(raw: str | None, secret: str) -> dict[str, Any] | None:
@@ -123,6 +124,11 @@ class PlatformTenantResolver:
                 ),
                 e164=str(meta["did"]) if meta.get("did") else called_number,
                 source="signed_metadata_local",
+                agent_profile_id=(
+                    str(meta["agent_profile_id"])
+                    if meta.get("agent_profile_id")
+                    else None
+                ),
             )
 
         if not is_sip and self._allow_env_fallback and self._env_tenant_id:
@@ -181,6 +187,7 @@ class PlatformTenantResolver:
             source=str(data.get("source") or "platform"),
             livekit_inbound_trunk_id=data.get("livekit_inbound_trunk_id"),
             livekit_dispatch_rule_id=data.get("livekit_dispatch_rule_id"),
+            agent_profile_id=data.get("agent_profile_id"),
         )
 
     def notify_inbound_observed(

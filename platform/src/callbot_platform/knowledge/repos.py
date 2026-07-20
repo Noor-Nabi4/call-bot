@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from callbot_platform.db.models import KnowledgeArticle
@@ -75,12 +75,14 @@ class KnowledgeRepository:
         body: str,
         category: str = "faq",
         tags: list[str] | None = None,
+        agent_profile_id: UUID | None = None,
         actor: str = "ops",
     ) -> dict[str, Any]:
         if not title.strip() or not body.strip():
             raise KnowledgeError("invalid_article", "title and body are required")
         row = KnowledgeArticle(
             tenant_id=tenant_id,
+            agent_profile_id=agent_profile_id,
             category=(category or "faq").strip().lower()[:64],
             title=title.strip()[:255],
             body=body.strip(),
@@ -145,18 +147,29 @@ class KnowledgeRepository:
         )
 
     def search(
-        self, tenant_id: UUID, query: str, *, limit: int = 5
+        self,
+        tenant_id: UUID,
+        query: str,
+        *,
+        limit: int = 5,
+        agent_profile_id: UUID | None = None,
     ) -> list[dict[str, Any]]:
         q = (query or "").strip()
         if not q:
             raise KnowledgeError("invalid_query", "query is required")
         tokens = tokenize(q)
-        rows = self._session.scalars(
-            select(KnowledgeArticle).where(
-                KnowledgeArticle.tenant_id == tenant_id,
-                KnowledgeArticle.is_active.is_(True),
+        stmt = select(KnowledgeArticle).where(
+            KnowledgeArticle.tenant_id == tenant_id,
+            KnowledgeArticle.is_active.is_(True),
+        )
+        if agent_profile_id is not None:
+            stmt = stmt.where(
+                or_(
+                    KnowledgeArticle.agent_profile_id.is_(None),
+                    KnowledgeArticle.agent_profile_id == agent_profile_id,
+                )
             )
-        ).all()
+        rows = self._session.scalars(stmt).all()
         scored = [(score_article(tokens, r), r) for r in rows]
         scored = [(s, r) for s, r in scored if s > 0]
         scored.sort(key=lambda x: (-x[0], x[1].title.lower()))
@@ -186,6 +199,9 @@ class KnowledgeRepository:
         data = {
             "id": str(row.id),
             "tenant_id": str(row.tenant_id),
+            "agent_profile_id": str(row.agent_profile_id)
+            if row.agent_profile_id
+            else None,
             "category": row.category,
             "title": title,
             "body": body,

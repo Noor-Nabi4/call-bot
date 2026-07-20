@@ -17,8 +17,15 @@ class FakeKnowledgeClient(PlatformKnowledgeClient):
         super().__init__(base_url="http://example", internal_token="tok")
         self.queries: list[tuple[str, str]] = []
 
-    def search(self, *, tenant_id: str, query: str, limit: int = 5) -> dict[str, Any]:
-        self.queries.append((tenant_id, query))
+    def search(
+        self,
+        *,
+        tenant_id: str,
+        query: str,
+        limit: int = 5,
+        agent_profile_id: str | None = None,
+    ) -> dict[str, Any]:
+        self.queries.append((tenant_id, query, agent_profile_id))
         return {
             "count": 1,
             "articles": [

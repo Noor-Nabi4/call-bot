@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from callbot_platform.db.models.agent_profile import (
+    AgentProfile,
+    default_business_hours,
+    default_enabled_tools,
+)
 from callbot_platform.db.models.base import Base, JsonType, _utcnow, _uuid
 from callbot_platform.db.models.billing import StripeWebhookEvent, TenantSubscription
 from callbot_platform.db.models.crm import (
@@ -32,6 +37,7 @@ from callbot_platform.db.models.tenant import (
 )
 
 __all__ = [
+    "AgentProfile",
     "Appointment",
     "Base",
     "Call",
@@ -58,5 +64,7 @@ __all__ = [
     "TenantUser",
     "_utcnow",
     "_uuid",
+    "default_business_hours",
+    "default_enabled_tools",
     "default_weekly_hours",
 ]

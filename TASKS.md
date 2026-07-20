@@ -1,397 +1,1000 @@
-# Call Bot — Complete Tasks Plan
+# Product Enhancement Roadmap
 
-Goal: build a **multi-tenant ServiceTitan-style field-service platform**, starting from a **reliable voice agent**, then CRM/jobs, booking, dispatch, and later ops modules.
-
-This plan is ordered. Do not skip phases. Each phase must be stable before the next.
+## Transforming the AI HVAC Receptionist into a Multi-Industry AI Voice Platform
 
 ---
 
-## Product north star
+# Vision
 
-> Many businesses (**tenants**) use one platform. A caller reaches **their** business by browser or phone. An AI voice agent handles the conversation for that tenant only, looks up or creates the customer, captures the job request, books when possible, and writes real records into **that tenant’s** data — with human handoff only when needed.
+Transform the current HVAC-focused AI receptionist into a **multi-tenant AI Voice Platform** capable of powering:
 
-Long-term modules (ServiceTitan-like):
+* AI Receptionists
+* AI Customer Support
+* AI Sales Agents
+* AI Appointment Booking
+* AI Call Centers
+* AI Lead Qualification
+* AI Order Support
+* AI Collections
+* AI Help Desk
 
-1. Voice / call intake  
-2. CRM (customers, history)  
-3. Jobs / work orders  
-4. Scheduling / booking  
-5. Dispatch / technicians  
-6. Estimates / invoices / payments  
-7. Notifications (SMS/email)  
-8. Reporting / analytics  
-9. Admin frontend (per-tenant + platform super-admin)  
+The platform should allow every customer (tenant) to create an AI employee customized for their own business without modifying application code.
 
 ---
 
-## Multi-tenancy (platform rule)
+# Goals
 
-**This product is multi-tenant.** Even while Phase 1 still runs as one business, every CRM/schema/tool design must be tenant-scoped so we do not rewrite later.
+## Current
 
-### What a tenant is
+Single AI agent
+↓
 
-A **tenant** = one business / franchise / company on the platform (e.g. “Acme HVAC”).
+HVAC business
 
-Each tenant owns:
+↓
 
-- Business profile (name, hours, service area, prompt facts)  
-- Customers, leads, jobs, appointments  
-- Phone numbers / SIP dispatch mapping  
-- Agent settings (voice, language, greeting)  
-- Users/roles (owner, dispatcher, tech)  
-- Billing plan (later)  
+Appointment booking
 
-### Hard isolation rules
+↓
 
-- Every business row includes `tenant_id`  
-- Repositories/tools **always** filter by `tenant_id`  
-- Resolve tenant **before** tools run (DID / SIP trunk / dispatch or room metadata) — never from caller free text alone  
-- Logs/metrics include `tenant_id` + `call_id`  
-- No cross-tenant customer lookup, booking, or transcript access  
-- Model cannot override `tenant_id` via tool arguments  
+Knowledge Base
 
-### Tenant resolution (voice)
+↓
 
-```text
-Inbound call / room join
-        │
-        ▼
-Resolve tenant_id
-  (DID / SIP trunk / agent dispatch metadata / room metadata)
-        │
-        ▼
-Load tenant business profile + prompts
-        │
-        ▼
-Start AgentSession (Realtime)
-        │
-        ▼
-All CRM/job tools scoped to that tenant_id
+CRM
+
+---
+
+## Future
+
+One Platform
+
+↓
+
+Unlimited Businesses
+
+↓
+
+Unlimited Industries
+
+↓
+
+Unlimited AI Agents
+
+↓
+
+Unlimited Phone Numbers
+
+↓
+
+Unlimited Workflows
+
+↓
+
+Enterprise Ready
+
+---
+
+# Platform Architecture
+
+```
+Platform
+│
+├── Multi Tenant
+│
+├── AI Agent Engine
+│
+├── Knowledge Engine
+│
+├── Telephony
+│
+├── CRM
+│
+├── Scheduling
+│
+├── Billing
+│
+├── Analytics
+│
+├── Automation
+│
+└── Marketplace
 ```
 
-### When to implement
+---
 
-| When | What |
-|------|------|
-| Phase 0–1 (now) | Single-tenant runtime OK (`BUSINESS_NAME` env); design CallState with future `tenant_id` |
-| Phase 2 (telephony) | Map each phone number / trunk → `tenant_id`; fail closed if unresolved |
-| Phase 3 (CRM) | `tenants` table + `tenant_id` on all business tables + isolation tests |
-| Phase 9 (admin) | Tenant signup, invites, super-admin |
+# Industries
 
-**Do not** build full tenant admin UI before Phase 1 is green.  
-**Do not** design CRM tables without `tenant_id`.
+Instead of supporting only HVAC, support configurable industries.
+
+Examples:
+
+* HVAC
+* Plumbing
+* Electrical
+* Roofing
+* Pest Control
+* Cleaning
+* Landscaping
+* Locksmith
+* Appliance Repair
+* Solar
+* Medical
+* Dental
+* Veterinary
+* Restaurants
+* Salons
+* Auto Repair
+* Insurance
+* Legal
+* Real Estate
+* Property Management
+* Ecommerce
+* Logistics
+* Customer Support
+* Call Centers
+* Custom Business
+
+No industry-specific code should exist inside the AI logic.
 
 ---
 
-## Current status (baseline)
+# AI Agent Types
 
-Already in progress under `voice-agent/`:
+Allow every tenant to create multiple agent profiles.
 
-- [x] LiveKit Python agent worker  
-- [x] OpenAI Realtime speech-to-speech  
-- [x] Separated prompts  
-- [x] Per-call `CallState` (active call only)  
-- [x] Interruptions + semantic VAD  
-- [x] Silence / max-duration lifecycle  
-- [x] Structured metrics/logging  
-- [x] Krisp BVC / BVCTelephony noise cancellation  
-- [x] Unit tests for config, prompts, state, lifecycle  
-- [x] Multi-tenant product decision recorded  
-- [x] Phase 0 hygiene (README, CI, business facts, env check)  
-- [x] Phase 1 code: prompts/guardrails, observability, checklist, unit+eval tests  
-- [x] Next.js browser playground (`playground/`) with token + agent dispatch  
-- [ ] Browser playground verified end-to-end *(manual; needs `OPENAI_API_KEY` + worker)*  
-- [ ] `OPENAI_API_KEY` filled in `.env.local` (LiveKit keys present)  
-- [ ] Telephony (SIP) not started  
-- [x] Optional `tenant_id` on CallState / Settings (env `TENANT_ID`)  
-- [x] Phase 2 platform telephony API + agent fail-closed DID resolve (PSTN operator verification pending)  
+Examples
 
-**Rule:** no RAG, multi-agent, CRM, or booking until Phase 1 is green.
+### Receptionist
+
+Answers calls
+
+Books appointments
+
+Transfers calls
+
+Collects customer information
 
 ---
 
-## Phase 0 — Repo & production hygiene
+### Customer Support
 
-**Outcome:** clean, deployable voice worker repo.
+Answer FAQs
 
-- [x] Confirm `.env.local` has LiveKit keys present; **`OPENAI_API_KEY` must be filled by operator** (validate with `uv run python scripts/check_env.py`)  
-- [x] Set `BUSINESS_NAME` and basic business facts in prompts / env (`BUSINESS_HOURS`, etc.)  
-- [x] Commit voice-agent Realtime refactor + noise cancel + lockfile  
-- [x] Ensure secrets never committed (`.env.local` gitignored at package + repo root)  
-- [x] Document run commands in root README (link to `voice-agent/README.md` + this plan)  
-- [x] Decide deploy target: **LiveKit Cloud agent worker**  
-- [x] Add CI that runs unit tests on every PR (`.github/workflows/voice-agent-unit-tests.yml`)  
-- [x] Decide shared worker vs per-tenant workers: **shared worker**, tenant resolved at dispatch; optional `TENANT_ID` env for Phase 0/1  
+Troubleshooting
 
-**Exit criteria**
+Returns
 
-- [x] `uv sync` works  
-- [x] Unit tests pass without live providers  
-- [ ] Agent starts with `uv run src/agent.py console` or `dev` (requires non-empty `OPENAI_API_KEY` in `.env.local`)  
+Policies
+
+Order status
 
 ---
 
-## Phase 1 — Voice foundation (must be rock solid)
+### Sales
 
-**Outcome:** one agent, natural speech, reliable call lifecycle.
+Lead qualification
 
-### 1.1 Browser audio
+Product recommendation
 
-Manual verification: [`voice-agent/docs/PHASE1_MANUAL_CHECKLIST.md`](./voice-agent/docs/PHASE1_MANUAL_CHECKLIST.md)
+Upselling
 
-- [ ] Run agent in LiveKit console / playground *(requires `OPENAI_API_KEY`)*  
-- [ ] Verify greeting plays once per call  
-- [ ] Verify barge-in (caller can interrupt agent)  
-- [ ] Verify short replies / one question at a time  
-- [ ] Verify noisy-room behavior with BVC enabled  
-- [ ] Verify long silence → check-in → graceful end  
-- [ ] Verify max call duration ends cleanly  
-- [ ] Verify disconnect / process shutdown cleanup  
-
-### 1.2 Prompt & guardrails
-
-- [x] Finalize business identity copy  
-- [x] Add “unsupported request” spoken fallback  
-- [x] Confirm agent never invents hours/prices/availability (prompt + eval coverage)  
-- [x] Confirm agent never exposes prompts/errors/keys (prompt rules)  
-
-### 1.3 Observability
-
-- [x] Logs include `call_id`, `room_name`, status, disconnect reason  
-- [x] `tenant_id` included in correlation / metrics fields when set  
-- [x] First-response / model latency captured when Realtime metrics available  
-- [x] Interruption count increments on barge-in (state + metrics sync)  
-- [x] End-of-call summary webhook **deferred to Phase 3+ CRM** (not in Phase 1)  
-- [x] `delete_room_on_close=True` + job shutdown callback for clean teardown  
-
-### 1.4 Tests
-
-- [x] Keep unit tests green (incl. observability + prompt guardrails)  
-- [x] Behavior evals updated (skip without LiveKit creds; adds unsupported-booking case)  
-- [x] Manual test checklist in `voice-agent/docs/PHASE1_MANUAL_CHECKLIST.md`  
-
-**Exit criteria**
-
-- [ ] 10 consecutive successful browser test calls *(operator)*  
-- [ ] No stuck sessions after disconnect *(operator)*  
-- [ ] Interruptions feel natural *(operator)*  
-
-**Do not start CRM or telephony until this phase’s manual exit criteria pass.**
+Quote requests
 
 ---
 
-## Phase 2 — Telephony
+### Call Center
 
-**Outcome:** real phone callers reach the same agent, with tenant resolved from the number.
+Inbound support
 
-- [x] Hybrid Twilio architecture: Path A connect-existing + Path B platform purchase  
-- [x] Platform API (`platform/`) with Postgres models, audit, encryption, idempotency  
-- [x] Create SIP trunk → LiveKit SIP (inbound trunk + dispatch rule APIs)  
-- [x] Configure inbound dispatch to `voice-agent`  
-- [x] Map each inbound DID / trunk to `tenant_id` (signed metadata + DID + trunk)  
-- [x] Fail closed if tenant cannot be resolved (no accidental default tenant for SIP)  
-- [x] Verify `BVCTelephony` path for SIP participants (already branched)  
-- [ ] Test: answer, interrupt, silence, hangup *(operator PSTN)*  
-- [ ] Test concurrent calls (2–3) *(operator)*  
-- [ ] Test deploy/restart during an idle period *(operator)*  
-- [x] Capture caller phone number into `CallState.important_details`  
-- [x] Manual checklist: [`voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md`](./voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md)  
-- [x] Playground telephony wizard at `/telephony`  
+Outbound campaigns
 
-**Exit criteria**
+Ticket creation
 
-- Inbound PSTN call talks to the same Realtime agent reliably *(operator)*  
-- Correct `tenant_id` attached to the call session *(operator after verification call)*  
----
+Complaint handling
 
-## Phase 3 — CRM light (customer + lead)
-
-**Outcome:** every serious call can create/update a real customer and lead/job request **for one tenant only**.
-
-### 3.1 Data model (own DB first, or external API later)
-
-**Multi-tenant first:** every business table includes `tenant_id` + unique constraints scoped per tenant.
-
-- [x] `tenants` (id, name, slug, status, timezone, created_at)  
-- [x] `tenant_phone_numbers` (tenant_id, e164, sip_trunk_id, is_primary)  
-- [x] `tenant_agent_settings` (tenant_id, business_prompt_facts, voice, language, greeting)  
-- [x] `customers` (id, **tenant_id**, name, phones, email, address, created_at) — unique phone per tenant  
-- [x] `calls` (id, **tenant_id**, room/job ids, customer_id, started_at, ended_at, status, disconnect_reason, metrics JSON)  
-- [x] `leads` / `job_requests` (id, **tenant_id**, customer_id, service_type, urgency, notes, status)  
-- [x] Migrations + repository layer (no LLM direct DB access; repos always require `tenant_id`)  
-- [x] Integration tests: Tenant A cannot read Tenant B customers/leads  
-
-### 3.2 Voice tools (validated)
-
-- [x] Resolve `tenant_id` at session start; bind into tool/service context  
-- [x] `lookup_customer_by_phone` (tenant-scoped)  
-- [x] `create_or_update_customer` (tenant-scoped)  
-- [x] `create_job_request` / `create_lead` (tenant-scoped)  
-- [x] Confirm critical fields aloud before write  
-- [x] Idempotency keys **per tenant** to prevent duplicate leads on retries  
-- [x] Structured tool errors → safe spoken fallback  
-- [x] Reject tool calls that try to pass/override `tenant_id` from the model  
-
-### 3.3 Call flow
-
-- [x] Identify caller phone (SIP) or ask for callback number (browser) *(prompt + tools)*  
-- [x] Lookup existing customer **in this tenant**  
-- [x] Collect: name, address, service need, urgency, preferred time window  
-- [x] Confirm summary  
-- [x] Persist lead/job request  
-- [x] Spoken confirmation + optional reference number  
-
-### 3.4 Integration choice
-
-**Option A — Own multi-tenant CRM** *(implemented)*
-
-- [x] Postgres + API/services inside this monorepo (`platform/` CRM routes + repos)  
-
-**Option B — External system of record per tenant** — deferred  
-
-Manual checklist: [`voice-agent/docs/PHASE3_CRM_CHECKLIST.md`](./voice-agent/docs/PHASE3_CRM_CHECKLIST.md)
-
-**Exit criteria**
-
-- Test call creates a real customer + lead with no mock data *(operator)*  
-- Two-tenant isolation test passes *(automated in `platform/tests/test_crm.py`)*  
----
-
-## Phase 4 — Booking / scheduling
-
-**Outcome:** agent can offer real slots and book appointments **inside the resolved tenant**.
-
-- [x] Availability service scoped by `tenant_id` (+ timezone)  
-- [x] Tool: `get_available_slots`  
-- [x] Tool: `book_appointment` (confirm before commit)  
-- [x] Conflict handling / double-booking prevention (per tenant)  
-- [x] Reschedule + cancel flows  
-- [x] SMS/email confirmation (Twilio SMS when configured; email outbox pending)  
-- [x] Timezone handling  
-
-**Exit criteria**
-
-- Caller books a real appointment end-to-end by voice for the correct tenant *(operator — see `voice-agent/docs/PHASE4_BOOKING_CHECKLIST.md`)*  
-- Automated isolation / overlap / idempotency tests pass *(in `platform/tests/test_scheduling.py`)*  
+Escalations
 
 ---
 
-## Phase 5 — Jobs, dispatch, technicians (ServiceTitan core ops)
+### Booking Assistant
 
-**Outcome:** tenant ops can run jobs after intake.
+Appointments
 
-- [x] Job statuses: new → scheduled → dispatched → in_progress → completed → canceled  
-- [x] Dispatch board (web) — tenant-scoped (`ops/` app)  
-- [x] Technician assignment rules (manual first)  
-- [x] Technician mobile view (job details, checklist, notes)  
-- [x] Job completion notes back to customer record (via `job_notes`)  
-- [ ] Optional: agent can quote ETA / status on inbound “where is my tech?” calls *(deferred)*  
+Reservations
 
-**Exit criteria**
-
-- One job can be created by voice and completed by a tech in that tenant *(operator — see `voice-agent/docs/PHASE5_JOBS_CHECKLIST.md`)*  
-- Automated auth isolation / transitions / appointment→job tests pass *(in `platform/tests/test_jobs_auth.py`)*  
+Calendar management
 
 ---
 
-## Phase 6 — Money (estimates, invoices, payments)
+### Help Desk
 
-**Status:** skipped for now (no payments required yet)
+Technical support
 
-- [ ] Estimate generation (manual/ops first; voice later)  
-- [ ] Invoice creation from completed jobs  
-- [ ] Payment link / card processor (tenant merchant accounts later)  
-- [ ] Voice: “pay my invoice” only after CRM+billing APIs exist  
-- [ ] Never claim payment succeeded unless processor confirms  
+Ticket lookup
+
+Reset requests
 
 ---
 
-## Phase 7 — Knowledge & support quality (optional RAG)
+### Custom Agent
 
-Only after booking/CRM are stable:
-
-- [x] Curated knowledge base **per tenant** (hours, service areas, FAQs)  
-- [x] Retrieval tool filtered by `tenant_id`  
-- [x] Prompt injection protections for retrieved text  
-- [x] Evaluation set for FAQ accuracy  
-
-**Note:** Keyword retrieval over curated articles (no vector DB in this phase).
-
-**Exit:** FAQ eval + isolation tests in `platform/tests/test_knowledge.py`; ops `/knowledge` UI.
+Fully configurable
 
 ---
 
-## Phase 8 — Human handoff & multi-agent (only if needed)
+# Industry Templates
 
-- [x] Warm transfer to **tenant** human queue (`WarmTransferTask` when trunk configured)  
-- [x] Escalation rules (billing disputes, emergencies, abuse)  
-- [x] Cold SIP REFER fallback when warm trunk missing  
-- [x] Keep latency budget; avoid monolithic mega-prompt  
+Instead of coding prompts manually.
 
-**Exit:** configure handoff in ops; SIP escalation tool + tests. See `voice-agent/docs/PHASE8_HANDOFF_CHECKLIST.md`.
+```
+Choose Industry
 
----
+↓
 
-## Phase 9 — Admin product & analytics
+Choose Template
 
-- [x] Admin login / roles (**tenant-scoped**; platform super-admin via internal token)  
-- [x] Tenant onboarding (invite users; phone assign still Path A/B)  
-- [x] Customers, calls, jobs, appointments UI (ops, session tenant)  
-- [x] Call metrics dashboard per tenant  
-- [x] Recording/transcript retention policy settings per tenant  
-- [x] Audit log for tool writes (`tenant_id` on every audit row; ops view)  
+↓
 
-**Exit:** ops admin surfaces + `platform/tests/test_admin.py`. See `voice-agent/docs/PHASE9_ADMIN_CHECKLIST.md`.
+Customize
 
----
+↓
 
-## Explicit non-goals for early phases
+Deploy
+```
 
-Do **not** build these until the phase above them is done:
+Templates
 
-- Full ServiceTitan clone UI on day one  
-- Multi-tenant admin portal before Phase 1 voice is stable  
-- Multi-agent architecture for simple FAQ  
-- Long-term memory across all callers without CRM identity  
-- Sentiment engines / reflection loops  
-- Large evaluation framework before basic booking works  
-- Mock CRM “success” responses in production code  
-- Shared global customer table without `tenant_id`  
+HVAC
 
----
+Medical
 
-## Suggested near-term task order (next 2–4 weeks)
+Restaurant
 
-1. [x] Finish Phase 0 hygiene  
-2. [ ] Complete Phase 1 browser test checklist (10 calls) — code ready; needs `OPENAI_API_KEY` + manual sign-off  
-3. [x] Add root README pointing at architecture + this plan  
-4. [ ] Start Phase 2 telephony **or** Phase 3 CRM light (CRM tables must include `tenant_id` from the first migration)  
-5. [ ] First real write tool: `create_lead` with confirmation + tenant scope  
+Insurance
 
----
+Real Estate
 
-## Decision log (fill as you go)
+Call Center
 
-| Date | Decision | Choice | Why |
-|------|----------|--------|-----|
-| 2026-07-19 | Tenancy | **Multi-tenant SaaS** | Many businesses on one platform (ServiceTitan-style) |
-| 2026-07-19 | Tenant runtime | **Shared agent worker** + resolve tenant at dispatch | Simpler ops; Phase 0/1 optional `TENANT_ID` env |
-| 2026-07-19 | Deploy target | **LiveKit Cloud agent worker** | Managed dispatch, insights; self-host later if needed |
-| | System of record | Own DB / external API per tenant / other | |
-| | Phone provider | Twilio / other | |
-| | First paid feature | Lead capture / Booking | |
-| | Vertical | HVAC / plumbing / general | |
+Support
+
+Sales
+
+Custom
+
+Each template includes
+
+Greeting
+
+Business Rules
+
+Conversation Style
+
+Tool Configuration
+
+Suggested Knowledge
+
+Example Questions
+
+Safety Rules
 
 ---
 
-## Definition of “v1 business useful”
+# Agent Builder
 
-Not “full ServiceTitan”. v1 business useful means:
+Every tenant should configure an AI agent visually.
 
-> Inbound voice call for a resolved **tenant** → identify customer → capture job request → save real lead **for that tenant only** → confirm to caller → that tenant’s ops can see it.
+Identity
 
-Multi-tenant stretch goal (still not full Titan):
+Assistant Name
 
-> Two tenants on one platform, two phone numbers, zero data leakage, each hears their own business name/prompt.
+Voice
 
-Everything else is expansion.
+Greeting
+
+Language
+
+Personality
+
+Conversation
+
+Response Style
+
+Professional
+
+Friendly
+
+Sales
+
+Support
+
+Formal
+
+Casual
+
+Business
+
+Business Hours
+
+Locations
+
+Services
+
+Policies
+
+Pricing
+
+Emergency Rules
+
+Knowledge
+
+Upload Documents
+
+Website
+
+FAQs
+
+PDFs
+
+Word
+
+CSV
+
+Database
+
+Behavior
+
+Maximum response length
+
+Ask follow-up questions
+
+Confirm actions
+
+Transfer rules
+
+Confidence threshold
+
+Escalation
+
+Tools
+
+Enable
+
+CRM
+
+Scheduling
+
+Invoices
+
+Orders
+
+SMS
+
+Email
+
+Payments
+
+Custom APIs
+
+---
+
+# Agent Profiles
+
+Support multiple profiles.
+
+Example
+
+```
+Main Receptionist
+
+Sales Agent
+
+Support Agent
+
+Spanish Receptionist
+
+After Hours Agent
+
+Weekend Agent
+```
+
+Each profile has
+
+Prompt
+
+Knowledge
+
+Voice
+
+Tools
+
+Schedule
+
+Phone Number
+
+---
+
+# Phone Number Management
+
+Tenant should manage phone numbers.
+
+Options
+
+Buy Number
+
+Connect Existing Twilio
+
+Future SIP Providers
+
+Features
+
+Search
+
+Purchase
+
+Assign Agent
+
+Assign Business Hours
+
+Assign Routing
+
+Call Recording
+
+Call Forwarding
+
+Caller ID
+
+---
+
+# AI Routing
+
+Incoming Call
+
+↓
+
+Phone Number
+
+↓
+
+Business Rules
+
+↓
+
+Correct AI Agent
+
+↓
+
+Conversation
+
+↓
+
+Human Transfer
+
+Routing Based On
+
+Phone Number
+
+Business Hours
+
+Department
+
+Language
+
+VIP Customer
+
+Location
+
+Call Intent
+
+---
+
+# Multi-Agent Routing (Future)
+
+Router Agent
+
+↓
+
+Sales
+
+↓
+
+Support
+
+↓
+
+Billing
+
+↓
+
+Appointments
+
+↓
+
+Technical
+
+Router decides where to transfer.
+
+---
+
+# Call Flows
+
+Visual Builder
+
+Greeting
+
+↓
+
+Collect Name
+
+↓
+
+Collect Reason
+
+↓
+
+Lookup CRM
+
+↓
+
+Book Appointment
+
+↓
+
+Transfer
+
+↓
+
+Finish
+
+Drag & Drop Editor
+
+---
+
+# CRM
+
+Unified CRM
+
+Customers
+
+Leads
+
+Companies
+
+Jobs
+
+Appointments
+
+Notes
+
+Call History
+
+Activities
+
+Tags
+
+Custom Fields
+
+---
+
+# Scheduling
+
+Google Calendar
+
+Outlook
+
+Internal Calendar
+
+Technician Scheduling
+
+Resources
+
+Availability
+
+Recurring Appointments
+
+Reminders
+
+---
+
+# Knowledge Platform
+
+Sources
+
+Website
+
+PDF
+
+Word
+
+CSV
+
+Notion
+
+Google Docs
+
+FAQ
+
+Database
+
+Features
+
+Auto Sync
+
+Versioning
+
+Approval Workflow
+
+Categories
+
+Search
+
+---
+
+# AI Memory
+
+Short Memory
+
+Conversation
+
+Long Memory
+
+Preferences
+
+Previous Calls
+
+Orders
+
+Notes
+
+Future
+
+Conversation Insights
+
+---
+
+# Analytics Dashboard
+
+Executive Dashboard
+
+Calls
+
+Answered
+
+Missed
+
+Appointments
+
+Revenue
+
+Average Duration
+
+Resolution Rate
+
+Agent Performance
+
+Graphs
+
+Daily Calls
+
+Weekly Trends
+
+Monthly Growth
+
+Top Intent
+
+Transfer Rate
+
+Knowledge Usage
+
+---
+
+# Call Center Features
+
+Queue Management
+
+Departments
+
+Agents
+
+Skills
+
+Transfer Rules
+
+Call Recording
+
+Live Monitoring
+
+Whisper
+
+Barge
+
+Supervisor Dashboard
+
+After Call Work
+
+Disposition Codes
+
+Quality Scores
+
+---
+
+# Workforce Management
+
+Technicians
+
+Customer Service
+
+Sales
+
+Availability
+
+Locations
+
+GPS
+
+Status
+
+Assignments
+
+---
+
+# Integrations
+
+CRM
+
+Salesforce
+
+HubSpot
+
+Zoho
+
+Pipedrive
+
+Calendars
+
+Google
+
+Microsoft
+
+Communication
+
+Twilio
+
+LiveKit
+
+Email
+
+SMS
+
+Slack
+
+Teams
+
+Payments
+
+Stripe
+
+QuickBooks
+
+Xero
+
+Custom REST APIs
+
+Webhooks
+
+---
+
+# Billing
+
+Stripe
+
+Plans
+
+Usage
+
+Voice Minutes
+
+Phone Numbers
+
+AI Agents
+
+Knowledge Storage
+
+Team Members
+
+Enterprise Features
+
+Customer Portal
+
+Invoices
+
+Coupons
+
+Trials
+
+---
+
+# Marketplace
+
+Install ready-made AI agents.
+
+Examples
+
+HVAC
+
+Medical
+
+Insurance
+
+Restaurant
+
+Sales
+
+Support
+
+Collections
+
+Real Estate
+
+One Click Install
+
+---
+
+# White Label
+
+Custom Logo
+
+Brand Colors
+
+Domain
+
+Emails
+
+Voice Identity
+
+---
+
+# Security
+
+Multi Tenant Isolation
+
+RBAC
+
+Audit Logs
+
+Encryption
+
+API Keys
+
+Rate Limits
+
+Secret Management
+
+---
+
+# Admin Portal
+
+Tenants
+
+Subscriptions
+
+Usage
+
+Phone Numbers
+
+Support
+
+System Health
+
+Logs
+
+Feature Flags
+
+Announcements
+
+---
+
+# Developer Platform
+
+REST API
+
+Webhooks
+
+SDK
+
+OAuth
+
+Custom Integrations
+
+CLI
+
+---
+
+# AI Improvements
+
+* Tenant-aware prompts
+* Dynamic prompt composition
+* RAG
+* Function calling
+* Conversation summarization
+* Intent detection
+* Entity extraction
+* Confidence scoring
+* Human handoff
+* Personalization
+* Context optimization
+* Guardrails
+* Hallucination reduction
+* Prompt versioning
+* Agent evaluation pipeline
+
+---
+
+# Roadmap
+
+## Phase 1 (Completed)
+
+* LiveKit voice agent
+* OpenAI Realtime
+* Tenant resolution
+* Dynamic prompts
+* CRM tools
+* Scheduling
+* Knowledge search
+* Human handoff
+
+## Phase 2 (Completed in code — operator verification pending)
+
+* [x] Multi-industry support (industry template registry; no industry branches in voice logic)
+* [x] Multi agent profiles per tenant + phone → profile routing
+* [x] Agent Builder UI (`ops/agents`)
+* [x] Industry templates (apply + optional KB seed)
+* [x] Phone number management in Ops (inventory, buy/connect, assign, test call)
+* [x] Ops premium redesign (shell sections, dashboard/dispatch/agents/phones polish)
+
+Deferred to later Telephony phase: call recording, forwarding, caller ID, voicemail.
+
+## Phase 3
+
+* Billing
+* Stripe
+* Customer Portal
+* Usage tracking
+* Team management
+
+## Phase 4
+
+* Visual Call Flow Builder
+* Knowledge management improvements
+* Advanced analytics
+* Automation rules
+
+## Phase 5
+
+* Call center features
+* Supervisor dashboard
+* Queue management
+* Quality monitoring
+* Live monitoring
+
+## Phase 6
+
+* Marketplace
+* White label
+* Multi-agent routing
+* Enterprise integrations
+* Public APIs
+
+---
+
+# Guiding Principles
+
+1. Build one platform, not one industry solution.
+2. Every business should configure—not require code changes.
+3. Tenant isolation is mandatory.
+4. Use real data only—no mock data in production.
+5. Keep AI responses concise, natural, and human-like.
+6. Make every major capability modular and feature-flagged.
+7. Design APIs and data models to support future industries without breaking existing tenants.
+8. Ensure scalability for thousands of tenants, millions of calls, and enterprise deployments.

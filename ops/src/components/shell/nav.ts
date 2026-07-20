@@ -1,11 +1,11 @@
 import {
+  Bot,
   BookOpen,
   Briefcase,
   Calendar,
   CreditCard,
   LayoutDashboard,
   LayoutGrid,
-  Mic,
   Phone,
   PhoneForwarded,
   Settings,
@@ -20,31 +20,29 @@ export type NavItem = {
   label: string;
   icon: typeof LayoutGrid;
   roles?: string[];
+  section?: "work" | "ai" | "admin";
 };
 
 const OPS_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dispatch", label: "Dispatch", icon: LayoutGrid },
-  { href: "/customers", label: "Customers", icon: Users },
-  { href: "/calls", label: "Calls", icon: Phone },
-  { href: "/appointments", label: "Appointments", icon: Calendar },
-  { href: "/metrics", label: "Metrics", icon: BarChart3 },
-  { href: "/knowledge", label: "Knowledge", icon: BookOpen },
-  { href: "/handoff", label: "Handoff", icon: PhoneForwarded },
-  { href: "/settings", label: "Settings", icon: Settings, roles: ["admin"] },
-  {
-    href: "/settings/assistant",
-    label: "Assistant",
-    icon: Mic,
-    roles: ["admin"],
-  },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, section: "work" },
+  { href: "/dispatch", label: "Dispatch", icon: LayoutGrid, section: "work" },
+  { href: "/customers", label: "Customers", icon: Users, section: "work" },
+  { href: "/calls", label: "Calls", icon: Phone, section: "work" },
+  { href: "/appointments", label: "Appointments", icon: Calendar, section: "work" },
+  { href: "/metrics", label: "Metrics", icon: BarChart3, section: "work" },
+  { href: "/agents", label: "Agents", icon: Bot, roles: ["admin"], section: "ai" },
+  { href: "/phones", label: "Phones", icon: Phone, roles: ["admin"], section: "ai" },
+  { href: "/knowledge", label: "Knowledge", icon: BookOpen, section: "ai" },
+  { href: "/handoff", label: "Handoff", icon: PhoneForwarded, section: "ai" },
+  { href: "/settings", label: "Settings", icon: Settings, roles: ["admin"], section: "admin" },
   {
     href: "/settings/billing",
     label: "Billing",
     icon: CreditCard,
     roles: ["admin"],
+    section: "admin",
   },
-  { href: "/tech", label: "Tech", icon: Wrench, roles: ["admin"] },
+  { href: "/tech", label: "Tech", icon: Wrench, roles: ["admin"], section: "admin" },
 ];
 
 const TECH_NAV: NavItem[] = [
@@ -62,6 +60,9 @@ export function isActivePath(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
   if (href === "/dispatch") {
     return pathname === "/dispatch" || pathname === "/board";
+  }
+  if (href === "/agents") {
+    return pathname === "/agents" || pathname.startsWith("/agents/");
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

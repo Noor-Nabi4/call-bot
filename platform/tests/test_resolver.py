@@ -3,31 +3,43 @@
 from __future__ import annotations
 
 import pytest
+from helpers import make_phone
 from sqlalchemy.orm import Session
 
+from callbot_platform.crm.repos import AgentProfileRepository
 from callbot_platform.db.models import Tenant
 from callbot_platform.domain.enums import ConnectionStatus, VerificationStatus
 from callbot_platform.security.metadata import MetadataSigner
 from callbot_platform.telephony.interfaces import ResolveRequest
-from callbot_platform.telephony.services.resolver import DbTenantDidResolver, TenantResolveError
-from helpers import make_phone
+from callbot_platform.telephony.services.resolver import (
+    DbTenantDidResolver,
+    TenantResolveError,
+)
+
+
+def _default_profile(session: Session, tenant: Tenant) -> None:
+    AgentProfileRepository(session).create(
+        tenant.id,
+        name="Main Receptionist",
+        agent_type="receptionist",
+        is_default=True,
+        actor="test",
+    )
 
 
 def test_resolve_by_active_did(
     session: Session, tenant: Tenant, signer: MetadataSigner
 ) -> None:
+    _default_profile(session, tenant)
     make_phone(session, tenant, e164="+15551234567")
     resolver = DbTenantDidResolver(session, signer)
-    result = resolver.resolve(
-        ResolveRequest(called_number="+15551234567", is_sip=True)
-    )
+    result = resolver.resolve(ResolveRequest(called_number="+15551234567", is_sip=True))
     assert result.tenant_id == tenant.id
     assert result.source == "did_mapping"
+    assert result.agent_profile_id is not None
 
 
-def test_unknown_did_rejected(
-    session: Session, signer: MetadataSigner
-) -> None:
+def test_unknown_did_rejected(session: Session, signer: MetadataSigner) -> None:
     resolver = DbTenantDidResolver(session, signer)
     with pytest.raises(TenantResolveError) as exc:
         resolver.resolve(ResolveRequest(called_number="+15550001111", is_sip=True))
@@ -91,9 +103,7 @@ def test_signed_metadata_browser_ok(
 ) -> None:
     meta = signer.sign_payload({"tenant_id": str(tenant.id), "source": "playground"})
     resolver = DbTenantDidResolver(session, signer)
-    result = resolver.resolve(
-        ResolveRequest(job_metadata_raw=meta, is_sip=False)
-    )
+    result = resolver.resolve(ResolveRequest(job_metadata_raw=meta, is_sip=False))
     assert result.tenant_id == tenant.id
     assert result.source == "signed_metadata"
 
@@ -101,6 +111,7 @@ def test_signed_metadata_browser_ok(
 def test_resolve_by_trunk(
     session: Session, tenant: Tenant, signer: MetadataSigner
 ) -> None:
+    _default_profile(session, tenant)
     make_phone(session, tenant, trunk_id="ST_abc")
     resolver = DbTenantDidResolver(session, signer)
     result = resolver.resolve(
@@ -108,3 +119,4 @@ def test_resolve_by_trunk(
     )
     assert result.tenant_id == tenant.id
     assert result.source == "livekit_trunk"
+    assert result.agent_profile_id is not None

@@ -7,6 +7,7 @@ import math
 import os
 import uuid
 from pathlib import Path
+from typing import Any
 
 from dotenv import load_dotenv
 from livekit import rtc
@@ -212,7 +213,10 @@ async def _prepare_tenant_profile(
         )
     )
     profile = await run_in_thread(
-        lambda: profile_client.get_profile(resolution.tenant_id)
+        lambda: profile_client.get_profile(
+            resolution.tenant_id,
+            agent_profile_id=resolution.agent_profile_id,
+        )
     )
     if profile.tenant_id != resolution.tenant_id:
         raise PlatformAgentProfileError(
@@ -518,14 +522,16 @@ async def entrypoint(ctx: JobContext) -> None:
 
     # Bind tools only after fail-closed tenant + profile resolve.
     # Docs: https://docs.livekit.io/agents/logic/tools/definition/
-    await agent.update_tools(
-        [
-            *build_crm_tools(crm_client),
-            *build_scheduling_tools(scheduling_client),
-            *build_knowledge_tools(knowledge_client, metrics=metrics),
-            *build_handoff_tools(handoff_client),
-        ]
-    )
+    tools: list[Any] = []
+    if profile.tool_enabled("crm"):
+        tools.extend(build_crm_tools(crm_client))
+    if profile.tool_enabled("scheduling"):
+        tools.extend(build_scheduling_tools(scheduling_client))
+    if profile.tool_enabled("knowledge"):
+        tools.extend(build_knowledge_tools(knowledge_client, metrics=metrics))
+    if profile.tool_enabled("handoff"):
+        tools.extend(build_handoff_tools(handoff_client))
+    await agent.update_tools(tools)
 
     # Overlap CRM call-start HTTP with greeting generation.
     async def _start_crm_call() -> str | None:

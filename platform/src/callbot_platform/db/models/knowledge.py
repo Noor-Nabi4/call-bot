@@ -27,6 +27,7 @@ class KnowledgeArticle(Base):
     __table_args__ = (
         Index("ix_knowledge_articles_tenant_id", "tenant_id"),
         Index("ix_knowledge_articles_tenant_active", "tenant_id", "is_active"),
+        Index("ix_knowledge_articles_agent_profile_id", "agent_profile_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -34,6 +35,11 @@ class KnowledgeArticle(Base):
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    agent_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_profiles.id", ondelete="SET NULL"),
+        nullable=True,
     )
     category: Mapped[str] = mapped_column(String(64), nullable=False, default="faq")
     title: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -55,3 +61,4 @@ class KnowledgeArticle(Base):
     )
 
     tenant: Mapped[Tenant] = relationship(back_populates="knowledge_articles")
+    agent_profile = relationship("AgentProfile", back_populates="knowledge_articles")

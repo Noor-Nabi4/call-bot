@@ -14,7 +14,9 @@ Production voice agent for multi-tenant field service:
 
 **Included**
 
-- Fail-closed tenant resolve + Agent Profile fetch (`GET /internal/tenants/{id}/agent-profile`)
+- Fail-closed tenant resolve + Agent Profile fetch (`GET /internal/tenants/{id}/agent-profile` or `/agent-profiles/{profile_id}`)
+- Phone numbers may assign an `agent_profile_id`; SIP resolve returns it (else tenant default). Tools are gated by the profile's `enabled_tools`.
+- Knowledge search is scoped to tenant-wide articles plus the active profile's articles.
 - Versioned prompt composition (platform safety → voice → tenant identity/rules/prefs → tools → call context)
 - Concise voice policy (answer the question first; one–two sentences default)
 - Short-lived profile cache keyed by `tenant_id` + `profile_version` (in-memory, or shared Redis when `REDIS_URL` is set)

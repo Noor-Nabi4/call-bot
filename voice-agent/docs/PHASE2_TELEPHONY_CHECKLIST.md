@@ -55,11 +55,15 @@ Docs used (verify latest via LiveKit MCP before changing SIP code):
 - [ ] Inactive / unverified DID → reject
 - [ ] Signed metadata conflicting with DID → reject
 - [ ] Active DID → correct `tenant_id` on call logs
+- [ ] Active DID → correct `agent_profile_id` (phone assignment or tenant default)
+- [ ] Assigning a phone to a profile refreshes LiveKit dispatch `RoomAgentDispatch.metadata`
 - [ ] `CallState.important_details` includes caller/called E.164 + SIP ids
 - [ ] SIP uses `BVCTelephony`; browser uses `BVC`
 - [ ] Concurrent calls (2–3) answer independently
+- [ ] Ops `/phones` + `/agents` test-call issues signed metadata with `agent_profile_id`
 
 ## Exit criteria
 
 - [ ] Inbound PSTN call talks to the same Realtime agent
 - [ ] Correct `tenant_id` attached to the call session
+- [ ] Correct Agent Profile (greeting / tools) for the assigned DID

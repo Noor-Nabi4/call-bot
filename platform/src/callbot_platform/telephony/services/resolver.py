@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from callbot_platform.crm.repos.agent_profile_repo import AgentProfileRepository
 from callbot_platform.db.models import TenantPhoneNumber
 from callbot_platform.domain.enums import ConnectionStatus, VerificationStatus
 from callbot_platform.domain.phone import PhoneNumberError, normalize_e164
@@ -24,11 +25,13 @@ class DbTenantDidResolver:
     def __init__(self, session: Session, signer: MetadataSigner) -> None:
         self._session = session
         self._signer = signer
+        self._profiles = AgentProfileRepository(session)
 
     def resolve(self, request: ResolveRequest) -> ResolveResult:
         meta = self._signer.verify_and_parse(request.job_metadata_raw)
         meta_tenant: UUID | None = None
         meta_did: str | None = None
+        meta_profile: UUID | None = None
         if meta is not None:
             raw_tenant = meta.get("tenant_id")
             if raw_tenant:
@@ -45,6 +48,15 @@ class DbTenantDidResolver:
                 except PhoneNumberError as exc:
                     raise TenantResolveError(
                         "invalid_metadata", "Invalid did in signed metadata"
+                    ) from exc
+            raw_profile = meta.get("agent_profile_id")
+            if raw_profile:
+                try:
+                    meta_profile = UUID(str(raw_profile))
+                except ValueError as exc:
+                    raise TenantResolveError(
+                        "invalid_metadata",
+                        "Invalid agent_profile_id in signed metadata",
                     ) from exc
 
         called: str | None = None
@@ -88,46 +100,47 @@ class DbTenantDidResolver:
                 )
             phone = did_row
             if phone is None and lookup_did is None and not request.is_sip:
-                # Browser path: metadata-only resolve without DID is allowed.
-                return ResolveResult(
+                return self._result(
                     tenant_id=meta_tenant,
-                    phone_number_id=None,
-                    e164=None,
+                    phone=None,
                     source="signed_metadata",
+                    explicit_profile_id=meta_profile,
+                    require_profile=False,
                 )
-            if phone is None and lookup_did:
-                # Metadata says tenant but DID not active/verified → fail closed for SIP
-                if request.is_sip:
-                    raise TenantResolveError(
-                        "did_inactive",
-                        "Called DID is not active and verified",
-                    )
+            if phone is None and lookup_did and request.is_sip:
+                raise TenantResolveError(
+                    "did_inactive",
+                    "Called DID is not active and verified",
+                )
             if phone is not None:
-                return ResolveResult(
+                return self._result(
                     tenant_id=meta_tenant,
-                    phone_number_id=phone.id,
-                    e164=phone.e164,
+                    phone=phone,
                     source="signed_metadata",
-                    livekit_inbound_trunk_id=phone.livekit_inbound_trunk_id,
-                    livekit_dispatch_rule_id=phone.livekit_dispatch_rule_id,
+                    explicit_profile_id=meta_profile,
+                    require_profile=request.is_sip,
                 )
             if not request.is_sip:
-                return ResolveResult(
+                return self._result(
                     tenant_id=meta_tenant,
-                    phone_number_id=None,
-                    e164=None,
+                    phone=None,
                     source="signed_metadata",
+                    explicit_profile_id=meta_profile,
+                    require_profile=False,
                 )
 
         # Priority 2: exact called DID
         if lookup_did:
             if did_row is None:
-                # Check if DID exists but inactive/unverified for clearer error
                 any_row = self._session.scalar(
-                    select(TenantPhoneNumber).where(TenantPhoneNumber.e164 == lookup_did)
+                    select(TenantPhoneNumber).where(
+                        TenantPhoneNumber.e164 == lookup_did
+                    )
                 )
                 if any_row is None:
-                    raise TenantResolveError("unknown_did", f"Unknown DID: {lookup_did}")
+                    raise TenantResolveError(
+                        "unknown_did", f"Unknown DID: {lookup_did}"
+                    )
                 if any_row.connection_status != ConnectionStatus.ACTIVE.value:
                     raise TenantResolveError(
                         "did_inactive",
@@ -139,28 +152,55 @@ class DbTenantDidResolver:
                         f"DID is not verified (status={any_row.verification_status})",
                     )
                 raise TenantResolveError("unknown_did", f"Unknown DID: {lookup_did}")
-            return ResolveResult(
+            return self._result(
                 tenant_id=did_row.tenant_id,
-                phone_number_id=did_row.id,
-                e164=did_row.e164,
+                phone=did_row,
                 source="did_mapping",
-                livekit_inbound_trunk_id=did_row.livekit_inbound_trunk_id,
-                livekit_dispatch_rule_id=did_row.livekit_dispatch_rule_id,
+                explicit_profile_id=None,
+                require_profile=request.is_sip,
             )
 
         # Priority 3: LiveKit trunk metadata / id
         if trunk_rows:
             row = trunk_rows[0]
-            return ResolveResult(
+            return self._result(
                 tenant_id=row.tenant_id,
-                phone_number_id=row.id,
-                e164=row.e164,
+                phone=row,
                 source="livekit_trunk",
-                livekit_inbound_trunk_id=row.livekit_inbound_trunk_id,
-                livekit_dispatch_rule_id=row.livekit_dispatch_rule_id,
+                explicit_profile_id=None,
+                require_profile=request.is_sip,
             )
 
         raise TenantResolveError("unresolved", "Unable to resolve tenant for call")
+
+    def _result(
+        self,
+        *,
+        tenant_id: UUID,
+        phone: TenantPhoneNumber | None,
+        source: str,
+        explicit_profile_id: UUID | None,
+        require_profile: bool,
+    ) -> ResolveResult:
+        profile_id = self._profiles.resolve_profile_id(
+            tenant_id,
+            explicit_profile_id=explicit_profile_id,
+            phone_profile_id=phone.agent_profile_id if phone else None,
+        )
+        if require_profile and profile_id is None:
+            raise TenantResolveError(
+                "agent_profile_missing",
+                "No active agent profile assigned for this call",
+            )
+        return ResolveResult(
+            tenant_id=tenant_id,
+            phone_number_id=phone.id if phone else None,
+            e164=phone.e164 if phone else None,
+            source=source,
+            livekit_inbound_trunk_id=phone.livekit_inbound_trunk_id if phone else None,
+            livekit_dispatch_rule_id=phone.livekit_dispatch_rule_id if phone else None,
+            agent_profile_id=profile_id,
+        )
 
     def _active_by_did(self, e164: str) -> TenantPhoneNumber | None:
         rows = list(
@@ -186,7 +226,8 @@ class DbTenantDidResolver:
             self._session.scalars(
                 select(TenantPhoneNumber).where(
                     TenantPhoneNumber.livekit_inbound_trunk_id == trunk_id,
-                    TenantPhoneNumber.connection_status == ConnectionStatus.ACTIVE.value,
+                    TenantPhoneNumber.connection_status
+                    == ConnectionStatus.ACTIVE.value,
                     TenantPhoneNumber.verification_status
                     == VerificationStatus.VERIFIED.value,
                 )

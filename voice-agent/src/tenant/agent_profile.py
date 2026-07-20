@@ -44,6 +44,9 @@ class AgentProfile:
 
     tenant_id: str
     business_name: str
+    agent_profile_id: str | None = None
+    name: str | None = None
+    agent_type: str = "receptionist"
     assistant_name: str | None = None
     business_description: str | None = None
     greeting: str | None = None
@@ -58,6 +61,13 @@ class AgentProfile:
     handoff_rules: str | None = None
     restricted_topics: tuple[str, ...] = ()
     custom_instructions: str | None = None
+    enabled_tools: tuple[str, ...] = (
+        "crm",
+        "scheduling",
+        "knowledge",
+        "handoff",
+        "sms",
+    )
     profile_version: int = 1
     updated_at: str | None = None
     voice: str | None = None
@@ -94,9 +104,25 @@ class AgentProfile:
                 "agent_profile_invalid", "profile_version must be >= 1"
             )
 
+        tools_raw = payload.get("enabled_tools")
+        enabled: list[str] = []
+        if isinstance(tools_raw, dict):
+            enabled = [k for k, v in tools_raw.items() if v]
+        elif isinstance(tools_raw, list):
+            enabled = _str_list(tools_raw)
+        else:
+            enabled = ["crm", "scheduling", "knowledge", "handoff", "sms"]
+
+        profile_id = _optional_str(payload.get("agent_profile_id")) or _optional_str(
+            payload.get("id")
+        )
+
         return cls(
             tenant_id=tenant_id,
             business_name=business_name,
+            agent_profile_id=profile_id,
+            name=_optional_str(payload.get("name")),
+            agent_type=_optional_str(payload.get("agent_type")) or "receptionist",
             assistant_name=_optional_str(payload.get("assistant_name")),
             business_description=_optional_str(payload.get("business_description")),
             greeting=_optional_str(payload.get("greeting")),
@@ -113,6 +139,7 @@ class AgentProfile:
             handoff_rules=_optional_str(payload.get("handoff_rules")),
             restricted_topics=tuple(_str_list(payload.get("restricted_topics"))),
             custom_instructions=_optional_str(payload.get("custom_instructions")),
+            enabled_tools=tuple(enabled),
             profile_version=profile_version,
             updated_at=_optional_str(payload.get("updated_at")),
             voice=_optional_str(payload.get("voice")),
@@ -120,9 +147,14 @@ class AgentProfile:
 
     def to_api_payload(self) -> dict[str, Any]:
         """Serialize for cache round-trip (inverse of from_api_payload)."""
+        tools_dict = dict.fromkeys(self.enabled_tools, True)
         return {
             "tenant_id": self.tenant_id,
             "business_name": self.business_name,
+            "agent_profile_id": self.agent_profile_id,
+            "id": self.agent_profile_id,
+            "name": self.name,
+            "agent_type": self.agent_type,
             "assistant_name": self.assistant_name,
             "business_description": self.business_description,
             "greeting": self.greeting,
@@ -137,10 +169,14 @@ class AgentProfile:
             "handoff_rules": self.handoff_rules,
             "restricted_topics": list(self.restricted_topics),
             "custom_instructions": self.custom_instructions,
+            "enabled_tools": tools_dict,
             "profile_version": self.profile_version,
             "updated_at": self.updated_at,
             "voice": self.voice,
         }
+
+    def tool_enabled(self, tool_group: str) -> bool:
+        return tool_group in self.enabled_tools
 
     def supports_language(self, language_code: str) -> bool:
         code = language_code.strip().lower()

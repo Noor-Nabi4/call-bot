@@ -1,12 +1,18 @@
 export type {
+  AgentProfile,
   AgentSettings,
   Appointment,
   Call,
   CustomerOption,
+  EnabledTools,
   HandoffSettings,
+  IndustryTemplate,
+  InventoryNumber,
   Job,
   OpsUser,
+  PhoneNumber,
   Technician,
+  TestCallSession,
 } from "@/types";
 
 export { api, API_BASE, formatWhen, STATUS_ORDER } from "./client";
@@ -32,6 +38,27 @@ export {
 } from "./technicians";
 export { getHandoffSettings } from "./handoff";
 export { getAgentSettings, updateAgentSettings } from "./agent";
+export {
+  listIndustryTemplates,
+  listAgentProfiles,
+  getAgentProfile,
+  createAgentProfile,
+  updateAgentProfile,
+  archiveAgentProfile,
+  setDefaultAgentProfile,
+  applyAgentTemplate,
+} from "./agents";
+export {
+  listPhoneNumbers,
+  assignPhoneProfile,
+  connectPhoneNumber,
+  ensureTwilioSubaccount,
+  searchInventory,
+  purchasePhoneNumber,
+  confirmPhoneTrunk,
+  startPhoneVerification,
+  createTestCall,
+} from "./phones";
 export { listAppointments, listCalls, listCustomers } from "./admin";
 export {
   getSubscription,

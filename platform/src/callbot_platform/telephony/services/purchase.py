@@ -264,6 +264,11 @@ class PlatformPurchaseService:
                     "did": e164,
                     "phone_number_id": str(row.id),
                     "source": "sip_dispatch",
+                    **(
+                        {"agent_profile_id": str(tenant.default_agent_profile_id)}
+                        if tenant.default_agent_profile_id
+                        else {}
+                    ),
                 }
             )
             lk_trunk = self._livekit.create_livekit_inbound_trunk(

@@ -70,6 +70,71 @@ export type AgentSettings = {
   updated_at?: string | null;
   voice?: string | null;
   tenant_id?: string;
+  agent_profile_id?: string;
+};
+
+export type EnabledTools = {
+  crm?: boolean;
+  scheduling?: boolean;
+  knowledge?: boolean;
+  handoff?: boolean;
+  sms?: boolean;
+};
+
+export type AgentProfile = AgentSettings & {
+  id: string;
+  name: string;
+  slug: string;
+  agent_type: string;
+  industry_key?: string | null;
+  status: string;
+  is_default: boolean;
+  business_hours?: Record<string, string[][]>;
+  enabled_tools?: EnabledTools;
+  created_at?: string | null;
+};
+
+export type IndustryTemplate = {
+  key: string;
+  name: string;
+  description: string;
+  agent_type: string;
+  example_questions: string[];
+  enabled_tools: EnabledTools;
+  suggested_article_count: number;
+};
+
+export type PhoneNumber = {
+  id: string;
+  tenant_id?: string;
+  e164: string;
+  connection_status: string;
+  verification_status: string;
+  onboarding_path?: string;
+  provisioning_state?: string;
+  livekit_inbound_trunk_id?: string | null;
+  livekit_dispatch_rule_id?: string | null;
+  agent_profile_id?: string | null;
+  effective_agent_profile_id?: string | null;
+  is_primary?: boolean;
+};
+
+export type InventoryNumber = {
+  e164: string;
+  friendly_name?: string | null;
+  locality?: string | null;
+  region?: string | null;
+  iso_country?: string;
+  monthly_price?: string | null;
+};
+
+export type TestCallSession = {
+  server_url: string;
+  participant_token: string;
+  room_name: string;
+  agent_profile_id: string;
+  metadata?: string;
+  expires_at?: number;
 };
 
 export type CustomerOption = {

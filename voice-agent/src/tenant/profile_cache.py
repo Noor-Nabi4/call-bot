@@ -16,7 +16,7 @@ class AgentProfileCacheProto(Protocol):
         self, tenant_id: str, *, profile_version: int | None = None
     ) -> AgentProfile | None: ...
 
-    def put(self, profile: AgentProfile) -> None: ...
+    def put(self, profile: AgentProfile, *, cache_key: str | None = None) -> None: ...
 
     def invalidate(self, tenant_id: str) -> None: ...
 
@@ -27,10 +27,17 @@ class _CacheEntry:
     expires_at: float
 
 
-class AgentProfileCache:
-    """Bounded TTL cache keyed by tenant_id + profile_version.
+def _scope_key(tenant_id: str, agent_profile_id: str | None = None) -> str:
+    """Cache scope: tenant alone (default) or tenant:profile_id."""
+    if agent_profile_id:
+        return f"{tenant_id}:{agent_profile_id}"
+    return tenant_id
 
-    Never shares entries across tenants. Expired entries are not returned.
+
+class AgentProfileCache:
+    """Bounded TTL cache keyed by tenant (+ optional profile id) + version.
+
+    Never shares entries across tenants or profiles. Expired entries are not returned.
     """
 
     def __init__(self, *, ttl_sec: float = 60.0, max_entries: int = 256) -> None:
@@ -44,15 +51,21 @@ class AgentProfileCache:
         self._entries: dict[str, _CacheEntry] = {}
 
     @staticmethod
-    def _key(tenant_id: str, profile_version: int | None = None) -> str:
+    def _key(
+        scope: str,
+        profile_version: int | None = None,
+    ) -> str:
         if profile_version is None:
-            return f"{tenant_id}:latest"
-        return f"{tenant_id}:v{profile_version}"
+            return f"{scope}:latest"
+        return f"{scope}:v{profile_version}"
 
     def get(
         self, tenant_id: str, *, profile_version: int | None = None
     ) -> AgentProfile | None:
-        key = self._key(tenant_id, profile_version)
+        # tenant_id may be a composite cache key (tenant:profile_id).
+        scope = tenant_id
+        tenant_only = tenant_id.split(":", 1)[0]
+        key = self._key(scope, profile_version)
         now = time.monotonic()
         with self._lock:
             entry = self._entries.get(key)
@@ -61,8 +74,7 @@ class AgentProfileCache:
             if entry.expires_at <= now:
                 del self._entries[key]
                 return None
-            # Never serve a profile for a different tenant key.
-            if entry.profile.tenant_id != tenant_id:
+            if entry.profile.tenant_id != tenant_only:
                 del self._entries[key]
                 return None
             if (
@@ -73,25 +85,28 @@ class AgentProfileCache:
                 return None
             return entry.profile
 
-    def put(self, profile: AgentProfile) -> None:
+    def put(self, profile: AgentProfile, *, cache_key: str | None = None) -> None:
         now = time.monotonic()
         expires_at = now + self._ttl_sec
-        versioned = self._key(profile.tenant_id, profile.profile_version)
-        latest = self._key(profile.tenant_id, None)
+        scope = cache_key or _scope_key(profile.tenant_id, profile.agent_profile_id)
+        versioned = self._key(scope, profile.profile_version)
+        latest = self._key(scope, None)
         entry = _CacheEntry(profile=profile, expires_at=expires_at)
         with self._lock:
             self._entries[versioned] = entry
             self._entries[latest] = entry
             self._evict_expired_locked(now)
             while len(self._entries) > self._max_entries:
-                # Drop an arbitrary oldest-ish key (dict preserves insertion order).
                 oldest = next(iter(self._entries))
                 del self._entries[oldest]
 
     def invalidate(self, tenant_id: str) -> None:
+        # Invalidate exact scope prefix (tenant or tenant:profile).
         prefix = f"{tenant_id}:"
         with self._lock:
-            for key in [k for k in self._entries if k.startswith(prefix)]:
+            for key in [
+                k for k in self._entries if k == tenant_id or k.startswith(prefix)
+            ]:
                 del self._entries[key]
 
     def _evict_expired_locked(self, now: float) -> None:

@@ -52,15 +52,15 @@ export default function DashboardPage() {
 
   return (
     <AppShell user={user}>
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0 animate-[ops-rise_320ms_ease-out]">
           <p className="text-sm text-text-secondary">
             {greetingFor(dash.now)}, {user.name.split(" ")[0]}
           </p>
-          <h1 className="mt-0.5 font-heading text-3xl font-semibold tracking-tight text-text-primary">
+          <h1 className="mt-0.5 font-heading text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
             {user.tenant_name}
           </h1>
-          <p className="mt-1 text-sm text-text-secondary">
+          <p className="mt-1 max-w-xl text-sm text-text-secondary">
             {copy.attentionLead}
           </p>
           <p className="mt-1 text-sm text-text-muted">

@@ -39,8 +39,16 @@ def build_knowledge_tools(
             query: Caller's question in plain language.
         """
         data = _userdata(context)
+        profile_id = None
+        if data.agent_profile is not None:
+            profile_id = data.agent_profile.agent_profile_id
         try:
-            result = client.search(tenant_id=data.tenant_id, query=query, limit=5)
+            result = client.search(
+                tenant_id=data.tenant_id,
+                query=query,
+                limit=5,
+                agent_profile_id=profile_id,
+            )
         except PlatformKnowledgeError as exc:
             data.record_tool_result("search_knowledge", ok=False)
             if metrics is not None:

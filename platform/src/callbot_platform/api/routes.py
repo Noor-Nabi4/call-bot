@@ -95,12 +95,24 @@ def create_tenant(body: CreateTenantBody, session: Session = Depends(db_dep)) ->
     tenant = Tenant(name=body.name, slug=body.slug, timezone=body.timezone or "UTC")
     session.add(tenant)
     session.flush()
+    from callbot_platform.crm.repos import AgentProfileRepository
+
+    AgentProfileRepository(session).create(
+        tenant.id,
+        name="Main Receptionist",
+        agent_type="receptionist",
+        is_default=True,
+        actor="system",
+    )
     return {
         "id": str(tenant.id),
         "name": tenant.name,
         "slug": tenant.slug,
         "status": tenant.status,
         "timezone": tenant.timezone,
+        "default_agent_profile_id": str(tenant.default_agent_profile_id)
+        if tenant.default_agent_profile_id
+        else None,
     }
 
 
@@ -135,6 +147,7 @@ def list_phone_numbers(tenant_id: UUID, session: Session = Depends(db_dep)) -> d
                 "provisioning_state": r.provisioning_state,
                 "livekit_inbound_trunk_id": r.livekit_inbound_trunk_id,
                 "livekit_dispatch_rule_id": r.livekit_dispatch_rule_id,
+                "agent_profile_id": str(r.agent_profile_id) if r.agent_profile_id else None,
             }
             for r in rows
         ]
@@ -304,6 +317,9 @@ def resolve_tenant(
             "source": result.source,
             "livekit_inbound_trunk_id": result.livekit_inbound_trunk_id,
             "livekit_dispatch_rule_id": result.livekit_dispatch_rule_id,
+            "agent_profile_id": str(result.agent_profile_id)
+            if result.agent_profile_id
+            else None,
         }
     except TenantResolveError as exc:
         raise HTTPException(

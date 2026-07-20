@@ -51,9 +51,9 @@ function DispatchWorkspace() {
 
   return (
     <AppShell user={user}>
-      <header className="mb-3 flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight text-text-primary">
+      <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0 animate-[ops-rise_280ms_ease-out]">
+          <h1 className="font-heading text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl">
             {copy.title}
           </h1>
           <p className="mt-0.5 text-sm text-text-secondary">

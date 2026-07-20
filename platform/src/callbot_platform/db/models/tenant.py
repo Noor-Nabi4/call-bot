@@ -22,6 +22,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from callbot_platform.db.models.base import Base, JsonType, _utcnow, _uuid
 
 if TYPE_CHECKING:
+    from callbot_platform.db.models.agent_profile import AgentProfile
     from callbot_platform.db.models.billing import TenantSubscription
     from callbot_platform.db.models.crm import Customer, TenantAgentSettings
     from callbot_platform.db.models.handoff import (
@@ -46,6 +47,12 @@ class Tenant(Base):
     slug: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
+    industry_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    default_agent_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_profiles.id", ondelete="SET NULL", use_alter=True),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -61,6 +68,15 @@ class Tenant(Base):
     )
     agent_settings: Mapped[TenantAgentSettings | None] = relationship(
         back_populates="tenant", uselist=False, cascade="all, delete-orphan"
+    )
+    agent_profiles: Mapped[list[AgentProfile]] = relationship(
+        back_populates="tenant",
+        cascade="all, delete-orphan",
+        foreign_keys="AgentProfile.tenant_id",
+    )
+    default_agent_profile: Mapped[AgentProfile | None] = relationship(
+        foreign_keys=[default_agent_profile_id],
+        post_update=True,
     )
     customers: Mapped[list[Customer]] = relationship(
         back_populates="tenant", cascade="all, delete-orphan"
@@ -141,6 +157,11 @@ class TenantPhoneNumber(Base):
         JsonType, nullable=False, default=dict
     )
     last_purchase_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    agent_profile_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("agent_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -156,6 +177,10 @@ class TenantPhoneNumber(Base):
     )
 
     tenant: Mapped[Tenant] = relationship(back_populates="phone_numbers")
+    agent_profile: Mapped[AgentProfile | None] = relationship(
+        back_populates="phone_numbers",
+        foreign_keys=[agent_profile_id],
+    )
 
 
 class TenantTwilioSubaccount(Base):

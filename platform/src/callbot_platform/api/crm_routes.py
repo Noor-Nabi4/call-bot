@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from callbot_platform.api.deps import db_dep, require_internal_token
 from callbot_platform.crm.repos import (
+    AgentProfileRepository,
     AgentSettingsRepository,
     CallRepository,
     CrmError,
@@ -239,8 +240,16 @@ internal_tenant_router = APIRouter(
 
 
 @internal_tenant_router.get("/{tenant_id}/agent-profile")
-def get_agent_profile(tenant_id: UUID, session: Session = Depends(db_dep)) -> dict:
-    """Voice-agent startup: fail closed when no active profile exists."""
+def get_agent_profile(
+    tenant_id: UUID,
+    session: Session = Depends(db_dep),
+    agent_profile_id: UUID | None = None,
+) -> dict:
+    """Voice-agent startup: fail closed when no active profile exists.
+
+    Optional agent_profile_id query param selects a specific profile; otherwise
+    the tenant default is used (back-compat).
+    """
     tenant = session.get(Tenant, tenant_id)
     if tenant is None:
         raise HTTPException(
@@ -252,8 +261,9 @@ def get_agent_profile(tenant_id: UUID, session: Session = Depends(db_dep)) -> di
             status_code=404,
             detail={"code": "tenant_inactive", "message": "Tenant is not active"},
         )
-    profile = AgentSettingsRepository(session).get_profile(
-        tenant_id, business_name=tenant.name
+    repo = AgentProfileRepository(session)
+    profile = repo.get_voice_profile(
+        tenant_id, business_name=tenant.name, profile_id=agent_profile_id
     )
     if profile is None:
         raise HTTPException(
@@ -274,8 +284,19 @@ def get_agent_profile(tenant_id: UUID, session: Session = Depends(db_dep)) -> di
     return {"profile": profile}
 
 
+@internal_tenant_router.get("/{tenant_id}/agent-profiles/{profile_id}")
+def get_agent_profile_by_id(
+    tenant_id: UUID, profile_id: UUID, session: Session = Depends(db_dep)
+) -> dict:
+    return get_agent_profile(tenant_id, session, agent_profile_id=profile_id)
+
+
 @internal_tenant_router.get("/{tenant_id}/agent-profile/meta")
-def get_agent_profile_meta(tenant_id: UUID, session: Session = Depends(db_dep)) -> dict:
+def get_agent_profile_meta(
+    tenant_id: UUID,
+    session: Session = Depends(db_dep),
+    agent_profile_id: UUID | None = None,
+) -> dict:
     """Lightweight version check for voice-agent cache invalidation."""
     tenant = session.get(Tenant, tenant_id)
     if tenant is None:
@@ -283,7 +304,9 @@ def get_agent_profile_meta(tenant_id: UUID, session: Session = Depends(db_dep)) 
             status_code=404,
             detail={"code": "tenant_not_found", "message": "Tenant not found"},
         )
-    meta = AgentSettingsRepository(session).get_profile_meta(tenant_id)
+    meta = AgentProfileRepository(session).get_voice_profile_meta(
+        tenant_id, profile_id=agent_profile_id
+    )
     if meta is None:
         raise HTTPException(
             status_code=404,
@@ -293,6 +316,13 @@ def get_agent_profile_meta(tenant_id: UUID, session: Session = Depends(db_dep)) 
             },
         )
     return {"meta": meta}
+
+
+@internal_tenant_router.get("/{tenant_id}/agent-profiles/{profile_id}/meta")
+def get_agent_profile_meta_by_id(
+    tenant_id: UUID, profile_id: UUID, session: Session = Depends(db_dep)
+) -> dict:
+    return get_agent_profile_meta(tenant_id, session, agent_profile_id=profile_id)
 
 
 @internal_tenant_router.put("/{tenant_id}/agent-settings")

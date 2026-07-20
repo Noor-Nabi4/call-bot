@@ -65,6 +65,7 @@ class ResolveResult:
     source: str
     livekit_inbound_trunk_id: str | None = None
     livekit_dispatch_rule_id: str | None = None
+    agent_profile_id: UUID | None = None
 
 
 class TelephonyProvider(Protocol):
@@ -147,6 +148,17 @@ class DispatchRuleService(Protocol):
     def create_individual_dispatch_rule(
         self,
         *,
+        name: str,
+        agent_name: str,
+        metadata: str,
+        trunk_ids: list[str],
+        room_prefix: str = "call-",
+    ) -> LiveKitDispatchRuleInfo: ...
+
+    def update_dispatch_rule_agent_metadata(
+        self,
+        *,
+        dispatch_rule_id: str,
         name: str,
         agent_name: str,
         metadata: str,

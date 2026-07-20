@@ -81,10 +81,16 @@ class RedisAgentProfileCache:
             return "unknown"
 
     @staticmethod
-    def _key(tenant_id: str, profile_version: int | None = None) -> str:
+    def _key(
+        tenant_id: str,
+        profile_version: int | None = None,
+        *,
+        agent_profile_id: str | None = None,
+    ) -> str:
+        scope = f"{tenant_id}:{agent_profile_id}" if agent_profile_id else tenant_id
         if profile_version is None:
-            return f"{KEY_PREFIX}:{tenant_id}:latest"
-        return f"{KEY_PREFIX}:{tenant_id}:v{profile_version}"
+            return f"{KEY_PREFIX}:{scope}:latest"
+        return f"{KEY_PREFIX}:{scope}:v{profile_version}"
 
     def get(
         self, tenant_id: str, *, profile_version: int | None = None
@@ -94,7 +100,17 @@ class RedisAgentProfileCache:
         client = self._get_client()
         if client is None:
             return None
-        key = self._key(tenant_id, profile_version)
+        # tenant_id may be composite cache key tenant:profile_id
+        if ":" in tenant_id and not tenant_id.startswith(KEY_PREFIX):
+            parts = tenant_id.split(":", 1)
+            scope_tenant, scope_profile = parts[0], parts[1]
+            key = self._key(
+                scope_tenant, profile_version, agent_profile_id=scope_profile
+            )
+            tenant_only = scope_tenant
+        else:
+            key = self._key(tenant_id, profile_version)
+            tenant_only = tenant_id
         try:
             raw = client.get(key)
         except Exception:
@@ -112,7 +128,7 @@ class RedisAgentProfileCache:
             with contextlib.suppress(Exception):
                 client.delete(key)
             return None
-        if profile.tenant_id != tenant_id:
+        if profile.tenant_id != tenant_only:
             with contextlib.suppress(Exception):
                 client.delete(key)
             return None
@@ -120,13 +136,30 @@ class RedisAgentProfileCache:
             return None
         return profile
 
-    def put(self, profile: AgentProfile) -> None:
+    def put(self, profile: AgentProfile, *, cache_key: str | None = None) -> None:
         client = self._get_client()
         if client is None:
             return
         payload = json.dumps(profile.to_api_payload(), separators=(",", ":"))
-        versioned = self._key(profile.tenant_id, profile.profile_version)
-        latest = self._key(profile.tenant_id, None)
+        if cache_key and ":" in cache_key:
+            scope_tenant, scope_profile = cache_key.split(":", 1)
+            versioned = self._key(
+                scope_tenant,
+                profile.profile_version,
+                agent_profile_id=scope_profile,
+            )
+            latest = self._key(scope_tenant, None, agent_profile_id=scope_profile)
+        else:
+            versioned = self._key(
+                profile.tenant_id,
+                profile.profile_version,
+                agent_profile_id=profile.agent_profile_id,
+            )
+            latest = self._key(
+                profile.tenant_id,
+                None,
+                agent_profile_id=profile.agent_profile_id,
+            )
         try:
             pipe = client.pipeline()
             pipe.set(versioned, payload, ex=self._ttl_sec)

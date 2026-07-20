@@ -31,6 +31,7 @@ class SearchBody(BaseModel):
     tenant_id: UUID
     query: str
     limit: int = Field(default=5, ge=1, le=10)
+    agent_profile_id: UUID | None = None
 
 
 class ArticleBody(BaseModel):
@@ -39,6 +40,7 @@ class ArticleBody(BaseModel):
     category: str = "faq"
     tags: list[str] = Field(default_factory=list)
     is_active: bool | None = None
+    agent_profile_id: UUID | None = None
 
 
 def _http(exc: Exception) -> HTTPException:
@@ -58,7 +60,10 @@ def internal_search(
 ) -> dict[str, Any]:
     try:
         hits = KnowledgeRepository(session).search(
-            body.tenant_id, body.query, limit=body.limit
+            body.tenant_id,
+            body.query,
+            limit=body.limit,
+            agent_profile_id=body.agent_profile_id,
         )
         return {"articles": hits, "count": len(hits)}
     except Exception as exc:
@@ -86,6 +91,7 @@ def create_article(
             body=body.body,
             category=body.category,
             tags=body.tags,
+            agent_profile_id=body.agent_profile_id,
             actor=user.email,
         )
         return {"article": article}

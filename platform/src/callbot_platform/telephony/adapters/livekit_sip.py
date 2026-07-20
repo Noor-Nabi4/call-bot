@@ -154,6 +154,79 @@ class LiveKitSipService(SipTrunkService, DispatchRuleService):
             )
         )
 
+    async def _update_dispatch_metadata_async(
+        self,
+        *,
+        dispatch_rule_id: str,
+        name: str,
+        agent_name: str,
+        metadata: str,
+        trunk_ids: list[str],
+        room_prefix: str,
+    ) -> LiveKitDispatchRuleInfo:
+        """Replace dispatch rule so RoomAgentDispatch.metadata includes agent_profile_id.
+
+        LiveKit docs: job metadata is set on RoomAgentDispatch and available as
+        ctx.job.metadata — see /telephony/accepting-calls/dispatch-rule/ and
+        /agents/server/agent-dispatch/.
+        """
+        lk = self._client()
+        try:
+            rule = api.SIPDispatchRule(
+                dispatch_rule_individual=api.SIPDispatchRuleIndividual(
+                    room_prefix=room_prefix,
+                )
+            )
+            info = api.SIPDispatchRuleInfo(
+                sip_dispatch_rule_id=dispatch_rule_id,
+                rule=rule,
+                name=name,
+                trunk_ids=trunk_ids,
+                room_config=api.RoomConfiguration(
+                    agents=[
+                        api.RoomAgentDispatch(
+                            agent_name=agent_name,
+                            metadata=metadata,
+                        )
+                    ]
+                ),
+            )
+            updated = await lk.sip.update_sip_dispatch_rule(
+                api.UpdateSIPDispatchRuleRequest(
+                    sip_dispatch_rule_id=dispatch_rule_id,
+                    replace=info,
+                )
+            )
+            return LiveKitDispatchRuleInfo(
+                dispatch_rule_id=updated.sip_dispatch_rule_id,
+                name=updated.name,
+            )
+        finally:
+            await lk.aclose()
+
+    def update_dispatch_rule_agent_metadata(
+        self,
+        *,
+        dispatch_rule_id: str,
+        name: str,
+        agent_name: str,
+        metadata: str,
+        trunk_ids: list[str],
+        room_prefix: str = "call-",
+    ) -> LiveKitDispatchRuleInfo:
+        import asyncio
+
+        return asyncio.run(
+            self._update_dispatch_metadata_async(
+                dispatch_rule_id=dispatch_rule_id,
+                name=name,
+                agent_name=agent_name,
+                metadata=metadata,
+                trunk_ids=trunk_ids,
+                room_prefix=room_prefix,
+            )
+        )
+
     async def _delete_dispatch_async(self, dispatch_rule_id: str) -> None:
         lk = self._client()
         try:

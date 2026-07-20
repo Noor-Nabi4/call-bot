@@ -27,16 +27,26 @@ class PlatformKnowledgeClient:
         self._timeout = timeout_sec
 
     def search(
-        self, *, tenant_id: str, query: str, limit: int = 5
+        self,
+        *,
+        tenant_id: str,
+        query: str,
+        limit: int = 5,
+        agent_profile_id: str | None = None,
     ) -> dict[str, Any]:
         if not self._base or not self._token:
             raise PlatformKnowledgeError(
                 "platform_not_configured",
                 "PLATFORM_API_URL and INTERNAL_SERVICE_TOKEN are required",
             )
-        body = json.dumps(
-            {"tenant_id": tenant_id, "query": query, "limit": limit}
-        ).encode("utf-8")
+        body_dict: dict[str, Any] = {
+            "tenant_id": tenant_id,
+            "query": query,
+            "limit": limit,
+        }
+        if agent_profile_id:
+            body_dict["agent_profile_id"] = agent_profile_id
+        body = json.dumps(body_dict).encode("utf-8")
         req = request.Request(
             f"{self._base}/internal/knowledge/search",
             data=body,
