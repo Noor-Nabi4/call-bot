@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { capabilities, howItWorks, industries } from "@/lib/copy";
+import { features, howItWorks, industries } from "@/lib/copy";
 import { getSiteUrl, seo } from "@/lib/seo";
 
 export function buildRootMetadata(): Metadata {
@@ -120,7 +120,7 @@ export function buildJsonLd() {
       priceCurrency: "USD",
       description: "Browser demo available",
     },
-    featureList: capabilities.items.map((item) => item.title),
+    featureList: features.items.map((item) => item.title),
     audience: {
       "@type": "Audience",
       audienceType: "Field service businesses",
@@ -168,7 +168,7 @@ export function buildJsonLd() {
     },
     speakable: {
       "@type": "SpeakableSpecification",
-      cssSelector: ["#hero-heading", "#answer-heading"],
+      cssSelector: ["#hero-heading", "#platform-heading", "#features-heading"],
     },
     inLanguage: "en-US",
   };

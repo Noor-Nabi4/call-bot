@@ -25,10 +25,9 @@ Open http://localhost:3002
 | Path | Purpose |
 |------|---------|
 | `/` | Marketing landing |
-| `/pricing` | Voice-minute plans: Starter $99 / Growth $249 (most popular) / Pro $499 + Enterprise |
 | `/signup` | Create tenant + admin, redirect to Stripe Checkout (default plan: Growth) |
 
-Signup flow: `/pricing` → `/signup` → Stripe Checkout → ops `/settings/billing`. Subscription activation requires Stripe webhooks on the platform API.
+Signup flow: `/#pricing` → `/signup` → Stripe Checkout → ops `/settings/billing`. Subscription activation requires Stripe webhooks on the platform API.
 
 Pricing model: included voice minutes, concurrent calls, and operational feature unlocks (dispatch / tech mobile on Growth+). Per-user pricing is secondary via add-ons.
 

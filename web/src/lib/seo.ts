@@ -1,4 +1,4 @@
-/** SEO configuration for the Call Bot marketing site. */
+/** SEO configuration for the CallBot marketing site. */
 
 export function getSiteUrl(): string {
   const raw =
@@ -11,78 +11,76 @@ export function getSiteUrl(): string {
 }
 
 export const seo = {
-  brand: "Call Bot",
-  title: "Call Bot | AI Phone Agents for Growing Businesses",
-  titleTemplate: "%s | Call Bot",
+  brand: "CallBot",
+  title: "CallBot | AI Voice Platform for Growing Businesses",
+  titleTemplate: "%s | CallBot",
   description:
-    "Call Bot answers every call in your brand’s voice, books appointments, hands off to humans, and runs multi-tenant ops — with marketplace agents, live monitoring, and a public API.",
+    "CallBot is an AI voice platform for businesses and call centers. Deploy AI receptionists, support agents, and sales agents that book appointments, answer from your knowledge base, and hand off to humans.",
   keywords: [
+    "AI voice platform",
     "AI phone receptionist",
-    "AI voice assistant for business",
+    "AI customer support agent",
+    "AI sales agent",
     "AI answering service",
-    "marketplace AI agents",
-    "multi-tenant voice agent",
-    "AI call center ops",
-    "live call monitoring",
-    "voice AI scheduling",
-    "HVAC call answering AI",
-    "medical appointment AI receptionist",
+    "appointment booking AI",
+    "call center automation",
+    "human handoff voice AI",
+    "multi-tenant voice platform",
+    "knowledge base phone agent",
+    "AI receptionist for healthcare",
+    "AI answering for home services",
     "restaurant reservation AI",
-    "SIP telephony voice AI",
-    "LiveKit voice agent",
-    "AI receptionist that books appointments",
-    "business voice API",
-    "Call Bot",
+    "CallBot",
   ],
   locale: "en_US",
-  ogImageAlt: "Call Bot — AI phone agents with marketplace installs and ops",
+  ogImageAlt: "CallBot — AI voice platform for businesses and call centers",
   twitterHandle: "",
 } as const;
 
 export const faqItems = [
   {
-    question: "What is Call Bot?",
+    question: "What is CallBot?",
     answer:
-      "Call Bot is a multi-tenant AI phone platform. It answers inbound calls, gathers details, books appointments when slots are available, can hand off to a human, and keeps records in your CRM, dispatch, and Ops console.",
+      "CallBot is an AI voice platform for businesses and call centers. It answers inbound calls, books appointments, responds from your knowledge base, and hands off to humans when needed — all from a multi-tenant workspace.",
   },
   {
-    question: "Who is Call Bot for?",
+    question: "Who is CallBot for?",
     answer:
-      "Call Bot fits field-service trades, clinics, restaurants, sales and support desks, insurance intake, and other businesses that need reliable phone coverage without missing revenue.",
+      "CallBot fits service businesses, healthcare, legal, insurance, real estate, restaurants, home services, call centers, and other teams that cannot afford to miss the phone.",
   },
   {
-    question: "What is the agent marketplace?",
+    question: "What can AI voice agents do?",
     answer:
-      "The marketplace offers one-click industry agent installs — HVAC, medical, restaurant, sales, support, collections, and more — with starter prompts and knowledge you can customize after install.",
+      "Agents can act as receptionists, customer support, or sales specialists — answering FAQs, capturing lead details, booking appointments, and escalating complex or sensitive requests.",
+  },
+  {
+    question: "Can CallBot book appointments?",
+    answer:
+      "Yes. After confirming caller details, CallBot can offer real availability and book, reschedule, or cancel visits. It does not invent open times.",
+  },
+  {
+    question: "What happens when a caller needs a person?",
+    answer:
+      "CallBot supports human handoff. When transfer is available, the call moves to your team with context. If not, CallBot can take a callback request and queue follow-up.",
+  },
+  {
+    question: "How does the knowledge base work?",
+    answer:
+      "You upload approved documents and FAQs. Agents use that content to answer questions accurately and stay within your business policies.",
+  },
+  {
+    question: "Is CallBot multi-tenant?",
+    answer:
+      "Yes. Each business keeps isolated numbers, agents, customers, appointments, and knowledge so data never mixes across companies.",
   },
   {
     question: "Can I run more than one agent?",
     answer:
-      "Yes. Create multiple agent profiles per tenant and assign each phone number to the right profile — reception, sales, support, or custom.",
-  },
-  {
-    question: "Can Call Bot book appointments?",
-    answer:
-      "Yes. After identifying the caller and confirming details, Call Bot can offer real availability and book, reschedule, or cancel visits — it does not invent open times.",
-  },
-  {
-    question: "What ops tools are included?",
-    answer:
-      "Ops includes live calls, a supervisor snapshot, quality reviews, a handoff follow-up queue, automations, team seats, usage metering, API keys, and white-label branding.",
-  },
-  {
-    question: "Does each business keep its own data?",
-    answer:
-      "Yes. Call Bot is multi-tenant. Customers, appointments, knowledge, and assistant settings are scoped to the resolved business so data never mixes across companies.",
-  },
-  {
-    question: "Is there a public API?",
-    answer:
-      "Yes. Tenant admins can issue API keys for read access to customers and calls via the /v1 endpoints. Automations can also POST signed HTTPS webhooks to your systems.",
+      "Yes. Create multiple agent profiles — reception, support, sales, or custom — and assign each phone number to the right profile.",
   },
   {
     question: "How do I get started?",
     answer:
-      "View pricing, create a workspace, and finish Stripe Checkout. Once Ops opens, install an agent from the marketplace, connect a number, and try the browser voice demo.",
+      "Start a free trial, create your workspace, configure an agent, and connect a phone number. You can also book a demo if you want a guided walkthrough.",
   },
 ] as const;

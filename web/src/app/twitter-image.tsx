@@ -18,9 +18,9 @@ export default function TwitterImage() {
           justifyContent: "space-between",
           padding: "64px",
           background:
-            "linear-gradient(160deg, #07120f 0%, #0f221c 45%, #14352c 100%)",
-          color: "#f3f8f5",
-          fontFamily: "Georgia, serif",
+            "linear-gradient(160deg, #071416 0%, #0c2228 45%, #0a3a36 100%)",
+          color: "#f3f5f7",
+          fontFamily: "system-ui, sans-serif",
         }}
       >
         <div
@@ -29,7 +29,7 @@ export default function TwitterImage() {
             fontSize: 36,
             fontWeight: 600,
             letterSpacing: "-0.03em",
-            color: "#71f0ca",
+            color: "#14b8a0",
           }}
         >
           {seo.brand}
@@ -44,18 +44,18 @@ export default function TwitterImage() {
               maxWidth: 900,
             }}
           >
-            Your AI phone team, ready in minutes.
+            Answer Every Call With AI
           </div>
           <div
             style={{
               fontSize: 28,
               lineHeight: 1.35,
-              color: "#afc2ba",
+              color: "#9bb0b6",
               maxWidth: 820,
-              fontFamily: "sans-serif",
             }}
           >
-            Marketplace agents, live ops, and booking — in your brand’s voice.
+            AI voice platform for reception, support, sales, booking, and
+            handoff.
           </div>
         </div>
       </div>

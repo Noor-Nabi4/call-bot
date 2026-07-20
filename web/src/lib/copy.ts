@@ -1,83 +1,117 @@
-/** Site copy for the Call Bot marketing landing. */
+/** Site copy for the CallBot marketing landing. */
 
 export const site = {
-  brand: "Call Bot",
-  title: "Call Bot | AI Phone Agents for Growing Businesses",
+  brand: "CallBot",
+  title: "CallBot | AI Voice Platform for Growing Businesses",
   description:
-    "Call Bot answers every call in your brand’s voice, books appointments, hands off to humans, and runs multi-tenant ops — with marketplace agents, live monitoring, and a public API.",
+    "CallBot is an AI voice platform for businesses and call centers. Deploy AI receptionists, support agents, and sales agents that book appointments, answer from your knowledge base, and hand off to humans.",
 } as const;
 
 export const hero = {
-  brand: "Call Bot",
-  headline: "Your AI phone team, ready in minutes.",
+  brand: "CallBot",
+  eyebrow: "AI Voice Platform",
+  headline: "Answer Every Call With AI",
   supporting:
-    "Install an industry agent, connect a number, and answer every call — booking, intake, and handoff included.",
-  primaryCta: "Try a live demo",
-  secondaryCta: "View pricing",
+    "Deploy intelligent AI voice agents for customer support, appointment booking, sales, and call centers using one scalable platform.",
+  primaryCta: "Start Free Trial",
+  secondaryCta: "Book Demo",
+  trustItems: [
+    "AI receptionist & support",
+    "Appointment booking",
+    "Human handoff included",
+  ],
 } as const;
 
-export const answer = {
-  title: "Answer every call like your best coordinator.",
-  body: "Callers get a natural conversation in your business voice — hours, service area, and next steps — without waiting on hold or hearing a generic answering machine.",
+export const trustedBy = {
+  title: "Trusted across industries that live on the phone",
+  logos: [
+    "Healthcare",
+    "Legal",
+    "Insurance",
+    "Real Estate",
+    "Restaurants",
+    "Home Services",
+    "Call Centers",
+    "Field Service",
+  ],
 } as const;
 
-export const book = {
-  title: "Turn conversations into booked work.",
-  body: "Capture the customer, save the request, and offer real appointment slots. Dispatch sees the same records your team already uses — no retyping from voicemail.",
-} as const;
-
-export const howItWorks = {
-  title: "How Call Bot works",
+export const whyChoose = {
+  title: "Why teams choose CallBot",
   supporting:
-    "From marketplace install to a live call, every step stays inside your tenant’s data.",
-  steps: [
+    "One platform to greet callers, resolve requests, book work, and escalate — without stitching together separate tools.",
+  items: [
     {
-      title: "Install an agent",
-      body: "Pick a ready-made industry template from the marketplace — HVAC, medical, restaurant, sales, support, and more — or start custom.",
+      title: "Never miss a call",
+      body: "AI agents answer around the clock in your brand voice, so after-hours and overflow calls still convert.",
     },
     {
-      title: "Connect your number",
-      body: "Buy or connect a phone line. Call Bot resolves the business from trusted telephony metadata — never from free-form caller guesses.",
+      title: "Book while you talk",
+      body: "Capture details and offer real appointment windows during the conversation — no voicemail callback loop.",
     },
     {
-      title: "Shape the conversation",
-      body: "Tune greeting, call flow steps, tools, and knowledge. Replies stay short, tenant-scoped, and confirmation-gated for bookings.",
+      title: "Escalate with context",
+      body: "When a caller needs a person, your team picks up with a clear summary of what already happened.",
     },
     {
-      title: "Run ops in one place",
-      body: "Live calls, supervisor view, handoff queue, quality scores, and dispatch use the same platform records your team already opens.",
+      title: "Scale without chaos",
+      body: "Multi-tenant workspaces keep each business’s numbers, knowledge, and agents cleanly separated.",
     },
   ],
 } as const;
 
-export const capabilities = {
-  title: "What the platform includes",
+export const platform = {
+  title: "One platform for every voice workflow",
   supporting:
-    "Voice AI plus the operations layer — not a chatbot taped onto a phone line.",
+    "From first greeting to post-call follow-up, CallBot covers the full conversation lifecycle.",
   items: [
     {
-      title: "Marketplace agents",
-      body: "One-click industry installs with starter knowledge, prompts, and tool presets you can customize after.",
+      title: "AI Receptionist",
+      body: "Greet callers, answer common questions, route by intent, and keep your front desk covered.",
     },
     {
-      title: "Multi-profile routing",
-      body: "Run reception, sales, and support agents under one tenant. Assign each phone number to the right profile.",
+      title: "AI Customer Support",
+      body: "Resolve FAQs from your knowledge base, open tickets, and escalate billing or account issues.",
     },
     {
-      title: "Scheduling & CRM",
-      body: "Look up customers, open leads, and book real availability — never invented slots or prices.",
+      title: "AI Sales Agent",
+      body: "Qualify leads, collect contact details, and schedule demos while interest is still high.",
     },
     {
-      title: "Call center ops",
-      body: "Live monitoring, supervisor snapshot, quality reviews, and a handoff follow-up queue for your team.",
+      title: "Call Center Automation",
+      body: "Handle overflow, after-hours volume, and routine queues so agents focus on high-value calls.",
+    },
+  ],
+} as const;
+
+export const features = {
+  title: "Voice agent capabilities that matter",
+  supporting:
+    "Built for real phone conversations — not chatbot scripts read aloud.",
+  items: [
+    {
+      title: "Natural conversations",
+      body: "Callers hear a clear, professional voice that listens, clarifies, and keeps the call moving.",
     },
     {
-      title: "Automations & webhooks",
-      body: "React to call ended, handoff, or booking events — write audits, create jobs, or POST signed HTTPS webhooks.",
+      title: "Appointment booking",
+      body: "Offer available slots, confirm details, and write bookings your team can trust.",
     },
     {
-      title: "Public API & branding",
-      body: "Issue API keys for customers and calls, and white-label Ops with your product name, logo, and colors.",
+      title: "Knowledge base answers",
+      body: "Ground replies in your approved documents so answers stay accurate and on-brand.",
+    },
+    {
+      title: "Human handoff",
+      body: "Transfer to a teammate or capture a callback when the situation needs a person.",
+    },
+    {
+      title: "Multi-tenant control",
+      body: "Run many businesses or brands from one platform with isolated settings and data.",
+    },
+    {
+      title: "Ops visibility",
+      body: "Monitor live calls, review outcomes, and improve scripts from a shared operations console.",
     },
   ],
 } as const;
@@ -85,61 +119,168 @@ export const capabilities = {
 export const industries = {
   title: "Ready for your industry",
   supporting:
-    "Same multi-tenant platform — install a template, keep your own numbers, customers, and knowledge.",
+    "Configure agents for the way your callers talk — then keep your own numbers, knowledge, and branding.",
   items: [
     {
-      name: "Field service",
-      body: "HVAC, plumbing, and electrical intake with emergency language, service-area checks, and weekday booking windows.",
+      name: "Healthcare",
+      body: "Front-desk coverage for scheduling, hours, and routing — without inventing clinical advice.",
     },
     {
-      name: "Healthcare & hospitality",
-      body: "Clinic front desk and restaurant reservations — schedule politely without inventing clinical or menu advice.",
+      name: "Legal & insurance",
+      body: "Intake new matters, gather case basics, and route urgent calls to the right desk.",
     },
     {
-      name: "Sales & support",
-      body: "Qualify leads, answer FAQs, triage tickets, and escalate billing or supervisor requests cleanly.",
+      name: "Real estate & home services",
+      body: "Qualify inquiries, book estimates, and capture address and job details on the first call.",
     },
     {
-      name: "Insurance & collections",
-      body: "Policy intake, claims routing, and respectful payment reminders with clear human handoff rules.",
+      name: "Restaurants & hospitality",
+      body: "Handle reservations, hours, and location questions when your team is mid-service.",
+    },
+    {
+      name: "Call centers",
+      body: "Automate high-volume FAQs and overflow while supervisors keep full visibility.",
+    },
+    {
+      name: "Small & mid-size businesses",
+      body: "Sound bigger than your headcount with always-on phone coverage that books work.",
     },
   ],
 } as const;
 
-export const platform = {
-  title: "Built for operators, not demos.",
+export const howItWorks = {
+  title: "How CallBot works",
   supporting:
-    "Everything your coordinators need after the call starts — without leaving Ops.",
-  items: [
+    "Go from signup to live answering without a lengthy implementation project.",
+  steps: [
     {
-      title: "Live & supervisor",
-      body: "See active calls, open handoffs, and today’s volume. Quality-score ended conversations from the call drawer.",
+      title: "Easy setup",
+      body: "Create your workspace, invite your team, and get your first agent ready in minutes.",
+      previewLabel: "Workspace",
+      previewLines: [
+        "Business profile created",
+        "Team seats invited",
+        "Agent draft ready",
+      ],
     },
     {
-      title: "Handoff queue",
-      body: "When a call ends after a handoff request, it lands in a claimable follow-up queue for your team.",
+      title: "Configure",
+      body: "Set greeting, knowledge, booking rules, and handoff preferences for reception, support, or sales.",
+      previewLabel: "Agent",
+      previewLines: [
+        "Knowledge connected",
+        "Booking windows set",
+        "Handoff rules active",
+      ],
     },
     {
-      title: "Team & billing",
-      body: "Invite seats, enforce plan limits, track voice minutes, and manage Stripe billing from the same console.",
+      title: "Go live",
+      body: "Connect a business number, answer real callers, and improve from live call outcomes.",
+      previewLabel: "Live calls",
+      previewLines: [
+        "Number routed",
+        "Inbound call answered",
+        "Booking confirmed",
+      ],
     },
   ],
 } as const;
 
-export const handoff = {
-  title: "Escalate when a human should take over.",
-  body: "Billing fights, emergencies, and frustrated callers can transfer to your team. If transfer is unavailable, Call Bot takes a callback and saves the request.",
+export const integrations = {
+  title: "Fits the tools you already use",
+  supporting:
+    "Connect calendars, CRMs, and notification channels so bookings and handoffs land where work already happens.",
+  items: [
+    {
+      title: "Calendars & scheduling",
+      body: "Sync availability so agents offer slots your team can actually honor.",
+    },
+    {
+      title: "CRM & customer records",
+      body: "Look up known callers and write new leads without retyping from voicemail.",
+    },
+    {
+      title: "Team alerts",
+      body: "Notify the right people when a handoff, booking, or urgent request lands.",
+    },
+    {
+      title: "Webhooks & API",
+      body: "Push call events into your own systems with signed webhooks and tenant API keys.",
+    },
+  ],
+} as const;
+
+export const analytics = {
+  title: "See what every call accomplished",
+  supporting:
+    "Operators need more than a recording — they need outcomes they can act on.",
+  metrics: [
+    {
+      label: "Answer rate",
+      body: "Track how many inbound calls your agents pick up versus miss.",
+    },
+    {
+      label: "Bookings created",
+      body: "Measure appointments and follow-ups captured during conversations.",
+    },
+    {
+      label: "Handoffs",
+      body: "Understand when callers need a human and how quickly the team responds.",
+    },
+    {
+      label: "Knowledge coverage",
+      body: "Spot questions your docs do not answer yet and close the gaps.",
+    },
+  ],
+} as const;
+
+export const pricingPreview = {
+  title: "Flexible pricing",
+  supporting:
+    "Pick the plan that matches your call volume — start with a trial, then scale minutes and numbers as you grow.",
+  cta: "Start Free Trial",
+  note: "Plans activate after checkout confirms. Minutes, concurrent calls, and numbers are included per plan.",
+} as const;
+
+export const testimonials = {
+  title: "What operators say",
+  supporting: "Teams use CallBot to keep phones covered without adding headcount overnight.",
+  items: [
+    {
+      quote:
+        "We stopped losing after-hours jobs. Callers book estimates while we sleep, and the office opens with a full schedule.",
+      name: "Operations lead",
+      role: "Home services company",
+    },
+    {
+      quote:
+        "The handoff queue is the difference. When someone needs a person, my team already knows why they called.",
+      name: "Support manager",
+      role: "Regional call center",
+    },
+    {
+      quote:
+        "Multi-location clinics stay separate in CallBot, but we still manage everything from one place.",
+      name: "Practice administrator",
+      role: "Healthcare group",
+    },
+  ],
+} as const;
+
+export const faq = {
+  title: "Frequently asked questions",
+  supporting: "Straight answers about how CallBot helps your callers and your team.",
 } as const;
 
 export const close = {
-  title: "Ready to answer the next call?",
-  body: "Pick a plan, create your workspace, and finish checkout. Install an agent from the marketplace once Ops opens.",
-  primaryCta: "View pricing",
-  secondaryCta: "Sign in to ops",
+  title: "Ready to answer every call?",
+  body: "Start a free trial, configure your first voice agent, and put CallBot on a number your customers already dial.",
+  primaryCta: "Start Free Trial",
+  secondaryCta: "View pricing",
 } as const;
 
 export const pricing = {
-  brand: "Call Bot",
+  brand: "CallBot",
   title: "Voice minutes. Real ops. Clear limits.",
   supporting:
     "Pick the plan that matches your call volume and crew — not a seat count.",
@@ -150,12 +291,12 @@ export const pricing = {
   annualNote:
     "Pay annually and get about two months free: Starter $990 · Growth $2,490 · Pro $4,990.",
   note: "Plans activate after Stripe confirms payment. SaaS billing uses our platform Stripe account — separate from any future Connect payouts.",
-  contactSalesHref: "mailto:sales@callbot.example?subject=Call%20Bot%20Enterprise",
+  contactSalesHref: "mailto:sales@callbot.example?subject=CallBot%20Enterprise",
   primaryCta: "Start with Growth",
 } as const;
 
 export const signup = {
-  brand: "Call Bot",
+  brand: "CallBot",
   heading: "Open your workspace",
   supporting:
     "Create the business account, then finish payment in Stripe Checkout.",
@@ -181,11 +322,35 @@ export const signup = {
 } as const;
 
 export const footer = {
-  note: "Multi-tenant voice AI — marketplace agents, call ops, and APIs for growing businesses.",
-  links: [
-    { label: "Pricing", hrefEnv: "pricing" as const },
-    { label: "Voice demo", hrefEnv: "playground" as const },
-    { label: "Ops console", hrefEnv: "ops" as const },
-    { label: "Sign in", hrefEnv: "login" as const },
+  tagline: "AI Voice Platform for businesses and call centers.",
+  note: "Reception, support, sales, booking, and handoff — one multi-tenant platform.",
+  columns: [
+    {
+      title: "Product",
+      links: [
+        { label: "Platform", href: "#platform" },
+        { label: "Features", href: "#features" },
+        { label: "Pricing", href: "/#pricing" },
+        { label: "How it works", href: "#how-it-works" },
+      ],
+    },
+    {
+      title: "Solutions",
+      links: [
+        { label: "AI Receptionist", href: "#platform" },
+        { label: "Call centers", href: "#industries" },
+        { label: "Healthcare", href: "#industries" },
+        { label: "Home services", href: "#industries" },
+      ],
+    },
+    {
+      title: "Company",
+      links: [
+        { label: "Sign up", href: "/signup" },
+        { label: "Sign in", hrefEnv: "login" as const },
+        { label: "Ops console", hrefEnv: "ops" as const },
+        { label: "Voice demo", hrefEnv: "playground" as const },
+      ],
+    },
   ],
 } as const;

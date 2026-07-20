@@ -178,7 +178,7 @@ export default function SignupForm() {
             className="ml-auto flex items-center gap-4 text-sm"
           >
             <Link
-              href="/pricing"
+              href="/#pricing"
               className="font-medium text-muted hover:text-ink"
             >
               {copy.comparePlans}

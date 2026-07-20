@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import { Fraunces, Manrope } from "next/font/google";
+import { DM_Sans, Outfit } from "next/font/google";
 import { buildJsonLd, buildRootMetadata } from "@/lib/metadata";
 import "./globals.css";
 
-const display = Fraunces({
+const display = Outfit({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
 });
 
-const sans = Manrope({
+const sans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
