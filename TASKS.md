@@ -986,7 +986,7 @@ Deferred: Stripe metered overage invoices, in-app plan upgrades via Checkout, em
 * [x] Marketplace (catalog metadata + `GET/POST /api/admin/marketplace[/install]`, Ops `/marketplace` one-click install; publisher billing deferred)
 * White label
 * Multi-agent routing
-* Enterprise integrations
+* [x] Enterprise integrations (thin: automation `post_webhook` HTTPS action with SSRF guards + HMAC signature; HubSpot/Salesforce OAuth deferred)
 * Public APIs
 
 ---

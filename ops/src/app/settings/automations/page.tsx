@@ -30,7 +30,12 @@ type Rule = {
   description: string | null;
   trigger_key: string;
   action_key: string;
-  config: { service_type?: string };
+  config: {
+    service_type?: string;
+    url?: string;
+    secret?: string;
+    timeout_sec?: number;
+  };
   is_enabled: boolean;
 };
 
@@ -71,7 +76,22 @@ export default function AutomationsPage() {
     trigger_key: "call.handoff_requested",
     action_key: "write_audit",
     service_type: "Handoff follow-up",
+    webhook_url: "",
+    webhook_secret: "",
   });
+
+  function buildConfig() {
+    if (form.action_key === "create_follow_up_job") {
+      return { service_type: form.service_type || "Automated follow-up" };
+    }
+    if (form.action_key === "post_webhook") {
+      return {
+        url: form.webhook_url.trim(),
+        secret: form.webhook_secret.trim() || null,
+      };
+    }
+    return {};
+  }
 
   const refresh = useCallback(async () => {
     const data = await api<{
@@ -111,10 +131,7 @@ export default function AutomationsPage() {
           description: form.description || null,
           trigger_key: form.trigger_key,
           action_key: form.action_key,
-          config:
-            form.action_key === "create_follow_up_job"
-              ? { service_type: form.service_type || "Automated follow-up" }
-              : {},
+          config: buildConfig(),
           is_enabled: true,
         }),
       });
@@ -124,6 +141,8 @@ export default function AutomationsPage() {
         trigger_key: form.trigger_key,
         action_key: form.action_key,
         service_type: "Handoff follow-up",
+        webhook_url: "",
+        webhook_secret: "",
       });
       toast.push(copy.created, "success");
       await refresh();
@@ -234,6 +253,30 @@ export default function AutomationsPage() {
                     }
                   />
                 </Field>
+              ) : null}
+              {form.action_key === "post_webhook" ? (
+                <>
+                  <Field label="HTTPS webhook URL">
+                    <Input
+                      value={form.webhook_url}
+                      onChange={(e) =>
+                        setForm({ ...form, webhook_url: e.target.value })
+                      }
+                      placeholder="https://example.com/hooks/callbot"
+                      required
+                    />
+                  </Field>
+                  <Field label="Shared secret (optional)">
+                    <Input
+                      type="password"
+                      value={form.webhook_secret}
+                      onChange={(e) =>
+                        setForm({ ...form, webhook_secret: e.target.value })
+                      }
+                      placeholder="Used for X-Callbot-Signature"
+                    />
+                  </Field>
+                </>
               ) : null}
               <Button type="submit" disabled={busy} className="w-fit">
                 {busy ? copy.saving : copy.createAction}

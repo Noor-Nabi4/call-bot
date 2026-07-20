@@ -10,6 +10,11 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from callbot_platform.automation.webhooks import (
+    WebhookError,
+    deliver_webhook,
+    normalize_webhook_config,
+)
 from callbot_platform.db.models import AutomationRule
 from callbot_platform.jobs.repos.job_repo import JobRepository
 from callbot_platform.telephony.audit import write_audit
@@ -27,6 +32,7 @@ VALID_ACTIONS = frozenset(
     {
         "write_audit",
         "create_follow_up_job",
+        "post_webhook",
     }
 )
 
@@ -74,6 +80,7 @@ class AutomationService:
                 "invalid_action",
                 f"action_key must be one of {sorted(VALID_ACTIONS)}",
             )
+        normalized_config = self._normalize_config(action_key, config)
         existing = self._session.scalar(
             select(AutomationRule).where(
                 AutomationRule.tenant_id == tenant_id,
@@ -88,7 +95,7 @@ class AutomationService:
             description=(description or "").strip() or None,
             trigger_key=trigger_key,
             action_key=action_key,
-            config=dict(config or {}),
+            config=normalized_config,
             is_enabled=is_enabled,
         )
         self._session.add(row)
@@ -148,8 +155,10 @@ class AutomationService:
                     f"action_key must be one of {sorted(VALID_ACTIONS)}",
                 )
             row.action_key = action_key
-        if config is not None:
-            row.config = dict(config)
+        if config is not None or action_key is not None:
+            effective_action = action_key or row.action_key
+            incoming = config if config is not None else (row.config or {})
+            row.config = self._normalize_config(effective_action, incoming)
         if is_enabled is not None:
             row.is_enabled = is_enabled
         row.updated_at = datetime.now(UTC)
@@ -207,6 +216,13 @@ class AutomationService:
                     "label": "Create follow-up job",
                     "description": (
                         "Create an unassigned dispatch job when a customer is known."
+                    ),
+                },
+                {
+                    "key": "post_webhook",
+                    "label": "POST webhook",
+                    "description": (
+                        "Send an HTTPS JSON webhook to your integration endpoint."
                     ),
                 },
             ],
@@ -304,7 +320,52 @@ class AutomationService:
             )
             return {"job_id": job["id"]}
 
+        if row.action_key == "post_webhook":
+            try:
+                cfg = normalize_webhook_config(row.config)
+            except WebhookError as exc:
+                raise AutomationError(exc.code, str(exc)) from exc
+            result = deliver_webhook(
+                url=cfg["url"],
+                payload=payload,
+                secret=cfg.get("secret"),
+                timeout_sec=float(cfg["timeout_sec"]),
+                event=row.trigger_key,
+                tenant_id=str(row.tenant_id),
+                rule_id=str(row.id),
+            )
+            write_audit(
+                self._session,
+                tenant_id=row.tenant_id,
+                actor="automation",
+                action="automation_webhook_sent",
+                resource_ids={
+                    "rule_id": str(row.id),
+                    "trigger": row.trigger_key,
+                },
+                payload_summary={
+                    "status_code": result.get("status_code"),
+                    "host": cfg["url"].split("/")[2] if "://" in cfg["url"] else None,
+                },
+            )
+            return result
+
         raise AutomationError("invalid_action", f"Unknown action {row.action_key}")
+
+    def _normalize_config(
+        self, action_key: str, config: dict[str, Any] | None
+    ) -> dict[str, Any]:
+        if action_key == "post_webhook":
+            try:
+                return normalize_webhook_config(config)
+            except WebhookError as exc:
+                raise AutomationError(exc.code, str(exc)) from exc
+        if action_key == "create_follow_up_job":
+            service_type = str(
+                (config or {}).get("service_type") or "Automated follow-up"
+            )
+            return {"service_type": service_type[:128]}
+        return dict(config or {})
 
     def _get(self, tenant_id: UUID, rule_id: UUID) -> AutomationRule:
         row = self._session.scalar(
@@ -318,6 +379,9 @@ class AutomationService:
         return row
 
     def _serialize(self, row: AutomationRule) -> dict[str, Any]:
+        config = dict(row.config or {})
+        if row.action_key == "post_webhook" and config.get("secret"):
+            config = {**config, "secret": "***"}
         return {
             "id": str(row.id),
             "tenant_id": str(row.tenant_id),
@@ -325,7 +389,7 @@ class AutomationService:
             "description": row.description,
             "trigger_key": row.trigger_key,
             "action_key": row.action_key,
-            "config": row.config or {},
+            "config": config,
             "is_enabled": row.is_enabled,
             "created_at": row.created_at.isoformat() if row.created_at else None,
             "updated_at": row.updated_at.isoformat() if row.updated_at else None,
