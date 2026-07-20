@@ -12,8 +12,8 @@ from sqlalchemy.orm import Session
 from callbot_platform.api.deps import (
     CurrentUser,
     db_dep,
-    require_internal_token,
     require_entitled_ops_roles,
+    require_internal_token,
 )
 from callbot_platform.knowledge.repos import KnowledgeError, KnowledgeRepository
 from callbot_platform.security.session import ROLE_ADMIN, ROLE_DISPATCHER
@@ -34,6 +34,14 @@ class SearchBody(BaseModel):
     agent_profile_id: UUID | None = None
 
 
+class OpsSearchBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    query: str = Field(min_length=1, max_length=500)
+    limit: int = Field(default=5, ge=1, le=10)
+    agent_profile_id: UUID | None = None
+
+
 class ArticleBody(BaseModel):
     title: str
     body: str
@@ -46,6 +54,8 @@ class ArticleBody(BaseModel):
 def _http(exc: Exception) -> HTTPException:
     if isinstance(exc, KnowledgeError):
         status = 404 if exc.code == "not_found" else 400
+        if exc.code == "plan_limit_exceeded":
+            status = 403
         return HTTPException(
             status_code=status, detail={"code": exc.code, "message": str(exc)}
         )
@@ -72,16 +82,41 @@ def internal_search(
 
 @ops_router.get("")
 def list_articles(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     return {"articles": KnowledgeRepository(session).list(user.tenant_id)}
 
 
+@ops_router.post("/search")
+def ops_search(
+    body: OpsSearchBody,
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    """Preview the same ranked search the voice agent uses (session-scoped)."""
+    try:
+        hits = KnowledgeRepository(session).search(
+            user.tenant_id,
+            body.query,
+            limit=body.limit,
+            agent_profile_id=body.agent_profile_id,
+        )
+        return {"articles": hits, "count": len(hits)}
+    except Exception as exc:
+        raise _http(exc) from exc
+
+
 @ops_router.post("")
 def create_article(
     body: ArticleBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     try:
@@ -103,7 +138,9 @@ def create_article(
 def update_article(
     article_id: UUID,
     body: ArticleBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     try:
@@ -115,6 +152,7 @@ def update_article(
             category=body.category,
             tags=body.tags,
             is_active=body.is_active,
+            agent_profile_id=body.agent_profile_id,
             actor=user.email,
         )
         return {"article": article}
@@ -125,7 +163,9 @@ def update_article(
 @ops_router.delete("/{article_id}")
 def delete_article(
     article_id: UUID,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
     session: Session = Depends(db_dep),
 ) -> dict[str, bool]:
     try:

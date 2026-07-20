@@ -969,7 +969,7 @@ Deferred: Stripe metered overage invoices, in-app plan upgrades via Checkout, em
 ## Phase 4
 
 * Visual Call Flow Builder
-* Knowledge management improvements
+* [x] Knowledge management improvements (edit/deactivate, agent-profile scope, Ops search preview via `POST /api/knowledge/search`)
 * Advanced analytics
 * Automation rules
 

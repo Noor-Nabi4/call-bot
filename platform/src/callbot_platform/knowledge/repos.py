@@ -23,6 +23,9 @@ _INJECTION_RE = re.compile(
 )
 
 
+_UNSET: object = object()
+
+
 class KnowledgeError(ValueError):
     def __init__(self, code: str, message: str) -> None:
         super().__init__(message)
@@ -117,19 +120,36 @@ class KnowledgeRepository:
         category: str | None = None,
         tags: list[str] | None = None,
         is_active: bool | None = None,
+        agent_profile_id: UUID | None | object = _UNSET,
         actor: str = "ops",
     ) -> dict[str, Any]:
         row = self._get(tenant_id, article_id)
         if title is not None:
-            row.title = title.strip()[:255]
+            cleaned = title.strip()
+            if not cleaned:
+                raise KnowledgeError("invalid_article", "title is required")
+            row.title = cleaned[:255]
         if body is not None:
-            row.body = body.strip()
+            cleaned_body = body.strip()
+            if not cleaned_body:
+                raise KnowledgeError("invalid_article", "body is required")
+            row.body = cleaned_body
         if category is not None:
             row.category = category.strip().lower()[:64]
         if tags is not None:
             row.tags = [str(t).strip() for t in tags if str(t).strip()]
         if is_active is not None:
+            # Reactivating counts against knowledge document entitlement.
+            if is_active and not row.is_active:
+                try:
+                    EntitlementGuard(self._session).require_capacity(
+                        tenant_id, "knowledge_documents"
+                    )
+                except EntitlementError as exc:
+                    raise KnowledgeError(exc.code, str(exc)) from exc
             row.is_active = is_active
+        if agent_profile_id is not _UNSET:
+            row.agent_profile_id = agent_profile_id  # type: ignore[assignment]
         row.updated_at = datetime.now(UTC)
         self._session.flush()
         write_audit(
