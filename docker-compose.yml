@@ -28,22 +28,5 @@ services:
       - redis
     # Agent worker connects outbound to LiveKit; no host ports required.
 
-  playground:
-    build:
-      context: ./playground
-      dockerfile: Dockerfile
-    container_name: call-bot-playground
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    env_file:
-      - ./playground/.env.local
-    environment:
-      NODE_ENV: production
-      PORT: "3000"
-      HOSTNAME: 0.0.0.0
-    depends_on:
-      - voice-agent
-
 volumes:
   callbot_redis_data:

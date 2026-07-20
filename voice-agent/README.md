@@ -91,7 +91,7 @@ uv run python scripts/check_env.py
 ```
 ## Run
 
-Console / playground:
+Console (local mic):
 
 ```bash
 uv run src/agent.py console

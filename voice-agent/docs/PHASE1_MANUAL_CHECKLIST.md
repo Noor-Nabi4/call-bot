@@ -12,20 +12,22 @@ uv run src/agent.py console
 # or: uv run src/agent.py dev
 ```
 
-Browser playground (recommended for UI testing):
+Browser voice testing (recommended for UI testing):
 
 ```bash
 # terminal 1
 cd voice-agent && uv run src/agent.py dev
 
-# terminal 2
-cd playground
-cp .env.example .env.local   # same LIVEKIT_* values as voice-agent
-npm install && npm run dev
-# open http://localhost:3000 → Start call
+# terminal 2 — marketing demo (tenant-less)
+cd web && npm run dev
+# open http://localhost:3002/#demo → Start demo
+
+# or terminal 2 — tenant playground (after ops login)
+cd ops && npm run dev
+# open http://localhost:3001/playground → Start test call
 ```
 
-Then open LiveKit Agents console / playground, or use this repo's Next.js playground.
+Then open LiveKit Agents console, or use the marketing demo / Ops playground above.
 
 ## Checklist (mark each pass)
 

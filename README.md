@@ -34,20 +34,6 @@ uv run src/agent.py console  # local mic test
 uv run src/agent.py dev      # LiveKit Cloud dev worker
 ```
 
-## Quick start (browser playground)
-
-With the voice worker running (`uv run src/agent.py dev`):
-
-```bash
-cd playground
-cp .env.example .env.local
-# Fill LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET
-npm install
-npm run dev
-```
-
-Open http://localhost:3000 and click **Start call**.
-
 Unit tests (no live providers):
 
 ```bash
@@ -60,13 +46,12 @@ uv run pytest tests/test_config.py tests/test_prompt.py tests/test_state.py test
 ```text
 call-bot/
 ├── TASKS.md                 # phased product plan
-├── docker-compose.yml       # voice-agent + playground
+├── docker-compose.yml       # redis + voice-agent
 ├── .github/workflows/       # CI
 ├── platform/                # FastAPI telephony + CRM + scheduling + jobs
 ├── voice-agent/             # LiveKit voice worker (v1) + Dockerfile
-├── web/                     # Marketing landing (Next.js)
-├── playground/              # Next.js LiveKit playground + /telephony wizard
-└── ops/                     # Next.js dispatch board + technician mobile
+├── web/                     # Marketing landing + embedded voice demo (Next.js)
+└── ops/                     # Dispatch board, playground, technician mobile
 ```
 
 ## Quick start (landing)
@@ -78,7 +63,9 @@ npm install
 npm run dev   # http://localhost:3002
 ```
 
-## Quick start (ops dispatch)
+Embedded marketing voice demo lives on `/#demo` (tenant-less). Tenant-specific voice testing is in Ops → Playground.
+
+## Quick start (ops)
 
 ```bash
 cd ops
@@ -88,6 +75,7 @@ npm run dev   # http://localhost:3001
 ```
 
 Bootstrap the first tenant admin via `POST /auth/bootstrap` (see `ops/README.md`).
+After login, open **Playground** to test your agent profiles in-browser.
 
 ## Quick start (platform telephony API)
 
@@ -99,24 +87,16 @@ cp .env.example .env.local
 uv run uvicorn callbot_platform.main:app --port 8000
 ```
 
-Wizard UI: http://localhost:3000/telephony (playground) against the platform API.
+Phone onboarding and test calls are managed from Ops (`/phones`, `/playground`).
 
 ## Docker
 
 ```bash
-# from repo root (requires both .env.local files)
+# from repo root (requires voice-agent/.env.local)
 docker compose up --build
 ```
 
-Compose now includes Redis for the voice-agent shared Agent Profile cache (`REDIS_URL`).
-
-Playground only:
-
-```bash
-cd playground
-docker build -t call-bot-playground .
-docker run --rm -p 3000:3000 --env-file .env.local call-bot-playground
-```
+Compose includes Redis for the voice-agent shared Agent Profile cache (`REDIS_URL`).
 
 ## Secrets
 

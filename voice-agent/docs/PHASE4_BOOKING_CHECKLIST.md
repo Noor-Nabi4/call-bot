@@ -4,7 +4,7 @@
 
 - [ ] Phase 3 CRM working (customer upsert + lead tools)
 - [ ] Platform API running with migrated DB (`alembic upgrade head` includes `0003_scheduling`)
-- [ ] Voice agent + playground configured with `PLATFORM_API_URL` and `INTERNAL_SERVICE_TOKEN`
+- [ ] Voice agent + Ops playground configured with `PLATFORM_API_URL` and `INTERNAL_SERVICE_TOKEN`
 - [ ] Tenant has timezone set (default UTC; prefer a real IANA zone like `America/Los_Angeles`)
 
 ## Automated
@@ -14,7 +14,7 @@
 
 ## Operator E2E (voice)
 
-- [ ] Resolve to a known tenant (web playground with signed metadata, or SIP DID)
+- [ ] Resolve to a known tenant (Ops playground test call with signed metadata, or SIP DID)
 - [ ] Caller provides name + phone; agent saves customer
 - [ ] Caller asks to book; agent calls `get_available_slots` and offers real times
 - [ ] Caller confirms a slot; agent books and reads back confirmation code (`APT-…`)

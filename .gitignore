@@ -13,15 +13,15 @@
 node_modules/
 .next/
 
-# Nested agent / playground local env
+# Nested agent / app local env
 voice-agent/.venv/
 voice-agent/.env.local
-playground/.env.local
-playground/node_modules/
-playground/.next/
 ops/.env.local
 ops/node_modules/
 ops/.next/
+web/.env.local
+web/node_modules/
+web/.next/
 platform/.venv/
 platform/.env.local
 .tmp-techverseo/
