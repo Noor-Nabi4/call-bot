@@ -984,7 +984,7 @@ Deferred: Stripe metered overage invoices, in-app plan upgrades via Checkout, em
 ## Phase 6
 
 * [x] Marketplace (catalog metadata + `GET/POST /api/admin/marketplace[/install]`, Ops `/marketplace` one-click install; publisher billing deferred)
-* White label
+* [x] White label (tenant branding: product name / logo URL / colors / support email; Ops `/settings/branding` + shell CSS vars; migration `0017_tenant_branding` — custom domains deferred)
 * Multi-agent routing
 * [x] Enterprise integrations (thin: automation `post_webhook` HTTPS action with SSRF guards + HMAC signature; HubSpot/Salesforce OAuth deferred)
 * [x] Public APIs (tenant API keys hashed-at-rest, Ops `/settings/api-keys`, `GET /v1/customers` + `GET /v1/calls`; migration `0016_api_keys`)

@@ -22,6 +22,7 @@ from callbot_platform.api.automation_routes import (
     router as automation_router,  # noqa: E402
 )
 from callbot_platform.api.billing_routes import router as billing_router  # noqa: E402
+from callbot_platform.api.branding_routes import router as branding_router  # noqa: E402
 from callbot_platform.api.crm_routes import (  # noqa: E402
     internal_tenant_router,
     tenant_settings_router,
@@ -77,6 +78,7 @@ app.include_router(internal_tenant_router)
 app.include_router(scheduling_router)
 app.include_router(auth_router)
 app.include_router(billing_router)
+app.include_router(branding_router)
 app.include_router(jobs_router)
 app.include_router(knowledge_internal_router)
 app.include_router(knowledge_ops_router)

@@ -167,6 +167,21 @@ export const apiKeys = {
   dismissSecret: "I saved the secret",
 } as const;
 
+export const branding = {
+  title: "Branding",
+  description:
+    "White-label Ops chrome: product name, logo, and brand colors. Custom domains come later.",
+  productName: "Product name",
+  logoUrl: "Logo URL",
+  primaryColor: "Primary color",
+  accentColor: "Accent / hover color",
+  supportEmail: "Support email",
+  save: "Save branding",
+  saving: "Saving…",
+  saved: "Branding saved",
+  hint: "Applies to the Ops shell for your tenant",
+} as const;
+
 export const knowledge = {
   title: "Knowledge",
   description:

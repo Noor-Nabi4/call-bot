@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Menu, Search } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import type { OpsUser } from "@/lib/api";
 import { NotificationsMenu } from "@/components/notifications-menu";
 import { CommandSearch } from "./command-search";
@@ -11,6 +11,17 @@ import { SidebarNavigation } from "./sidebar-nav";
 import { TechBottomNav } from "./tech-bottom-nav";
 import { TenantSwitcher } from "./tenant-switcher";
 import { UserMenu } from "./user-menu";
+
+type Branding = {
+  product_name?: string | null;
+  logo_url?: string | null;
+  primary_color?: string | null;
+  accent_color?: string | null;
+};
+
+const API =
+  process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
+  "http://localhost:8000";
 
 export function AppShell({
   user,
@@ -21,7 +32,9 @@ export function AppShell({
 }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [branding, setBranding] = useState<Branding | null>(null);
   const isTech = user.role === "technician";
+  const productName = branding?.product_name?.trim() || "Call Bot";
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -38,15 +51,49 @@ export function AppShell({
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    if (user.role !== "admin" && user.role !== "dispatcher") return;
+    let cancelled = false;
+    fetch(`${API}/api/admin/branding`, { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return res.json() as Promise<{ branding: Branding }>;
+      })
+      .then((data) => {
+        if (!cancelled && data?.branding) setBranding(data.branding);
+      })
+      .catch(() => {
+        /* branding is optional chrome */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user.role]);
+
+  const brandStyle = {
+    ...(branding?.primary_color
+      ? {
+          ["--ops-accent" as string]: branding.primary_color,
+          ["--color-brand" as string]: branding.primary_color,
+        }
+      : {}),
+    ...(branding?.accent_color
+      ? { ["--ops-accent-hover" as string]: branding.accent_color }
+      : {}),
+  } as CSSProperties;
+
   if (isTech) {
     return (
-      <div className="ops-shell-atmosphere min-h-screen text-text-primary">
+      <div
+        className="ops-shell-atmosphere min-h-screen text-text-primary"
+        style={brandStyle}
+      >
         <div className="ops-shell-inner">
           <header className="sticky top-0 z-30 border-b border-border bg-paper/85 backdrop-blur-xl">
             <div className="mx-auto flex h-14 max-w-lg items-center justify-between gap-3 px-4">
               <div>
                 <p className="text-[10px] font-medium tracking-[0.14em] text-text-muted uppercase">
-                  Call Bot
+                  {productName}
                 </p>
                 <p className="font-heading text-sm font-semibold tracking-tight">
                   {user.tenant_name}
@@ -63,14 +110,26 @@ export function AppShell({
   }
 
   return (
-    <div className="ops-shell-atmosphere min-h-screen text-text-primary">
+    <div
+      className="ops-shell-atmosphere min-h-screen text-text-primary"
+      style={brandStyle}
+    >
       <div className="ops-shell-inner lg:flex">
         <aside className="ops-sidebar sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-white/10 p-4 lg:flex">
           <div className="px-3">
             <Link href="/dashboard" className="block text-[#f3f8f5]">
-              <p className="font-heading text-xl font-semibold tracking-[-0.03em]">
-                Call Bot
-              </p>
+              {branding?.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={branding.logo_url}
+                  alt={productName}
+                  className="mb-2 h-8 max-w-[160px] object-contain"
+                />
+              ) : (
+                <p className="font-heading text-xl font-semibold tracking-[-0.03em]">
+                  {productName}
+                </p>
+              )}
             </Link>
             <p className="mt-1 text-[11px] text-[#afc2ba]">Operations</p>
             <div className="mt-4">

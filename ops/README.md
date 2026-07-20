@@ -25,6 +25,7 @@ and `src/components/ops/`.
 | `/settings` | Team, retention, audit |
 | `/settings/automations` | Event-driven automation rules |
 | `/settings/api-keys` | Public /v1 API keys |
+| `/settings/branding` | White-label product name, logo, colors |
 | `/settings/billing` | SaaS subscription status + Stripe Customer Portal |
 | `/settings/assistant` | Voice assistant profile |
 | `/tech` | Technician mobile jobs |
