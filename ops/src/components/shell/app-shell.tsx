@@ -1,8 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Menu, Search } from "lucide-react";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
+import {
+  useEffect,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import type { OpsUser } from "@/lib/api";
 import { NotificationsMenu } from "@/components/notifications-menu";
 import { CommandSearch } from "./command-search";
@@ -23,6 +29,39 @@ const API =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
   "http://localhost:8000";
 
+const SIDEBAR_COLLAPSED_KEY = "ops-sidebar-collapsed";
+const SIDEBAR_COLLAPSED_EVENT = "ops-sidebar-collapsed-change";
+
+function subscribeSidebarCollapsed(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(SIDEBAR_COLLAPSED_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(SIDEBAR_COLLAPSED_EVENT, onStoreChange);
+  };
+}
+
+function getSidebarCollapsedSnapshot() {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function getSidebarCollapsedServerSnapshot() {
+  return false;
+}
+
+function setSidebarCollapsedPreference(collapsed: boolean) {
+  try {
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(new Event(SIDEBAR_COLLAPSED_EVENT));
+}
+
 export function AppShell({
   user,
   children,
@@ -32,6 +71,11 @@ export function AppShell({
 }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const sidebarCollapsed = useSyncExternalStore(
+    subscribeSidebarCollapsed,
+    getSidebarCollapsedSnapshot,
+    getSidebarCollapsedServerSnapshot,
+  );
   const [branding, setBranding] = useState<Branding | null>(null);
   const isTech = user.role === "technician";
   const productName = branding?.product_name?.trim() || "VoxPilot";
@@ -69,6 +113,10 @@ export function AppShell({
       cancelled = true;
     };
   }, [user.role]);
+
+  function toggleSidebarCollapsed() {
+    setSidebarCollapsedPreference(!sidebarCollapsed);
+  }
 
   const brandStyle = {
     ...(branding?.primary_color
@@ -115,10 +163,32 @@ export function AppShell({
       style={brandStyle}
     >
       <div className="ops-shell-inner lg:flex">
-        <aside className="ops-sidebar sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-white/10 p-4 lg:flex">
-          <div className="px-3">
-            <Link href="/dashboard" className="block text-white">
-              {branding?.logo_url ? (
+        <aside
+          className="ops-sidebar sticky top-0 hidden h-screen shrink-0 flex-col border-r border-white/10 lg:flex"
+          data-collapsed={sidebarCollapsed ? "true" : "false"}
+        >
+          <div
+            className={
+              sidebarCollapsed
+                ? "flex flex-col items-center px-2 pt-4"
+                : "px-3 pt-4"
+            }
+          >
+            <Link
+              href="/dashboard"
+              className="block text-white"
+              title={productName}
+            >
+              {sidebarCollapsed ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src="/branding/favicon.svg"
+                  alt={productName}
+                  width={28}
+                  height={28}
+                  className="size-7 object-contain"
+                />
+              ) : branding?.logo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={branding.logo_url}
@@ -136,14 +206,52 @@ export function AppShell({
                 />
               )}
             </Link>
-            <p className="mt-1 text-[11px] tracking-[0.08em] text-hero-muted uppercase">
-              Operations
-            </p>
-            <div className="mt-4">
-              <TenantSwitcher user={user} tone="dark" />
+            {!sidebarCollapsed ? (
+              <p className="mt-1 text-[11px] tracking-[0.08em] text-hero-muted uppercase">
+                Operations
+              </p>
+            ) : null}
+            <div className={sidebarCollapsed ? "mt-3 w-full" : "mt-4"}>
+              <TenantSwitcher
+                user={user}
+                tone="dark"
+                collapsed={sidebarCollapsed}
+              />
             </div>
           </div>
-          <SidebarNavigation user={user} />
+
+          <SidebarNavigation user={user} collapsed={sidebarCollapsed} />
+
+          <div
+            className={
+              sidebarCollapsed
+                ? "mt-auto border-t border-white/10 p-2"
+                : "mt-auto border-t border-white/10 p-3"
+            }
+          >
+            <button
+              type="button"
+              onClick={toggleSidebarCollapsed}
+              className={
+                sidebarCollapsed
+                  ? "flex w-full items-center justify-center rounded-[10px] p-2 text-hero-muted transition-colors hover:bg-white/10 hover:text-white"
+                  : "flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-sm font-medium text-hero-muted transition-colors hover:bg-white/10 hover:text-white"
+              }
+              aria-label={
+                sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
+              }
+              aria-expanded={!sidebarCollapsed}
+            >
+              {sidebarCollapsed ? (
+                <PanelLeftOpen className="size-4" aria-hidden />
+              ) : (
+                <>
+                  <PanelLeftClose className="size-4 shrink-0" aria-hidden />
+                  <span>Collapse</span>
+                </>
+              )}
+            </button>
+          </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">

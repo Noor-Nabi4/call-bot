@@ -6,9 +6,11 @@ import { cn } from "@/lib/cn";
 export function TenantSwitcher({
   user,
   tone = "light",
+  collapsed = false,
 }: {
   user: OpsUser;
   tone?: "light" | "dark";
+  collapsed?: boolean;
 }) {
   const dark = tone === "dark";
   return (
@@ -18,8 +20,9 @@ export function TenantSwitcher({
         dark
           ? "border-white/15 bg-white/5"
           : "border-border bg-surface",
+        collapsed && "justify-center px-2",
       )}
-      title="Active business"
+      title={user.tenant_name}
     >
       <span
         className={cn(
@@ -28,16 +31,18 @@ export function TenantSwitcher({
         )}
         aria-hidden
       />
-      <div className="min-w-0">
-        <p
-          className={cn(
-            "truncate text-sm font-medium",
-            dark ? "text-white" : "text-text-primary",
-          )}
-        >
-          {user.tenant_name}
-        </p>
-      </div>
+      {!collapsed ? (
+        <div className="min-w-0">
+          <p
+            className={cn(
+              "truncate text-sm font-medium",
+              dark ? "text-white" : "text-text-primary",
+            )}
+          >
+            {user.tenant_name}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

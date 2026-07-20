@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import { Plus, UserPlus } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
 import { errors, team as copy } from "@/lib/copy";
@@ -13,7 +14,9 @@ import {
 } from "@/lib/api/admin";
 import {
   Button,
+  ConfirmDialog,
   DataTable,
+  DetailDrawer,
   EmptyState,
   ErrorState,
   Field,
@@ -21,10 +24,18 @@ import {
   LoadingSkeleton,
   PageHeader,
   Select,
-  Surface,
   useToast,
   type DataTableColumn,
 } from "@/components/ui";
+
+const EMPTY_INVITE = {
+  name: "",
+  email: "",
+  password: "",
+  role: "dispatcher",
+};
+
+const INVITE_FORM_ID = "invite-teammate-form";
 
 export default function TeamPage() {
   const { user, loading } = useAuth({ roles: ["admin"] });
@@ -32,14 +43,11 @@ export default function TeamPage() {
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteBusy, setInviteBusy] = useState(false);
   const [rowBusy, setRowBusy] = useState<string | null>(null);
-  const [invite, setInvite] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "dispatcher",
-  });
+  const [invite, setInvite] = useState(EMPTY_INVITE);
+  const [confirmTarget, setConfirmTarget] = useState<TeamUser | null>(null);
 
   const refresh = useCallback(async () => {
     const data = await listTeamUsers();
@@ -62,13 +70,20 @@ export default function TeamPage() {
     };
   }, [user, refresh]);
 
+  function closeInvite() {
+    if (inviteBusy) return;
+    setInviteOpen(false);
+    setInvite(EMPTY_INVITE);
+  }
+
   async function onInvite(e: FormEvent) {
     e.preventDefault();
     setInviteBusy(true);
     setError(null);
     try {
       await inviteTeamUser(invite);
-      setInvite({ name: "", email: "", password: "", role: "dispatcher" });
+      setInvite(EMPTY_INVITE);
+      setInviteOpen(false);
       toast.push(copy.invited, "success");
       await refresh();
     } catch (err) {
@@ -93,7 +108,9 @@ export default function TeamPage() {
     }
   }
 
-  async function onToggleActive(target: TeamUser) {
+  async function onConfirmToggleActive() {
+    if (!confirmTarget) return;
+    const target = confirmTarget;
     setRowBusy(target.id);
     setError(null);
     try {
@@ -102,6 +119,7 @@ export default function TeamPage() {
         target.is_active ? copy.deactivated : copy.reactivated,
         "success",
       );
+      setConfirmTarget(null);
       await refresh();
     } catch (err) {
       setError(safeUserError(err, errors.saveFailed));
@@ -142,7 +160,13 @@ export default function TeamPage() {
       id: "status",
       header: "Status",
       cell: (u) => (
-        <span className="font-mono text-xs uppercase">
+        <span
+          className={
+            u.is_active
+              ? "font-mono text-xs uppercase text-success"
+              : "font-mono text-xs uppercase text-text-muted"
+          }
+        >
           {u.is_active ? "active" : "inactive"}
         </span>
       ),
@@ -153,9 +177,10 @@ export default function TeamPage() {
       header: "",
       cell: (u) => (
         <Button
-          variant="secondary"
+          size="sm"
+          variant={u.is_active ? "danger" : "secondary"}
           disabled={rowBusy === u.id || u.id === user?.id}
-          onClick={() => onToggleActive(u)}
+          onClick={() => setConfirmTarget(u)}
         >
           {u.is_active ? copy.deactivate : copy.reactivate}
         </Button>
@@ -168,9 +193,20 @@ export default function TeamPage() {
     return <LoadingSkeleton rows={6} />;
   }
 
+  const confirmingDeactivate = Boolean(confirmTarget?.is_active);
+
   return (
     <AppShell user={user}>
-      <PageHeader title={copy.title} description={copy.description} />
+      <PageHeader
+        title={copy.title}
+        description={copy.description}
+        actions={
+          <Button size="sm" onClick={() => setInviteOpen(true)}>
+            <Plus className="size-3.5" aria-hidden />
+            {copy.invite}
+          </Button>
+        }
+      />
 
       {error ? (
         <ErrorState
@@ -189,63 +225,117 @@ export default function TeamPage() {
       {fetching ? (
         <LoadingSkeleton rows={6} />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Surface className="p-4">
-            <h2 className="text-sm font-semibold text-ink">{copy.invite}</h2>
-            <p className="mt-1 m-0 text-sm text-text-secondary">{copy.inviteHint}</p>
-            <form onSubmit={onInvite} className="mt-3 grid gap-3">
-              <Field label="Name">
-                <Input
-                  value={invite.name}
-                  onChange={(e) => setInvite({ ...invite, name: e.target.value })}
-                  required
-                />
-              </Field>
-              <Field label="Email">
-                <Input
-                  type="email"
-                  value={invite.email}
-                  onChange={(e) =>
-                    setInvite({ ...invite, email: e.target.value })
-                  }
-                  required
-                />
-              </Field>
-              <Field label="Temporary password" hint="Minimum 8 characters">
-                <Input
-                  type="password"
-                  value={invite.password}
-                  onChange={(e) =>
-                    setInvite({ ...invite, password: e.target.value })
-                  }
-                  required
-                  minLength={8}
-                />
-              </Field>
-              <Field label="Role">
-                <Select
-                  value={invite.role}
-                  onChange={(e) => setInvite({ ...invite, role: e.target.value })}
-                >
-                  <option value="admin">admin</option>
-                  <option value="dispatcher">dispatcher</option>
-                  <option value="technician">technician</option>
-                </Select>
-              </Field>
-              <Button type="submit" disabled={inviteBusy} className="w-fit">
-                {inviteBusy ? copy.inviting : copy.inviteAction}
-              </Button>
-            </form>
-          </Surface>
-          <DataTable
-            columns={columns}
-            rows={users}
-            empty={
-              <EmptyState title={copy.noUsers} description={copy.noUsersHint} />
-            }
-          />
-        </div>
+        <DataTable
+          columns={columns}
+          rows={users}
+          empty={
+            <EmptyState
+              title={copy.noUsers}
+              description={copy.noUsersHint}
+              action={
+                <Button size="sm" onClick={() => setInviteOpen(true)}>
+                  <UserPlus className="size-3.5" aria-hidden />
+                  {copy.invite}
+                </Button>
+              }
+            />
+          }
+        />
       )}
+
+      <DetailDrawer
+        open={inviteOpen}
+        onClose={closeInvite}
+        title={copy.invite}
+        description={copy.inviteHint}
+        width="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={closeInvite}
+              disabled={inviteBusy}
+            >
+              Cancel
+            </Button>
+            <Button form={INVITE_FORM_ID} type="submit" disabled={inviteBusy}>
+              {inviteBusy ? copy.inviting : copy.inviteAction}
+            </Button>
+          </div>
+        }
+      >
+        <form id={INVITE_FORM_ID} onSubmit={onInvite} className="grid gap-3">
+          <Field label="Name">
+            <Input
+              value={invite.name}
+              onChange={(e) => setInvite({ ...invite, name: e.target.value })}
+              required
+              autoComplete="name"
+            />
+          </Field>
+          <Field label="Email">
+            <Input
+              type="email"
+              value={invite.email}
+              onChange={(e) => setInvite({ ...invite, email: e.target.value })}
+              required
+              autoComplete="email"
+            />
+          </Field>
+          <Field label="Temporary password" hint="Minimum 8 characters">
+            <Input
+              type="password"
+              value={invite.password}
+              onChange={(e) =>
+                setInvite({ ...invite, password: e.target.value })
+              }
+              required
+              minLength={8}
+              autoComplete="new-password"
+            />
+          </Field>
+          <Field label="Role">
+            <Select
+              value={invite.role}
+              onChange={(e) => setInvite({ ...invite, role: e.target.value })}
+            >
+              <option value="admin">admin</option>
+              <option value="dispatcher">dispatcher</option>
+              <option value="technician">technician</option>
+            </Select>
+          </Field>
+        </form>
+      </DetailDrawer>
+
+      <ConfirmDialog
+        open={!!confirmTarget}
+        title={
+          confirmingDeactivate ? copy.deactivateTitle : copy.reactivateTitle
+        }
+        description={
+          confirmingDeactivate
+            ? copy.deactivateBody.replace(
+                "{name}",
+                confirmTarget?.name || "this teammate",
+              )
+            : copy.reactivateBody.replace(
+                "{name}",
+                confirmTarget?.name || "this teammate",
+              )
+        }
+        confirmLabel={
+          confirmingDeactivate ? copy.deactivate : copy.reactivate
+        }
+        danger={confirmingDeactivate}
+        busy={rowBusy === confirmTarget?.id}
+        onConfirm={() => {
+          void onConfirmToggleActive();
+        }}
+        onCancel={() => {
+          if (rowBusy) return;
+          setConfirmTarget(null);
+        }}
+      />
     </AppShell>
   );
 }

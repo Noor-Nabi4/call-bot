@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { Bot, Plus, Sparkles, Star } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { Bot, Plus, Star } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
 import {
@@ -16,6 +16,8 @@ import {
 import { safeUserError } from "@/lib/safe-error";
 import {
   Button,
+  DetailDrawer,
+  EmptyState,
   ErrorState,
   Field,
   Input,
@@ -26,6 +28,8 @@ import {
   useToast,
 } from "@/components/ui";
 
+const CREATE_FORM_ID = "create-agent-form";
+
 export default function AgentsPage() {
   const { user, loading } = useAuth({ roles: ["admin"] });
   const toast = useToast();
@@ -34,6 +38,7 @@ export default function AgentsPage() {
   const [businessName, setBusinessName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(true);
+  const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [industryKey, setIndustryKey] = useState("custom");
@@ -51,13 +56,30 @@ export default function AgentsPage() {
 
   useEffect(() => {
     if (!user) return;
-    setFetching(true);
-    load()
-      .catch((err) => setError(safeUserError(err, "Could not load agents")))
-      .finally(() => setFetching(false));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      load()
+        .catch((err) => setError(safeUserError(err, "Could not load agents")))
+        .finally(() => {
+          if (!cancelled) setFetching(false);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [user, load]);
 
-  async function onCreate() {
+  function closeCreate() {
+    if (creating) return;
+    setCreateOpen(false);
+    setName("");
+    setIndustryKey("custom");
+    setAgentType("receptionist");
+  }
+
+  async function onCreate(e: FormEvent) {
+    e.preventDefault();
     if (!name.trim()) {
       toast.push("Name is required", "error");
       return;
@@ -72,6 +94,7 @@ export default function AgentsPage() {
       });
       toast.push("Agent created", "success");
       setName("");
+      setCreateOpen(false);
       await load();
       window.location.assign(`/agents/${created.profile.id}`);
     } catch (err) {
@@ -105,123 +128,157 @@ export default function AgentsPage() {
         title="Agents"
         description={`Configure AI employees for ${businessName || "your business"}. Each profile has its own voice, tools, and phone routing.`}
         actions={
-          <Link href="/phones">
-            <Button variant="secondary" size="sm">
-              Manage phones
+          <div className="flex flex-wrap gap-2">
+            <Link href="/phones">
+              <Button variant="secondary" size="sm">
+                Manage phones
+              </Button>
+            </Link>
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-3.5" aria-hidden />
+              Create agent
             </Button>
-          </Link>
+          </div>
         }
       />
 
       {error ? <ErrorState message={error} onRetry={() => load()} /> : null}
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+      {fetching ? (
+        <LoadingSkeleton rows={4} />
+      ) : profiles.length === 0 ? (
+        <EmptyState
+          icon={<Bot className="size-8" />}
+          title="No agents yet"
+          description="Create one from an industry template to get started."
+          action={
+            <Button size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-3.5" aria-hidden />
+              Create agent
+            </Button>
+          }
+        />
+      ) : (
         <Surface className="ops-surface-rise p-5">
           <div className="mb-4 flex items-center gap-2">
             <Bot className="size-4 text-brand" aria-hidden />
             <h2 className="font-heading text-lg font-semibold">Profiles</h2>
           </div>
-          {fetching ? (
-            <LoadingSkeleton rows={4} />
-          ) : profiles.length === 0 ? (
-            <p className="text-sm text-text-muted">
-              No agents yet. Create one from an industry template to get started.
-            </p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {profiles.map((profile) => (
-                <li
-                  key={profile.id}
-                  className="flex flex-wrap items-center justify-between gap-3 py-3"
-                >
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <Link
-                        href={`/agents/${profile.id}`}
-                        className="font-medium text-text-primary hover:text-brand"
-                      >
-                        {profile.name}
-                      </Link>
-                      {profile.is_default ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-medium text-brand">
-                          <Star className="size-3" aria-hidden />
-                          Default
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="mt-0.5 text-xs text-text-muted">
-                      {profile.agent_type}
-                      {profile.industry_key ? ` · ${profile.industry_key}` : ""}
-                      {profile.greeting ? ` · ${profile.greeting.slice(0, 60)}` : ""}
-                    </p>
-                  </div>
-                  <div className="flex gap-2">
-                    {!profile.is_default ? (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => onSetDefault(profile.id)}
-                      >
-                        Set default
-                      </Button>
-                    ) : null}
-                    <Link href={`/agents/${profile.id}`}>
-                      <Button size="sm">Open builder</Button>
-                    </Link>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Surface>
-
-        <Surface className="ops-surface-rise p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <Sparkles className="size-4 text-brand" aria-hidden />
-            <h2 className="font-heading text-lg font-semibold">New agent</h2>
-          </div>
-          <div className="space-y-3">
-            <Field label="Name">
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Main Receptionist"
-              />
-            </Field>
-            <Field label="Industry template">
-              <Select
-                value={industryKey}
-                onChange={(e) => {
-                  setIndustryKey(e.target.value);
-                  const tpl = templates.find((t) => t.key === e.target.value);
-                  if (tpl) setAgentType(tpl.agent_type);
-                }}
+          <ul className="divide-y divide-border">
+            {profiles.map((profile) => (
+              <li
+                key={profile.id}
+                className="flex flex-wrap items-center justify-between gap-3 py-3"
               >
-                {templates.map((tpl) => (
-                  <option key={tpl.key} value={tpl.key}>
-                    {tpl.name}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Agent type">
-              <Select value={agentType} onChange={(e) => setAgentType(e.target.value)}>
-                <option value="receptionist">Receptionist</option>
-                <option value="support">Support</option>
-                <option value="sales">Sales</option>
-                <option value="booking">Booking</option>
-                <option value="help_desk">Help desk</option>
-                <option value="call_center">Call center</option>
-                <option value="custom">Custom</option>
-              </Select>
-            </Field>
-            <Button onClick={onCreate} disabled={creating} className="w-full">
-              <Plus className="size-3.5" aria-hidden />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/agents/${profile.id}`}
+                      className="font-medium text-text-primary hover:text-brand"
+                    >
+                      {profile.name}
+                    </Link>
+                    {profile.is_default ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-medium text-brand">
+                        <Star className="size-3" aria-hidden />
+                        Default
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-0.5 text-xs text-text-muted">
+                    {profile.agent_type}
+                    {profile.industry_key ? ` · ${profile.industry_key}` : ""}
+                    {profile.greeting
+                      ? ` · ${profile.greeting.slice(0, 60)}`
+                      : ""}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {!profile.is_default ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onSetDefault(profile.id)}
+                    >
+                      Set default
+                    </Button>
+                  ) : null}
+                  <Link href={`/agents/${profile.id}`}>
+                    <Button size="sm">Open builder</Button>
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Surface>
+      )}
+
+      <DetailDrawer
+        open={createOpen}
+        onClose={closeCreate}
+        title="Create agent"
+        description="Start from an industry template or build a custom profile."
+        width="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={closeCreate}
+              disabled={creating}
+            >
+              Cancel
+            </Button>
+            <Button
+              form={CREATE_FORM_ID}
+              type="submit"
+              disabled={creating || !name.trim()}
+            >
               {creating ? "Creating…" : "Create agent"}
             </Button>
           </div>
-        </Surface>
-      </div>
+        }
+      >
+        <form id={CREATE_FORM_ID} onSubmit={onCreate} className="grid gap-3">
+          <Field label="Name">
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Main Receptionist"
+              required
+            />
+          </Field>
+          <Field label="Industry template">
+            <Select
+              value={industryKey}
+              onChange={(e) => {
+                setIndustryKey(e.target.value);
+                const tpl = templates.find((t) => t.key === e.target.value);
+                if (tpl) setAgentType(tpl.agent_type);
+              }}
+            >
+              {templates.map((tpl) => (
+                <option key={tpl.key} value={tpl.key}>
+                  {tpl.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Agent type">
+            <Select
+              value={agentType}
+              onChange={(e) => setAgentType(e.target.value)}
+            >
+              <option value="receptionist">Receptionist</option>
+              <option value="support">Support</option>
+              <option value="sales">Sales</option>
+              <option value="booking">Booking</option>
+              <option value="help_desk">Help desk</option>
+              <option value="call_center">Call center</option>
+              <option value="custom">Custom</option>
+            </Select>
+          </Field>
+        </form>
+      </DetailDrawer>
     </AppShell>
   );
 }

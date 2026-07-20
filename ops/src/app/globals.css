@@ -276,6 +276,11 @@
     linear-gradient(180deg, #0F172A 0%, #0d5f59 100%);
   color: #f3f8f5;
   width: 15.5rem;
+  transition: width 200ms ease;
+}
+
+.ops-sidebar[data-collapsed="true"] {
+  width: 4.5rem;
 }
 
 .ops-login-stage {
@@ -399,7 +404,7 @@
 }
 
 @media (min-width: 1280px) {
-  .ops-sidebar {
+  .ops-sidebar:not([data-collapsed="true"]) {
     width: 16.5rem;
   }
 }

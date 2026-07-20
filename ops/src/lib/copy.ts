@@ -153,6 +153,7 @@ export const apiKeys = {
   description:
     "Issue keys for the public /v1 API (customers and calls read). Secrets are shown once.",
   create: "Create key",
+  createHint: "The secret is shown once after creation. Store it securely.",
   creating: "Creating…",
   created: "API key created",
   name: "Name",
@@ -160,6 +161,9 @@ export const apiKeys = {
   empty: "No API keys yet",
   emptyHint: "Create a key to call GET /v1/customers and GET /v1/calls.",
   revoke: "Revoke",
+  revokeTitle: "Revoke API key?",
+  revokeBody:
+    "{name} will stop working immediately. Existing integrations using this key will fail.",
   revoked: "API key revoked",
   active: "Active",
   inactive: "Revoked",
@@ -261,6 +265,11 @@ export const team = {
   updated: "Teammate updated",
   deactivate: "Deactivate",
   reactivate: "Reactivate",
+  deactivateTitle: "Deactivate teammate?",
+  deactivateBody:
+    "{name} will lose access immediately and cannot sign in until reactivated.",
+  reactivateTitle: "Reactivate teammate?",
+  reactivateBody: "{name} will be able to sign in again with their existing password.",
   deactivated: "Teammate deactivated",
   reactivated: "Teammate reactivated",
   noUsers: "No team members yet",
@@ -408,12 +417,16 @@ export const automations = {
   description:
     "Run follow-up jobs or audit events when calls end, handoffs happen, or appointments are booked.",
   create: "New rule",
+  createHint:
+    "Pick a trigger and action. Rules run for events in your organization.",
   createAction: "Create rule",
   saving: "Saving…",
   created: "Automation created",
   enabled: "Automation enabled",
   disabled: "Automation disabled",
   deleted: "Automation deleted",
+  deleteTitle: "Delete automation?",
+  deleteBody: "{name} will stop running immediately and cannot be restored.",
   enable: "Enable",
   disable: "Disable",
   delete: "Delete",
