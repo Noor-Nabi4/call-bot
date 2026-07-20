@@ -10,7 +10,7 @@ import type {
 } from "react";
 
 const fieldBase =
-  "w-full rounded-[10px] border border-border bg-surface px-3 text-sm text-text-primary placeholder:text-text-muted transition-[border-color,box-shadow] duration-150 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-soft disabled:bg-surface-muted disabled:text-text-muted";
+  "w-full rounded-[var(--radius-md)] border border-border bg-surface px-3 text-sm text-text-primary placeholder:text-text-muted transition-[border-color,box-shadow] duration-150 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand-soft disabled:bg-surface-muted disabled:text-text-muted";
 
 export function Input({
   className,

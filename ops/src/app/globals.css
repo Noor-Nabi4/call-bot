@@ -1,21 +1,39 @@
 @import "tailwindcss";
 
-/* Call Bot ops — aligned with marketing (web) forest / teal / paper system. */
+/**
+ * Ops design tokens — aligned with marketing `web/` (Outfit + DM Sans,
+ * teal/blue neutrals, soft elevation). App chrome only; not a Figma clone.
+ */
 :root {
-  --ink: #0c1411;
-  --ink-soft: #1a2a24;
-  --fog: #eef3f0;
-  --fog-deep: #d9e4de;
-  --paper: #f7faf8;
-  --teal: #0f7a64;
-  --teal-deep: #0a5a4a;
-  --teal-bright: #1aa884;
-  --teal-cta: #45d6ac;
-  --muted: #5c6f67;
-  --line: rgba(12, 20, 17, 0.1);
+  --bg: #f3f5f7;
+  --bg-elevated: #eef1f4;
+  --surface: #ffffff;
+  --ink: #0c1a1e;
+  --ink-soft: #1a2f35;
+  --muted: #5c6d74;
+  --muted-soft: #7a8b92;
+  --line: rgba(12, 26, 30, 0.1);
+  --line-strong: rgba(12, 26, 30, 0.16);
+  --teal: #0e8f7d;
+  --teal-deep: #0a6b5d;
+  --teal-bright: #14b8a0;
+  --teal-soft: #e5f6f3;
+  --blue: #2f6fad;
+  --blue-soft: #e8f1f9;
+  --hero: #071416;
+  --hero-muted: #9bb0b6;
+  --paper: var(--surface);
+  --fog: var(--bg);
+  --fog-deep: var(--bg-elevated);
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --shadow-sm: 0 2px 8px rgba(12, 26, 30, 0.04);
+  --shadow-md: 0 8px 28px rgba(12, 26, 30, 0.08);
+  --shadow-lg: 0 16px 48px rgba(12, 26, 30, 0.12);
 
-  --ops-bg: var(--paper);
-  --ops-elevated: rgba(255, 255, 255, 0.82);
+  --ops-bg: var(--bg);
+  --ops-elevated: rgba(255, 255, 255, 0.88);
   --ops-surface: #ffffff;
   --ops-surface-solid: #ffffff;
   --ops-border: var(--line);
@@ -23,28 +41,28 @@
   --ops-text-muted: var(--muted);
   --ops-accent: var(--teal);
   --ops-accent-hover: var(--teal-deep);
-  --ops-accent-soft: rgba(15, 122, 100, 0.12);
+  --ops-accent-soft: var(--teal-soft);
   --ops-cyan: var(--teal-bright);
-  --ops-cyan-soft: rgba(26, 168, 132, 0.14);
-  --ops-success: #0f7a64;
+  --ops-cyan-soft: rgba(20, 184, 160, 0.14);
+  --ops-success: var(--teal);
   --ops-warn: #b45309;
   --ops-danger: #b91c1c;
-  --ops-sidebar: #07120f;
-  --ops-sidebar-muted: #afc2ba;
+  --ops-sidebar: var(--hero);
+  --ops-sidebar-muted: var(--hero-muted);
 }
 
 @theme {
   --color-background: var(--ops-bg);
   --color-surface: var(--ops-surface-solid);
-  --color-surface-muted: var(--fog);
+  --color-surface-muted: var(--bg-elevated);
   --color-text-primary: var(--ops-text);
-  --color-text-secondary: #3d524a;
+  --color-text-secondary: #3d5258;
   --color-text-muted: var(--ops-text-muted);
   --color-border: var(--line);
-  --color-border-strong: rgba(12, 20, 17, 0.18);
+  --color-border-strong: var(--line-strong);
   --color-brand: var(--ops-accent);
   --color-brand-hover: var(--ops-accent-hover);
-  --color-brand-soft: #e4f5ef;
+  --color-brand-soft: var(--teal-soft);
   --color-warn: var(--ops-warn);
   --color-warn-soft: #fef3c7;
   --color-danger: var(--ops-danger);
@@ -53,17 +71,27 @@
   --color-success-soft: #d1fae5;
   --color-cyan: var(--ops-cyan);
   --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
   --color-paper: var(--paper);
   --color-fog: var(--fog);
+  --color-fog-deep: var(--fog-deep);
   --color-teal: var(--teal);
+  --color-teal-deep: var(--teal-deep);
+  --color-teal-bright: var(--teal-bright);
+  --color-teal-soft: var(--teal-soft);
+  --color-blue: var(--blue);
+  --color-blue-soft: var(--blue-soft);
+  --color-hero: var(--hero);
+  --color-hero-muted: var(--hero-muted);
   --color-sidebar: var(--ops-sidebar);
   --color-sidebar-muted: var(--ops-sidebar-muted);
-  --font-sans: var(--font-ops-sans), "Segoe UI", sans-serif;
-  --font-heading: var(--font-ops-heading), Georgia, "Times New Roman", serif;
-  --font-mono: var(--font-ops-mono), ui-monospace, monospace;
-  --radius-panel: 12px;
-  --shadow-elevated: 0 18px 48px rgba(12, 20, 17, 0.12);
-  --shadow-drawer: -8px 0 28px rgba(12, 20, 17, 0.12);
+  --font-sans: var(--font-sans), "Segoe UI", sans-serif;
+  --font-display: var(--font-display), "Segoe UI", sans-serif;
+  --font-heading: var(--font-display), "Segoe UI", sans-serif;
+  --font-mono: var(--font-mono), ui-monospace, monospace;
+  --radius-panel: var(--radius-md);
+  --shadow-elevated: var(--shadow-md);
+  --shadow-drawer: -8px 0 28px rgba(12, 26, 30, 0.12);
   --animate-fade-in: fade-in 160ms ease-out both;
   --animate-slide-in: slide-in 180ms ease-out both;
 }
@@ -131,13 +159,15 @@
     @apply outline-2 outline-offset-2 outline-brand;
   }
 
-  .font-heading {
-    font-family: var(--font-heading), Georgia, "Times New Roman", serif;
+  .font-heading,
+  .font-display {
+    font-family: var(--font-display), "Segoe UI", sans-serif;
   }
 
   h1,
   h2 {
-    font-family: var(--font-heading), Georgia, "Times New Roman", serif;
+    font-family: var(--font-display), "Segoe UI", sans-serif;
+    letter-spacing: -0.03em;
   }
 }
 
@@ -177,16 +207,24 @@
   }
 }
 
-/* Soft paper atmosphere — marketing fog / teal washes */
+/* Soft atmosphere — marketing bg + teal / blue washes */
 .ops-shell-atmosphere {
   position: relative;
   isolation: isolate;
   min-height: 100vh;
   background-color: var(--ops-bg);
   background-image:
-    radial-gradient(ellipse 90% 70% at 100% -10%, rgba(26, 168, 132, 0.14) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 55% at -5% 100%, rgba(15, 122, 100, 0.1) 0%, transparent 50%),
-    linear-gradient(180deg, var(--fog) 0%, var(--paper) 42%, var(--paper) 100%);
+    radial-gradient(
+      ellipse 90% 70% at 100% -10%,
+      rgba(20, 184, 160, 0.12) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 70% 55% at -5% 100%,
+      rgba(47, 111, 173, 0.08) 0%,
+      transparent 50%
+    ),
+    linear-gradient(180deg, var(--bg) 0%, var(--surface) 48%, var(--surface) 100%);
 }
 
 .ops-shell-atmosphere::after {
@@ -195,23 +233,27 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0.4;
+  opacity: 0.35;
   background-image:
     linear-gradient(
       118deg,
       transparent 0%,
-      rgba(26, 168, 132, 0.05) 42%,
-      rgba(15, 122, 100, 0.04) 52%,
+      rgba(20, 184, 160, 0.05) 42%,
+      rgba(47, 111, 173, 0.04) 52%,
       transparent 68%
     ),
-    linear-gradient(rgba(12, 20, 17, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(12, 20, 17, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(12, 26, 30, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(12, 26, 30, 0.03) 1px, transparent 1px);
   background-size:
     220% 220%,
     64px 64px,
     64px 64px;
   animation: ops-bg-drift 28s ease-in-out infinite alternate;
-  mask-image: radial-gradient(ellipse 95% 75% at 50% 42%, black 0%, transparent 78%);
+  mask-image: radial-gradient(
+    ellipse 95% 75% at 50% 42%,
+    black 0%,
+    transparent 78%
+  );
 }
 
 .ops-shell-inner {
@@ -221,43 +263,62 @@
 
 .ops-sidebar {
   background:
-    radial-gradient(120% 80% at 30% 0%, rgba(26, 168, 132, 0.18), transparent 55%),
-    linear-gradient(180deg, #07120f 0%, #0f221c 55%, #0c1a16 100%);
+    radial-gradient(
+      120% 80% at 20% 0%,
+      rgba(20, 184, 160, 0.2),
+      transparent 55%
+    ),
+    radial-gradient(
+      90% 60% at 100% 100%,
+      rgba(47, 111, 173, 0.14),
+      transparent 50%
+    ),
+    linear-gradient(180deg, #071416 0%, #0a1c20 55%, #0c2228 100%);
   color: #f3f8f5;
+  width: 15.5rem;
 }
 
 .ops-login-stage {
   background:
-    radial-gradient(120% 80% at 70% 20%, rgba(26, 168, 132, 0.22), transparent 55%),
-    radial-gradient(90% 70% at 10% 90%, rgba(15, 122, 100, 0.18), transparent 50%),
-    linear-gradient(160deg, #07120f 0%, #0f221c 42%, #14352c 100%);
+    radial-gradient(
+      120% 80% at 70% 15%,
+      rgba(20, 184, 160, 0.22),
+      transparent 55%
+    ),
+    radial-gradient(
+      90% 70% at 10% 90%,
+      rgba(47, 111, 173, 0.18),
+      transparent 50%
+    ),
+    linear-gradient(160deg, #071416 0%, #0a1c20 42%, #0e2a32 100%);
 }
 
 .glass-card {
   background: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.92) 0%,
-    rgba(247, 250, 248, 0.88) 100%
+    rgba(255, 255, 255, 0.94) 0%,
+    rgba(243, 245, 247, 0.9) 100%
   );
   border: 1px solid var(--ops-border);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   box-shadow:
-    0 12px 36px rgba(12, 20, 17, 0.06),
+    var(--shadow-sm),
     inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-radius: var(--radius-md);
 }
 
 .glass-panel {
-  @apply rounded-xl;
+  border-radius: var(--radius-md);
   background: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(238, 243, 240, 0.9) 100%
+    rgba(255, 255, 255, 0.96) 0%,
+    rgba(238, 241, 244, 0.92) 100%
   );
   border: 1px solid var(--ops-border);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 8px 28px rgba(12, 20, 17, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 @keyframes attention-badge-pop {
@@ -330,15 +391,11 @@
   animation: ops-rise 280ms cubic-bezier(0.22, 1, 0.36, 1) both;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.7) inset,
-    0 12px 32px rgba(12, 20, 17, 0.06);
+    var(--shadow-sm);
 }
 
 .ops-nav-item {
   position: relative;
-}
-
-.ops-sidebar {
-  width: 15.5rem;
 }
 
 @media (min-width: 1280px) {

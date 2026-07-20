@@ -8,14 +8,14 @@ type Size = "sm" | "md" | "lg";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-[#45d6ac] text-[#07120f] hover:bg-[#71f0ca] disabled:opacity-50 border border-transparent",
+    "bg-teal text-white shadow-sm hover:bg-teal-bright hover:shadow-md disabled:opacity-50 border border-transparent",
   secondary:
-    "bg-surface text-text-primary border border-border hover:bg-surface-muted disabled:opacity-50",
+    "bg-surface text-text-primary border border-border hover:border-teal/40 hover:bg-teal-soft disabled:opacity-50",
   ghost:
-    "bg-transparent text-text-secondary border border-transparent hover:bg-surface-muted hover:text-text-primary disabled:opacity-50",
+    "bg-transparent text-text-secondary border border-transparent hover:bg-teal-soft/60 hover:text-teal disabled:opacity-50",
   danger:
     "bg-danger-soft text-danger border border-transparent hover:bg-danger hover:text-white disabled:opacity-50",
-  ink: "bg-ink text-[#f3f8f5] border border-transparent hover:opacity-90 disabled:opacity-50",
+  ink: "bg-hero text-white border border-transparent hover:opacity-90 disabled:opacity-50",
 };
 
 const sizes: Record<Size, string> = {
@@ -37,7 +37,7 @@ export function Button({
     <button
       type="button"
       className={cn(
-        "inline-flex items-center justify-center rounded-[10px] font-medium transition-[background-color,opacity,transform] duration-150 ease-out disabled:cursor-not-allowed",
+        "inline-flex items-center justify-center rounded-[var(--radius-md)] font-semibold tracking-[-0.01em] transition-[background-color,border-color,box-shadow,opacity,transform] duration-200 hover:-translate-y-px disabled:cursor-not-allowed disabled:hover:translate-y-0",
         variants[variant],
         sizes[size],
         className,

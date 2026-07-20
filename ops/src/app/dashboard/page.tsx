@@ -57,7 +57,7 @@ export default function DashboardPage() {
           <p className="text-sm text-text-secondary">
             {greetingFor(dash.now)}, {user.name.split(" ")[0]}
           </p>
-          <h1 className="mt-0.5 font-heading text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
+          <h1 className="mt-0.5 font-display text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl">
             {user.tenant_name}
           </h1>
           <p className="mt-1 max-w-xl text-sm text-text-secondary">

@@ -52,12 +52,12 @@ export default function LoginPage() {
       <form
         onSubmit={onSubmit}
         noValidate
-        className="relative z-[1] w-full max-w-md rounded-xl border border-white/15 bg-white/95 p-6 shadow-[var(--shadow-elevated)] backdrop-blur-sm sm:p-8"
+        className="relative z-[1] w-full max-w-md rounded-[var(--radius-lg)] border border-white/12 bg-white/95 p-6 shadow-[var(--shadow-lg)] backdrop-blur-md sm:p-8"
       >
-        <p className="font-heading text-2xl font-semibold tracking-[-0.03em] text-ink">
-          {copy.brand}
+        <p className="font-display text-2xl font-semibold tracking-[-0.03em] text-ink">
+          CallBot
         </p>
-        <h1 className="mt-3 font-heading text-2xl font-semibold tracking-tight text-ink">
+        <h1 className="mt-3 font-display text-2xl font-semibold tracking-tight text-ink">
           {copy.heading}
         </h1>
         <p className="mt-1 text-sm text-text-secondary">{copy.supporting}</p>

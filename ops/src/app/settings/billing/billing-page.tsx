@@ -135,7 +135,7 @@ export default function BillingPage() {
       ) : (
         <div className="mt-6 grid max-w-2xl gap-4">
           {awaitingWebhook ? (
-            <Surface className="border-[#45d6ac]/40 bg-[#45d6ac]/10 p-4">
+            <Surface className="border-teal/40 bg-teal-soft p-4">
               <p className="m-0 text-sm font-semibold text-ink">{copy.confirming}</p>
               <p className="mt-1 m-0 text-sm text-text-secondary">
                 {copy.confirmingHint}

@@ -95,7 +95,7 @@ export function AppShell({
                 <p className="text-[10px] font-medium tracking-[0.14em] text-text-muted uppercase">
                   {productName}
                 </p>
-                <p className="font-heading text-sm font-semibold tracking-tight">
+                <p className="font-display text-sm font-semibold tracking-tight">
                   {user.tenant_name}
                 </p>
               </div>
@@ -117,7 +117,7 @@ export function AppShell({
       <div className="ops-shell-inner lg:flex">
         <aside className="ops-sidebar sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-white/10 p-4 lg:flex">
           <div className="px-3">
-            <Link href="/dashboard" className="block text-[#f3f8f5]">
+            <Link href="/dashboard" className="block text-white">
               {branding?.logo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -126,12 +126,14 @@ export function AppShell({
                   className="mb-2 h-8 max-w-[160px] object-contain"
                 />
               ) : (
-                <p className="font-heading text-xl font-semibold tracking-[-0.03em]">
-                  {productName}
+                <p className="font-display text-xl font-semibold tracking-[-0.03em]">
+                  {productName === "Call Bot" ? "CallBot" : productName}
                 </p>
               )}
             </Link>
-            <p className="mt-1 text-[11px] text-[#afc2ba]">Operations</p>
+            <p className="mt-1 text-[11px] tracking-[0.08em] text-hero-muted uppercase">
+              Operations
+            </p>
             <div className="mt-4">
               <TenantSwitcher user={user} tone="dark" />
             </div>
@@ -140,10 +142,10 @@ export function AppShell({
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-paper/85 px-4 backdrop-blur-xl sm:px-6">
+          <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-surface/80 px-4 backdrop-blur-xl sm:px-6">
             <button
               type="button"
-              className="rounded-md border border-border p-2 text-text-secondary lg:hidden"
+              className="rounded-[10px] border border-border p-2 text-text-secondary lg:hidden"
               aria-label="Open menu"
               onClick={() => setMobileOpen(true)}
             >
@@ -152,7 +154,7 @@ export function AppShell({
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
-              className="hidden items-center gap-2 rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-text-muted transition-colors duration-150 hover:bg-surface-muted sm:inline-flex"
+              className="hidden items-center gap-2 rounded-[10px] border border-border bg-surface px-2.5 py-1.5 text-xs text-text-muted transition-colors duration-150 hover:bg-surface-muted sm:inline-flex"
               aria-label="Open search"
             >
               <Search className="size-3.5" aria-hidden />

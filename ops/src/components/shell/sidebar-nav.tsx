@@ -31,7 +31,7 @@ export function SidebarNavigation({
         return (
           <div key={section}>
             {!collapsed ? (
-              <p className="mb-1.5 px-3 text-[10px] font-semibold tracking-[0.16em] text-[#7f968c] uppercase">
+              <p className="mb-1.5 px-3 text-[10px] font-semibold tracking-[0.16em] text-hero-muted/70 uppercase">
                 {SECTION_LABELS[section]}
               </p>
             ) : null}
@@ -45,10 +45,10 @@ export function SidebarNavigation({
                     href={item.href}
                     title={item.label}
                     className={cn(
-                      "ops-nav-item inline-flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                      "ops-nav-item inline-flex items-center gap-2.5 rounded-[10px] px-3 py-2 text-sm font-medium transition-all duration-200",
                       active
-                        ? "bg-[#45d6ac]/18 text-[#f3f8f5] shadow-[inset_0_0_0_1px_rgba(69,214,172,0.25)]"
-                        : "text-[#afc2ba] hover:bg-white/10 hover:text-[#f3f8f5]",
+                        ? "bg-teal-bright/18 text-white shadow-[inset_0_0_0_1px_rgba(20,184,160,0.28)]"
+                        : "text-hero-muted hover:bg-white/10 hover:text-white",
                       collapsed && "justify-center px-2",
                     )}
                     aria-current={active ? "page" : undefined}
@@ -56,7 +56,7 @@ export function SidebarNavigation({
                     <Icon
                       className={cn(
                         "size-4 shrink-0 transition-transform duration-200",
-                        active ? "text-[#45d6ac] scale-105" : "text-current",
+                        active ? "text-teal-bright scale-105" : "text-current",
                       )}
                       aria-hidden
                     />

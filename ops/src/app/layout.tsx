@@ -1,28 +1,28 @@
 import type { Metadata } from "next";
-import { Fraunces, JetBrains_Mono, Manrope } from "next/font/google";
+import { DM_Sans, JetBrains_Mono, Outfit } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
-const sans = Manrope({
+const display = Outfit({
   subsets: ["latin"],
-  variable: "--font-ops-sans",
+  variable: "--font-display",
   display: "swap",
 });
 
-const heading = Fraunces({
+const sans = DM_Sans({
   subsets: ["latin"],
-  variable: "--font-ops-heading",
+  variable: "--font-sans",
   display: "swap",
 });
 
 const mono = JetBrains_Mono({
   subsets: ["latin"],
-  variable: "--font-ops-mono",
+  variable: "--font-mono",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Call Bot — Operations",
+  title: "CallBot — Operations",
   description:
     "Manage calls, appointments, and field jobs for your service business.",
 };
@@ -35,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${sans.variable} ${heading.variable} ${mono.variable} antialiased`}
+        className={`${display.variable} ${sans.variable} ${mono.variable} antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

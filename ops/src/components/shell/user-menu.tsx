@@ -60,7 +60,7 @@ export function UserMenu({ user }: { user: OpsUser }) {
         onClick={() => setOpen((v) => !v)}
       >
         <span
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-[#0f221c] text-[11px] font-semibold tracking-wide text-[#45d6ac]"
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-hero text-[11px] font-semibold tracking-wide text-teal-bright"
           aria-hidden
         >
           {initials}
@@ -90,7 +90,7 @@ export function UserMenu({ user }: { user: OpsUser }) {
           <div className="border-b border-border bg-fog/60 px-3 py-3">
             <div className="flex items-center gap-2.5">
               <span
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-[#0f221c] text-xs font-semibold text-[#45d6ac]"
+                className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-hero text-xs font-semibold text-teal-bright"
                 aria-hidden
               >
                 {initials}

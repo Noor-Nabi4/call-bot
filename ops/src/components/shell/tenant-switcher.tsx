@@ -24,7 +24,7 @@ export function TenantSwitcher({
       <span
         className={cn(
           "size-1.5 shrink-0 rounded-full",
-          dark ? "bg-[#45d6ac]" : "bg-brand",
+          dark ? "bg-teal-bright" : "bg-brand",
         )}
         aria-hidden
       />
@@ -32,7 +32,7 @@ export function TenantSwitcher({
         <p
           className={cn(
             "truncate text-sm font-medium",
-            dark ? "text-[#f3f8f5]" : "text-text-primary",
+            dark ? "text-white" : "text-text-primary",
           )}
         >
           {user.tenant_name}

@@ -31,12 +31,12 @@ export function MobileNavDrawer({
       />
       <aside className="ops-sidebar absolute top-0 bottom-0 left-0 flex w-64 flex-col border-r border-white/10 shadow-[var(--shadow-elevated)]">
         <div className="flex items-center justify-between border-b border-white/10 px-3 py-3">
-          <p className="font-heading text-sm font-semibold tracking-tight text-[#f3f8f5]">
-            Call Bot
+          <p className="font-display text-sm font-semibold tracking-tight text-white">
+            CallBot
           </p>
           <button
             type="button"
-            className="rounded-md p-1.5 text-[#afc2ba] hover:bg-white/10 hover:text-[#f3f8f5]"
+            className="rounded-[10px] p-1.5 text-hero-muted hover:bg-white/10 hover:text-white"
             aria-label="Close"
             onClick={onClose}
           >
@@ -56,16 +56,16 @@ export function MobileNavDrawer({
                 href={item.href}
                 onClick={onClose}
                 className={cn(
-                  "mb-0.5 flex items-center gap-2 rounded-md px-2.5 py-2.5 text-sm font-medium",
+                  "mb-0.5 flex items-center gap-2 rounded-[10px] px-2.5 py-2.5 text-sm font-medium",
                   active
-                    ? "bg-[#45d6ac]/18 text-[#f3f8f5]"
-                    : "text-[#afc2ba] hover:bg-white/10 hover:text-[#f3f8f5]",
+                    ? "bg-teal-bright/18 text-white"
+                    : "text-hero-muted hover:bg-white/10 hover:text-white",
                 )}
               >
                 <Icon
                   className={cn(
                     "size-4",
-                    active ? "text-[#45d6ac]" : "text-current",
+                    active ? "text-teal-bright" : "text-current",
                   )}
                   aria-hidden
                 />
