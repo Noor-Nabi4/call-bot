@@ -187,6 +187,13 @@ class Call(Base):
     called_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
     telephony_provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
     provider_call_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    disposition_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    quality_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quality_notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    quality_reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    quality_reviewed_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,

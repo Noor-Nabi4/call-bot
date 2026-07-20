@@ -134,4 +134,13 @@ class CallRepository:
             "called_number": call.called_number,
             "telephony_provider": call.telephony_provider,
             "provider_call_id": call.provider_call_id,
+            "disposition_code": call.disposition_code,
+            "quality_score": call.quality_score,
+            "quality_notes": call.quality_notes,
+            "quality_reviewed_at": (
+                call.quality_reviewed_at.isoformat()
+                if call.quality_reviewed_at
+                else None
+            ),
+            "quality_reviewed_by": call.quality_reviewed_by,
         }

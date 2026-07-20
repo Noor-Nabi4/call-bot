@@ -59,7 +59,7 @@ export {
   startPhoneVerification,
   createTestCall,
 } from "./phones";
-export { listAppointments, listCalls, listCustomers, listTeamUsers, inviteTeamUser, updateTeamUser, getSupervisorSnapshot, type TeamUser, type SupervisorSnapshot } from "./admin";
+export { listAppointments, listCalls, reviewCallQuality, listCustomers, listTeamUsers, inviteTeamUser, updateTeamUser, getSupervisorSnapshot, type TeamUser, type SupervisorSnapshot } from "./admin";
 export {
   getSubscription,
   getUsage,

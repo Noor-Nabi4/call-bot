@@ -74,6 +74,13 @@ export const calls = {
   emptyHint: "Call records appear when customers reach your AI receptionist.",
   detailTitle: "Call detail",
   liveLink: "Live now",
+  quality: "Quality review",
+  score: "Score (1–5)",
+  disposition: "Disposition",
+  notes: "Notes",
+  saveQuality: "Save review",
+  savingQuality: "Saving…",
+  qualitySaved: "Quality review saved",
 } as const;
 
 export const liveCalls = {
@@ -319,6 +326,7 @@ export const metrics = {
   voiceMinutes: "Voice minutes",
   avgDuration: "Avg duration",
   handoffs: "Handoffs",
+  avgQuality: "Avg QA score",
   appointments: "Appointments",
   jobs: "Jobs",
   callsByDay: "Call volume",

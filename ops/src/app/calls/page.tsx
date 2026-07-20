@@ -1,41 +1,42 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Phone } from "lucide-react";
 import { AppShell } from "@/components/shell";
-import { formatWhen } from "@/lib/api";
+import { formatWhen, listCalls, reviewCallQuality } from "@/lib/api";
 import { useAuth } from "@/lib/use-auth";
 import { calls as copy, errors } from "@/lib/copy";
 import { safeUserError } from "@/lib/safe-error";
+import type { Call } from "@/types";
 import {
+  Button,
   DataTable,
   DetailDrawer,
   EmptyState,
   ErrorState,
+  Field,
   LoadingSkeleton,
   PageHeader,
   SearchInput,
+  Select,
   StatusPill,
+  Textarea,
   Timeline,
+  useToast,
   type DataTableColumn,
 } from "@/components/ui";
 
-const API =
-  process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
-  "http://localhost:8000";
-
-type Call = {
-  id: string;
-  room_name: string;
-  status: string;
-  caller_number?: string | null;
-  called_number?: string | null;
-  started_at?: string | null;
-  ended_at?: string | null;
-  customer_id?: string | null;
-};
+const DISPOSITIONS = [
+  "resolved",
+  "callback",
+  "transferred",
+  "spam",
+  "no_answer",
+  "abandoned",
+  "other",
+] as const;
 
 function formatDuration(
   started?: string | null,
@@ -55,16 +56,19 @@ function CallsWorkspace() {
   const searchParams = useSearchParams();
   const statusFilter = (searchParams.get("status") || "").toLowerCase().trim();
   const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const toast = useToast();
   const [rows, setRows] = useState<Call[]>([]);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Call | null>(null);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [score, setScore] = useState("5");
+  const [disposition, setDisposition] = useState("resolved");
+  const [notes, setNotes] = useState("");
+  const [savingQuality, setSavingQuality] = useState(false);
 
   const load = useCallback(async () => {
-    const res = await fetch(`${API}/api/admin/calls`, { credentials: "include" });
-    if (!res.ok) throw new Error(errors.loadFailed);
-    const data = await res.json();
+    const data = await listCalls({ limit: 100 });
     setRows(data.calls || []);
   }, []);
 
@@ -84,6 +88,13 @@ function CallsWorkspace() {
     };
   }, [user, load]);
 
+  useEffect(() => {
+    if (!selected) return;
+    setScore(selected.quality_score != null ? String(selected.quality_score) : "5");
+    setDisposition(selected.disposition_code || "resolved");
+    setNotes(selected.quality_notes || "");
+  }, [selected]);
+
   const filtered = useMemo(() => {
     return rows.filter((c) => {
       if (statusFilter && c.status.toLowerCase() !== statusFilter) return false;
@@ -92,7 +103,8 @@ function CallsWorkspace() {
       return (
         c.status.toLowerCase().includes(q) ||
         (c.caller_number || "").includes(q) ||
-        (c.called_number || "").includes(q)
+        (c.called_number || "").includes(q) ||
+        (c.disposition_code || "").includes(q)
       );
     });
   }, [rows, search, statusFilter]);
@@ -137,6 +149,17 @@ function CallsWorkspace() {
       ),
       className: "w-24",
     },
+    {
+      id: "qa",
+      header: "QA",
+      cell: (c) =>
+        c.quality_score != null ? (
+          <span className="font-mono text-xs">{c.quality_score}/5</span>
+        ) : (
+          <span className="text-xs text-text-muted">—</span>
+        ),
+      className: "w-16",
+    },
   ];
 
   const timelineItems = selected
@@ -163,8 +186,41 @@ function CallsWorkspace() {
               },
             ]
           : []),
+        ...(selected.quality_reviewed_at
+          ? [
+              {
+                id: "qa",
+                title: "Quality reviewed",
+                detail: `Score ${selected.quality_score}/5 · ${selected.disposition_code || "—"}`,
+                time: formatWhen(selected.quality_reviewed_at),
+                tone: "default" as const,
+              },
+            ]
+          : []),
       ]
     : [];
+
+  async function onSaveQuality(e: FormEvent) {
+    e.preventDefault();
+    if (!selected || selected.status === "active" || !selected.ended_at) return;
+    setSavingQuality(true);
+    try {
+      const data = await reviewCallQuality(selected.id, {
+        quality_score: Number(score),
+        disposition_code: disposition,
+        quality_notes: notes.trim() || null,
+      });
+      setSelected(data.call);
+      setRows((prev) =>
+        prev.map((c) => (c.id === data.call.id ? data.call : c)),
+      );
+      toast.push(copy.qualitySaved, "success");
+    } catch (err) {
+      toast.push(safeUserError(err, errors.saveFailed), "error");
+    } finally {
+      setSavingQuality(false);
+    }
+  }
 
   if (loading || !user) {
     return (
@@ -260,21 +316,33 @@ function CallsWorkspace() {
           <div className="space-y-5">
             <dl className="grid gap-3 text-sm">
               <div>
-                <dt className="text-xs font-medium text-text-muted uppercase">Status</dt>
+                <dt className="text-xs font-medium text-text-muted uppercase">
+                  Status
+                </dt>
                 <dd className="mt-1">
                   <StatusPill status={selected.status} />
                 </dd>
               </div>
               <div>
-                <dt className="text-xs font-medium text-text-muted uppercase">Caller</dt>
-                <dd className="mt-1 font-mono">{selected.caller_number || "—"}</dd>
+                <dt className="text-xs font-medium text-text-muted uppercase">
+                  Caller
+                </dt>
+                <dd className="mt-1 font-mono">
+                  {selected.caller_number || "—"}
+                </dd>
               </div>
               <div>
-                <dt className="text-xs font-medium text-text-muted uppercase">Called</dt>
-                <dd className="mt-1 font-mono">{selected.called_number || "—"}</dd>
+                <dt className="text-xs font-medium text-text-muted uppercase">
+                  Called
+                </dt>
+                <dd className="mt-1 font-mono">
+                  {selected.called_number || "—"}
+                </dd>
               </div>
               <div>
-                <dt className="text-xs font-medium text-text-muted uppercase">Duration</dt>
+                <dt className="text-xs font-medium text-text-muted uppercase">
+                  Duration
+                </dt>
                 <dd className="mt-1 font-mono">
                   {formatDuration(selected.started_at, selected.ended_at)}
                 </dd>
@@ -284,6 +352,46 @@ function CallsWorkspace() {
               <h3 className="mb-3 text-sm font-semibold">Timeline</h3>
               <Timeline items={timelineItems} />
             </div>
+            {selected.status !== "active" && selected.ended_at ? (
+              <form className="space-y-3 border-t border-border pt-4" onSubmit={onSaveQuality}>
+                <h3 className="text-sm font-semibold">{copy.quality}</h3>
+                <Field label={copy.score}>
+                  <Select
+                    value={score}
+                    onChange={(e) => setScore(e.target.value)}
+                  >
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <option key={n} value={String(n)}>
+                        {n}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label={copy.disposition}>
+                  <Select
+                    value={disposition}
+                    onChange={(e) => setDisposition(e.target.value)}
+                  >
+                    {DISPOSITIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {d.replace(/_/g, " ")}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label={copy.notes}>
+                  <Textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={3}
+                    maxLength={2000}
+                  />
+                </Field>
+                <Button type="submit" size="sm" disabled={savingQuality}>
+                  {savingQuality ? copy.savingQuality : copy.saveQuality}
+                </Button>
+              </form>
+            ) : null}
           </div>
         ) : null}
       </DetailDrawer>

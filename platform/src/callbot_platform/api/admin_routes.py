@@ -44,6 +44,14 @@ class RetentionBody(BaseModel):
     audit_retention_days: int | None = None
 
 
+class CallQualityBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    quality_score: int | None = Field(default=None, ge=1, le=5)
+    disposition_code: str | None = Field(default=None, max_length=64)
+    quality_notes: str | None = Field(default=None, max_length=2000)
+
+
 @router.get("/customers")
 def customers(
     user: CurrentUser = Depends(
@@ -76,6 +84,32 @@ def calls(
     except AdminError as exc:
         raise HTTPException(
             status_code=400, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+
+
+@router.patch("/calls/{call_id}/quality")
+def review_call_quality(
+    call_id: UUID,
+    body: CallQualityBody,
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    try:
+        call = AdminRepository(session).review_call_quality(
+            user.tenant_id,
+            call_id,
+            actor=user.email,
+            quality_score=body.quality_score,
+            disposition_code=body.disposition_code,
+            quality_notes=body.quality_notes,
+        )
+        return {"call": call}
+    except AdminError as exc:
+        status = 404 if exc.code == "call_not_found" else 400
+        raise HTTPException(
+            status_code=status, detail={"code": exc.code, "message": str(exc)}
         ) from exc
 
 

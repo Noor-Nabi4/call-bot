@@ -21,6 +21,20 @@ export function listCalls(opts?: { status?: string; limit?: number }) {
   return api<{ calls: Call[] }>(`/api/admin/calls${qs ? `?${qs}` : ""}`);
 }
 
+export function reviewCallQuality(
+  callId: string,
+  body: {
+    quality_score?: number | null;
+    disposition_code?: string | null;
+    quality_notes?: string | null;
+  },
+) {
+  return api<{ call: Call }>(`/api/admin/calls/${callId}/quality`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
 export type SupervisorSnapshot = {
   active_calls: Call[];
   recent_calls: Call[];

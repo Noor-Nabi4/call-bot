@@ -179,4 +179,9 @@ export type Call = {
   disconnect_reason?: string | null;
   elapsed_seconds?: number | null;
   handoff_requested?: boolean;
+  disposition_code?: string | null;
+  quality_score?: number | null;
+  quality_notes?: string | null;
+  quality_reviewed_at?: string | null;
+  quality_reviewed_by?: string | null;
 };

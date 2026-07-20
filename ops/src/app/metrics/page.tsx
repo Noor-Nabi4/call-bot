@@ -31,6 +31,8 @@ type Metrics = {
   calls_active: number;
   voice_minutes: number;
   avg_call_duration_seconds: number;
+  avg_quality_score?: number | null;
+  quality_reviews?: number;
   handoffs_requested: number;
   handoff_rate: number;
   appointment_booked_calls: number;
@@ -177,6 +179,17 @@ export default function MetricsPage() {
                 value: formatDuration(metrics.avg_call_duration_seconds),
               },
               { label: copy.handoffs, value: metrics.handoffs_requested },
+              {
+                label: copy.avgQuality,
+                value:
+                  metrics.avg_quality_score != null
+                    ? `${metrics.avg_quality_score}/5`
+                    : "—",
+                hint:
+                  metrics.quality_reviews != null
+                    ? `${metrics.quality_reviews} reviews`
+                    : undefined,
+              },
               { label: copy.appointments, value: metrics.appointments },
               { label: copy.jobs, value: metrics.jobs },
             ]}

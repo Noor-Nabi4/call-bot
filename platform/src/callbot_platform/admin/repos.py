@@ -13,6 +13,7 @@ from callbot_platform.billing.usage import (
     compute_billable_seconds,
     seconds_to_billable_minutes,
 )
+from callbot_platform.call_quality import CallQualityError, validate_quality_review
 from callbot_platform.db.models import (
     Appointment,
     Call,
@@ -77,33 +78,97 @@ class AdminRepository:
         now = datetime.now(UTC)
         out: list[dict[str, Any]] = []
         for c in rows:
-            metrics = c.metrics if isinstance(c.metrics, dict) else {}
-            elapsed: int | None = None
-            if c.started_at:
-                start = c.started_at
-                if start.tzinfo is None:
-                    start = start.replace(tzinfo=UTC)
-                end = c.ended_at or now
-                if end.tzinfo is None:
-                    end = end.replace(tzinfo=UTC)
-                elapsed = max(0, int((end - start).total_seconds()))
-            out.append(
-                {
-                    "id": str(c.id),
-                    "room_name": c.room_name,
-                    "status": c.status,
-                    "caller_number": c.caller_number,
-                    "called_number": c.called_number,
-                    "started_at": c.started_at.isoformat() if c.started_at else None,
-                    "ended_at": c.ended_at.isoformat() if c.ended_at else None,
-                    "customer_id": str(c.customer_id) if c.customer_id else None,
-                    "billable_seconds": c.billable_seconds,
-                    "disconnect_reason": c.disconnect_reason,
-                    "elapsed_seconds": elapsed,
-                    "handoff_requested": bool(metrics.get("handoff_requested")),
-                }
-            )
+            out.append(self._serialize_call(c, now=now))
         return out
+
+    def _serialize_call(
+        self, c: Call, *, now: datetime | None = None
+    ) -> dict[str, Any]:
+        clock = now or datetime.now(UTC)
+        metrics = c.metrics if isinstance(c.metrics, dict) else {}
+        elapsed: int | None = None
+        if c.started_at:
+            start = c.started_at
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=UTC)
+            end = c.ended_at or clock
+            if end.tzinfo is None:
+                end = end.replace(tzinfo=UTC)
+            elapsed = max(0, int((end - start).total_seconds()))
+        return {
+            "id": str(c.id),
+            "room_name": c.room_name,
+            "status": c.status,
+            "caller_number": c.caller_number,
+            "called_number": c.called_number,
+            "started_at": c.started_at.isoformat() if c.started_at else None,
+            "ended_at": c.ended_at.isoformat() if c.ended_at else None,
+            "customer_id": str(c.customer_id) if c.customer_id else None,
+            "billable_seconds": c.billable_seconds,
+            "disconnect_reason": c.disconnect_reason,
+            "elapsed_seconds": elapsed,
+            "handoff_requested": bool(metrics.get("handoff_requested")),
+            "disposition_code": c.disposition_code,
+            "quality_score": c.quality_score,
+            "quality_notes": c.quality_notes,
+            "quality_reviewed_at": (
+                c.quality_reviewed_at.isoformat() if c.quality_reviewed_at else None
+            ),
+            "quality_reviewed_by": c.quality_reviewed_by,
+        }
+
+    def review_call_quality(
+        self,
+        tenant_id: UUID,
+        call_id: UUID,
+        *,
+        actor: str,
+        quality_score: int | None = None,
+        disposition_code: str | None = None,
+        quality_notes: str | None = None,
+    ) -> dict[str, Any]:
+        """Record post-call QA for a tenant call (supervisor / admin)."""
+        try:
+            fields = validate_quality_review(
+                quality_score=quality_score,
+                disposition_code=disposition_code,
+                quality_notes=quality_notes,
+            )
+        except CallQualityError as exc:
+            raise AdminError(exc.code, str(exc)) from exc
+
+        call = self._session.scalar(
+            select(Call).where(Call.id == call_id, Call.tenant_id == tenant_id)
+        )
+        if call is None:
+            raise AdminError("call_not_found", "Call not found for tenant")
+        if call.status == "active" or call.ended_at is None:
+            raise AdminError(
+                "call_still_active",
+                "Quality review is only allowed after the call ends",
+            )
+
+        if fields["quality_score"] is not None:
+            call.quality_score = fields["quality_score"]
+        if fields["disposition_code"] is not None:
+            call.disposition_code = fields["disposition_code"]
+        if quality_notes is not None:
+            call.quality_notes = fields["quality_notes"]
+        call.quality_reviewed_at = datetime.now(UTC)
+        call.quality_reviewed_by = actor[:255]
+        self._session.flush()
+        write_audit(
+            self._session,
+            tenant_id=tenant_id,
+            actor=actor,
+            action="call_quality_reviewed",
+            resource_ids={"call_id": str(call.id)},
+            payload_summary={
+                "quality_score": call.quality_score,
+                "disposition_code": call.disposition_code,
+            },
+        )
+        return self._serialize_call(call)
 
     def supervisor_snapshot(
         self, tenant_id: UUID, *, recent_limit: int = 20
@@ -215,6 +280,7 @@ class AdminRepository:
         voice_seconds = 0
         handoffs = 0
         appointments_booked_flag = 0
+        quality_scores: list[int] = []
         disconnect_reasons: dict[str, int] = {}
         calls_by_day: dict[str, int] = {}
         for call in call_rows:
@@ -235,9 +301,16 @@ class AdminRepository:
                 handoffs += 1
             if metrics_blob.get("appointment_booked"):
                 appointments_booked_flag += 1
+            if call.quality_score is not None:
+                quality_scores.append(int(call.quality_score))
 
         ended_count = int(calls_ended or 0)
         avg_duration = round(voice_seconds / ended_count, 1) if ended_count > 0 else 0.0
+        avg_quality = (
+            round(sum(quality_scores) / len(quality_scores), 2)
+            if quality_scores
+            else None
+        )
         # Fill every calendar day in the window so the Ops chart has a continuous axis.
         series: list[dict[str, Any]] = []
         cursor = since.astimezone(UTC).date()
@@ -255,6 +328,8 @@ class AdminRepository:
             "voice_seconds": voice_seconds,
             "voice_minutes": seconds_to_billable_minutes(voice_seconds),
             "avg_call_duration_seconds": avg_duration,
+            "avg_quality_score": avg_quality,
+            "quality_reviews": len(quality_scores),
             "handoffs_requested": handoffs,
             "handoff_rate": round(handoffs / ended_count, 3) if ended_count else 0.0,
             "appointment_booked_calls": appointments_booked_flag,
