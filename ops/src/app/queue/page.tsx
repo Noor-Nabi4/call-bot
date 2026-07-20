@@ -15,6 +15,7 @@ import { errors, queue as copy } from "@/lib/copy";
 import { safeUserError } from "@/lib/safe-error";
 import {
   Button,
+  ConfirmDialog,
   DataTable,
   EmptyState,
   ErrorState,
@@ -41,6 +42,7 @@ export default function QueuePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<QueueItem | null>(null);
   const inFlight = useRef(false);
 
   const load = useCallback(async (soft = false) => {
@@ -62,7 +64,14 @@ export default function QueuePage() {
 
   useEffect(() => {
     if (!user) return;
-    void load(false);
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      void load(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [user, load]);
 
   useEffect(() => {
@@ -119,6 +128,7 @@ export default function QueuePage() {
       const data = await completeQueueItem(id, { cancel });
       setItems((prev) => prev.map((i) => (i.id === id ? data.item : i)));
       toast.push(cancel ? "Cancelled" : "Completed", "success");
+      setCancelTarget(null);
     } catch (e) {
       toast.push(safeUserError(e, errors.saveFailed), "error");
     } finally {
@@ -191,7 +201,7 @@ export default function QueuePage() {
               size="sm"
               variant="ghost"
               disabled={busy}
-              onClick={() => void onComplete(i.id, true)}
+              onClick={() => setCancelTarget(i)}
             >
               {copy.cancel}
             </Button>
@@ -254,6 +264,23 @@ export default function QueuePage() {
           }
         />
       )}
+
+      <ConfirmDialog
+        open={!!cancelTarget}
+        title={copy.cancelTitle}
+        description={copy.cancelBody}
+        confirmLabel={copy.cancel}
+        danger
+        busy={busyId === cancelTarget?.id}
+        onConfirm={() => {
+          if (!cancelTarget) return;
+          void onComplete(cancelTarget.id, true);
+        }}
+        onCancel={() => {
+          if (busyId) return;
+          setCancelTarget(null);
+        }}
+      />
     </AppShell>
   );
 }

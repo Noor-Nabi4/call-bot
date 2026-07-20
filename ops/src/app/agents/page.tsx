@@ -7,6 +7,7 @@ import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
 import {
   createAgentProfile,
+  archiveAgentProfile,
   listAgentProfiles,
   listIndustryTemplates,
   setDefaultAgentProfile,
@@ -16,6 +17,7 @@ import {
 import { safeUserError } from "@/lib/safe-error";
 import {
   Button,
+  ConfirmDialog,
   DetailDrawer,
   EmptyState,
   ErrorState,
@@ -43,6 +45,8 @@ export default function AgentsPage() {
   const [name, setName] = useState("");
   const [industryKey, setIndustryKey] = useState("custom");
   const [agentType, setAgentType] = useState("receptionist");
+  const [archiveTarget, setArchiveTarget] = useState<AgentProfile | null>(null);
+  const [archiveBusy, setArchiveBusy] = useState(false);
 
   const load = useCallback(async () => {
     const [profileData, templateData] = await Promise.all([
@@ -111,6 +115,21 @@ export default function AgentsPage() {
       await load();
     } catch (err) {
       toast.push(safeUserError(err, "Could not set default"), "error");
+    }
+  }
+
+  async function onConfirmArchive() {
+    if (!archiveTarget) return;
+    setArchiveBusy(true);
+    try {
+      await archiveAgentProfile(archiveTarget.id);
+      toast.push("Agent archived", "success");
+      setArchiveTarget(null);
+      await load();
+    } catch (err) {
+      toast.push(safeUserError(err, "Could not archive agent"), "error");
+    } finally {
+      setArchiveBusy(false);
     }
   }
 
@@ -206,6 +225,16 @@ export default function AgentsPage() {
                   <Link href={`/agents/${profile.id}`}>
                     <Button size="sm">Open builder</Button>
                   </Link>
+                  {!profile.is_default ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-danger"
+                      onClick={() => setArchiveTarget(profile)}
+                    >
+                      Archive
+                    </Button>
+                  ) : null}
                 </div>
               </li>
             ))}
@@ -279,6 +308,26 @@ export default function AgentsPage() {
           </Field>
         </form>
       </DetailDrawer>
+
+      <ConfirmDialog
+        open={!!archiveTarget}
+        title="Archive agent?"
+        description={
+          archiveTarget
+            ? `${archiveTarget.name} will be archived and hidden from the active list. Phone routing should be reassigned first if this agent still owns numbers.`
+            : undefined
+        }
+        confirmLabel="Archive"
+        danger
+        busy={archiveBusy}
+        onConfirm={() => {
+          void onConfirmArchive();
+        }}
+        onCancel={() => {
+          if (archiveBusy) return;
+          setArchiveTarget(null);
+        }}
+      />
     </AppShell>
   );
 }

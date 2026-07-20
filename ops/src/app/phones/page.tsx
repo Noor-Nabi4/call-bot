@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
-import { Phone, Search, Link2 } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { Phone, Plus, Search, Link2 } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
 import {
@@ -14,6 +14,7 @@ import {
   listAgentProfiles,
   listPhoneNumbers,
   purchasePhoneNumber,
+  releasePhoneNumber,
   searchInventory,
   startPhoneVerification,
   type AgentProfile,
@@ -23,6 +24,9 @@ import {
 import { safeUserError } from "@/lib/safe-error";
 import {
   Button,
+  ConfirmDialog,
+  DetailDrawer,
+  EmptyState,
   ErrorState,
   Field,
   Input,
@@ -32,6 +36,9 @@ import {
   Surface,
   useToast,
 } from "@/components/ui";
+
+const CONNECT_FORM_ID = "connect-phone-form";
+const BUY_FORM_ID = "buy-phone-form";
 
 export default function PhonesPage() {
   const { user, loading } = useAuth({ roles: ["admin"] });
@@ -43,8 +50,15 @@ export default function PhonesPage() {
   const [fetching, setFetching] = useState(true);
   const [areaCode, setAreaCode] = useState("");
   const [connectNumber, setConnectNumber] = useState("");
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [buyOpen, setBuyOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [testInfo, setTestInfo] = useState<string | null>(null);
+  const [purchaseTarget, setPurchaseTarget] = useState<InventoryNumber | null>(
+    null,
+  );
+  const [releaseTarget, setReleaseTarget] = useState<PhoneNumber | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
 
   const load = useCallback(async () => {
     const [phoneData, profileData] = await Promise.all([
@@ -57,10 +71,18 @@ export default function PhonesPage() {
 
   useEffect(() => {
     if (!user) return;
-    setFetching(true);
-    load()
-      .catch((err) => setError(safeUserError(err, "Could not load phones")))
-      .finally(() => setFetching(false));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      load()
+        .catch((err) => setError(safeUserError(err, "Could not load phones")))
+        .finally(() => {
+          if (!cancelled) setFetching(false);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [user, load]);
 
   async function onAssign(phoneId: string, profileId: string) {
@@ -73,13 +95,28 @@ export default function PhonesPage() {
     }
   }
 
-  async function onConnect() {
+  function closeConnect() {
+    if (busy) return;
+    setConnectOpen(false);
+    setConnectNumber("");
+  }
+
+  function closeBuy() {
+    if (busy) return;
+    setBuyOpen(false);
+    setAreaCode("");
+    setInventory([]);
+  }
+
+  async function onConnect(e: FormEvent) {
+    e.preventDefault();
     if (!connectNumber.trim()) return;
     setBusy(true);
     try {
       await connectPhoneNumber({ phone_number: connectNumber.trim() });
       toast.push("Number connected — confirm trunk next", "success");
       setConnectNumber("");
+      setConnectOpen(false);
       await load();
     } catch (err) {
       toast.push(safeUserError(err, "Could not connect number"), "error");
@@ -88,7 +125,8 @@ export default function PhonesPage() {
     }
   }
 
-  async function onSearch() {
+  async function onSearch(e?: FormEvent) {
+    e?.preventDefault();
     setBusy(true);
     try {
       await ensureTwilioSubaccount();
@@ -105,16 +143,36 @@ export default function PhonesPage() {
     }
   }
 
-  async function onPurchase(e164: string) {
-    setBusy(true);
+  async function onConfirmPurchase() {
+    if (!purchaseTarget) return;
+    setConfirmBusy(true);
     try {
-      await purchasePhoneNumber(e164, crypto.randomUUID());
-      toast.push(`Purchased ${e164}`, "success");
+      await purchasePhoneNumber(purchaseTarget.e164, crypto.randomUUID());
+      toast.push(`Purchased ${purchaseTarget.e164}`, "success");
+      setPurchaseTarget(null);
+      setInventory((prev) =>
+        prev.filter((item) => item.e164 !== purchaseTarget.e164),
+      );
       await load();
     } catch (err) {
       toast.push(safeUserError(err, "Purchase failed"), "error");
     } finally {
-      setBusy(false);
+      setConfirmBusy(false);
+    }
+  }
+
+  async function onConfirmRelease() {
+    if (!releaseTarget) return;
+    setConfirmBusy(true);
+    try {
+      await releasePhoneNumber(releaseTarget.id);
+      toast.push(`Released ${releaseTarget.e164}`, "success");
+      setReleaseTarget(null);
+      await load();
+    } catch (err) {
+      toast.push(safeUserError(err, "Release failed"), "error");
+    } finally {
+      setConfirmBusy(false);
     }
   }
 
@@ -151,6 +209,7 @@ export default function PhonesPage() {
   }
 
   const defaultProfile = profiles.find((p) => p.is_default);
+  const activePhones = phones.filter((p) => p.connection_status !== "released");
 
   if (loading || !user) {
     return (
@@ -166,11 +225,25 @@ export default function PhonesPage() {
         title="Phones"
         description="Buy or connect numbers, assign each DID to an Agent Profile, and run test calls. Advanced recording and forwarding come later."
         actions={
-          <Link href="/agents">
-            <Button variant="secondary" size="sm">
-              Agent builder
+          <div className="flex flex-wrap gap-2">
+            <Link href="/agents">
+              <Button variant="secondary" size="sm">
+                Agent builder
+              </Button>
+            </Link>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setConnectOpen(true)}
+            >
+              <Link2 className="size-3.5" aria-hidden />
+              Connect
             </Button>
-          </Link>
+            <Button size="sm" onClick={() => setBuyOpen(true)}>
+              <Plus className="size-3.5" aria-hidden />
+              Buy number
+            </Button>
+          </div>
         }
       />
 
@@ -181,28 +254,47 @@ export default function PhonesPage() {
         </p>
       ) : null}
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <Surface className="ops-surface-rise p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <Phone className="size-4 text-brand" aria-hidden />
-            <h2 className="font-heading text-lg font-semibold">Inventory</h2>
-          </div>
-          {defaultProfile ? (
-            <p className="mb-3 text-xs text-text-muted">
-              Default fallback agent: <strong>{defaultProfile.name}</strong>
-            </p>
-          ) : (
-            <p className="mb-3 text-xs text-warn">
-              No default agent profile — create one before SIP calls.
-            </p>
-          )}
-          {fetching ? (
-            <LoadingSkeleton rows={4} />
-          ) : phones.length === 0 ? (
-            <p className="text-sm text-text-muted">No phone numbers yet.</p>
-          ) : (
+      <div className="mt-6">
+        {defaultProfile ? (
+          <p className="mb-3 text-xs text-text-muted">
+            Default fallback agent: <strong>{defaultProfile.name}</strong>
+          </p>
+        ) : (
+          <p className="mb-3 text-xs text-warn">
+            No default agent profile — create one before SIP calls.
+          </p>
+        )}
+
+        {fetching ? (
+          <LoadingSkeleton rows={4} />
+        ) : activePhones.length === 0 ? (
+          <EmptyState
+            icon={<Phone className="size-8" />}
+            title="No phone numbers yet"
+            description="Connect an existing Twilio number or buy a new one."
+            action={
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setConnectOpen(true)}
+                >
+                  Connect
+                </Button>
+                <Button size="sm" onClick={() => setBuyOpen(true)}>
+                  Buy number
+                </Button>
+              </div>
+            }
+          />
+        ) : (
+          <Surface className="ops-surface-rise p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <Phone className="size-4 text-brand" aria-hidden />
+              <h2 className="font-heading text-lg font-semibold">Inventory</h2>
+            </div>
             <ul className="space-y-3">
-              {phones.map((phone) => (
+              {activePhones.map((phone) => (
                 <li
                   key={phone.id}
                   className="rounded-xl border border-border bg-paper/60 p-3"
@@ -212,6 +304,9 @@ export default function PhonesPage() {
                       <p className="font-medium">{phone.e164}</p>
                       <p className="text-xs text-text-muted">
                         {phone.connection_status} · {phone.verification_status}
+                        {phone.onboarding_path
+                          ? ` · ${phone.onboarding_path}`
+                          : ""}
                       </p>
                     </div>
                     <Button
@@ -260,54 +355,93 @@ export default function PhonesPage() {
                     >
                       Start verification
                     </Button>
+                    {phone.can_release ? (
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => setReleaseTarget(phone)}
+                      >
+                        Release
+                      </Button>
+                    ) : null}
                   </div>
                 </li>
               ))}
             </ul>
-          )}
-        </Surface>
+          </Surface>
+        )}
+      </div>
 
-        <div className="space-y-6">
-          <Surface className="ops-surface-rise p-5">
-            <div className="mb-4 flex items-center gap-2">
-              <Link2 className="size-4 text-brand" aria-hidden />
-              <h2 className="font-heading text-lg font-semibold">
-                Connect existing
-              </h2>
-            </div>
-            <Field label="E.164 number">
+      <DetailDrawer
+        open={connectOpen}
+        onClose={closeConnect}
+        title="Connect existing number"
+        description="Link a Twilio number you already own. Confirm the trunk after connecting."
+        width="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={closeConnect} disabled={busy}>
+              Cancel
+            </Button>
+            <Button
+              form={CONNECT_FORM_ID}
+              type="submit"
+              disabled={busy || !connectNumber.trim()}
+            >
+              {busy ? "Connecting…" : "Connect"}
+            </Button>
+          </div>
+        }
+      >
+        <form id={CONNECT_FORM_ID} onSubmit={onConnect} className="grid gap-3">
+          <Field label="E.164 number">
+            <Input
+              value={connectNumber}
+              onChange={(e) => setConnectNumber(e.target.value)}
+              placeholder="+15551234567"
+              required
+            />
+          </Field>
+        </form>
+      </DetailDrawer>
+
+      <DetailDrawer
+        open={buyOpen}
+        onClose={closeBuy}
+        title="Buy number"
+        description="Search Twilio inventory by area code, then confirm purchase."
+        width="md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={closeBuy} disabled={busy}>
+              Close
+            </Button>
+          </div>
+        }
+      >
+        <form id={BUY_FORM_ID} onSubmit={onSearch} className="grid gap-3">
+          <div className="flex gap-2">
+            <Field label="Area code" className="flex-1">
               <Input
-                value={connectNumber}
-                onChange={(e) => setConnectNumber(e.target.value)}
-                placeholder="+15551234567"
+                value={areaCode}
+                onChange={(e) => setAreaCode(e.target.value)}
+                placeholder="415"
               />
             </Field>
-            <Button className="mt-3" onClick={onConnect} disabled={busy}>
-              Connect Twilio number
-            </Button>
-          </Surface>
-
-          <Surface className="ops-surface-rise p-5">
-            <div className="mb-4 flex items-center gap-2">
-              <Search className="size-4 text-brand" aria-hidden />
-              <h2 className="font-heading text-lg font-semibold">Buy number</h2>
+            <div className="flex items-end">
+              <Button type="submit" disabled={busy}>
+                <Search className="size-3.5" aria-hidden />
+                {busy ? "Searching…" : "Search"}
+              </Button>
             </div>
-            <div className="flex gap-2">
-              <Field label="Area code">
-                <Input
-                  value={areaCode}
-                  onChange={(e) => setAreaCode(e.target.value)}
-                  placeholder="415"
-                />
-              </Field>
-              <div className="flex items-end">
-                <Button onClick={onSearch} disabled={busy}>
-                  Search
-                </Button>
-              </div>
-            </div>
-            <ul className="mt-3 divide-y divide-border">
-              {inventory.map((item) => (
+          </div>
+          <ul className="divide-y divide-border">
+            {inventory.length === 0 ? (
+              <li className="py-6 text-center text-sm text-text-muted">
+                Search to see available numbers.
+              </li>
+            ) : (
+              inventory.map((item) => (
                 <li
                   key={item.e164}
                   className="flex items-center justify-between gap-2 py-2 text-sm"
@@ -319,17 +453,60 @@ export default function PhonesPage() {
                   </span>
                   <Button
                     size="sm"
-                    disabled={busy}
-                    onClick={() => onPurchase(item.e164)}
+                    disabled={busy || confirmBusy}
+                    onClick={() => setPurchaseTarget(item)}
                   >
                     Buy
                   </Button>
                 </li>
-              ))}
-            </ul>
-          </Surface>
-        </div>
-      </div>
+              ))
+            )}
+          </ul>
+        </form>
+      </DetailDrawer>
+
+      <ConfirmDialog
+        open={!!purchaseTarget}
+        title="Buy this number?"
+        description={
+          purchaseTarget
+            ? `${purchaseTarget.e164}${
+                purchaseTarget.monthly_price
+                  ? ` (${purchaseTarget.monthly_price}/mo)`
+                  : ""
+              } will be purchased on your Twilio subaccount and provisioned for inbound SIP.`
+            : undefined
+        }
+        confirmLabel="Buy number"
+        busy={confirmBusy}
+        onConfirm={() => {
+          void onConfirmPurchase();
+        }}
+        onCancel={() => {
+          if (confirmBusy) return;
+          setPurchaseTarget(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!releaseTarget}
+        title="Release this number?"
+        description={
+          releaseTarget
+            ? `${releaseTarget.e164} will be released from Twilio and removed from inbound routing. This cannot be undone.`
+            : undefined
+        }
+        confirmLabel="Release"
+        danger
+        busy={confirmBusy}
+        onConfirm={() => {
+          void onConfirmRelease();
+        }}
+        onCancel={() => {
+          if (confirmBusy) return;
+          setReleaseTarget(null);
+        }}
+      />
     </AppShell>
   );
 }

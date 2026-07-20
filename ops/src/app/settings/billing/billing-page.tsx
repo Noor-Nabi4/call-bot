@@ -2,6 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import {
+  BookOpen,
+  CreditCard,
+  Headphones,
+  LayoutGrid,
+  Phone,
+  Users,
+  Wrench,
+  Zap,
+} from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
 import { billing as copy } from "@/lib/copy";
@@ -15,12 +25,14 @@ import {
   type TenantSubscription,
   type TenantUsage,
 } from "@/lib/api";
+import { UsageSummaryPanel } from "@/components/ops";
 import {
   Button,
   EmptyState,
   ErrorState,
   LoadingSkeleton,
   PageHeader,
+  StatusPill,
   Surface,
   useToast,
 } from "@/components/ui";
@@ -31,6 +43,11 @@ const CHECKOUT_ELIGIBLE = new Set([
   "canceled",
   "unpaid",
 ]);
+
+function planDisplayName(planKey: string): string {
+  if (!planKey) return "—";
+  return planKey.replace(/_/g, " ");
+}
 
 export default function BillingPage() {
   const { user, loading } = useAuth({ roles: ["admin"] });
@@ -72,21 +89,15 @@ export default function BillingPage() {
     };
   }, [user, refresh]);
 
-  // Poll after Checkout success until webhook confirms entitlement.
   useEffect(() => {
     if (!user || !checkoutSuccess) return;
     if (subscription?.is_entitled) return;
-    let cancelled = false;
     const id = window.setInterval(() => {
       refresh().catch(() => {
-        /* keep polling; surface errors from initial load */
+        /* keep polling */
       });
     }, 2500);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-      void cancelled;
-    };
+    return () => window.clearInterval(id);
   }, [user, checkoutSuccess, subscription?.is_entitled, refresh]);
 
   async function onPortal() {
@@ -117,34 +128,142 @@ export default function BillingPage() {
     return <LoadingSkeleton rows={4} />;
   }
 
-  const awaitingWebhook =
-    checkoutSuccess && !subscription?.is_entitled;
+  const awaitingWebhook = checkoutSuccess && !subscription?.is_entitled;
   const canCheckout =
     !subscription || CHECKOUT_ELIGIBLE.has(subscription.status);
+  const entitlements = subscription?.entitlements;
+
+  const limitRows = entitlements
+    ? [
+        {
+          icon: Zap,
+          label: copy.minutes,
+          value: String(entitlements.monthly_minutes),
+        },
+        {
+          icon: Headphones,
+          label: copy.concurrent,
+          value: String(entitlements.concurrent_calls),
+        },
+        {
+          icon: Phone,
+          label: copy.numbers,
+          value: String(entitlements.phone_numbers),
+        },
+        {
+          icon: Users,
+          label: copy.users,
+          value: String(entitlements.team_users),
+        },
+        {
+          icon: BookOpen,
+          label: copy.knowledge,
+          value: String(entitlements.knowledge_documents),
+        },
+        {
+          icon: LayoutGrid,
+          label: copy.dispatch,
+          value: entitlements.dispatch_enabled
+            ? copy.featuresIncluded
+            : copy.featuresNotIncluded,
+          muted: !entitlements.dispatch_enabled,
+        },
+        {
+          icon: Wrench,
+          label: copy.techMobile,
+          value: entitlements.tech_mobile_enabled
+            ? copy.featuresIncluded
+            : copy.featuresNotIncluded,
+          muted: !entitlements.tech_mobile_enabled,
+        },
+      ]
+    : [];
 
   return (
     <AppShell user={user}>
-      <PageHeader title={copy.title} description={copy.description} />
+      <PageHeader
+        title={copy.title}
+        description={copy.description}
+        actions={
+          subscription ? (
+            <div className="flex flex-wrap gap-2">
+              {canCheckout ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={onCheckout}
+                  disabled={checkoutBusy}
+                >
+                  {checkoutBusy ? copy.startingCheckout : copy.completeCheckout}
+                </Button>
+              ) : null}
+              <Button size="sm" onClick={onPortal} disabled={portalBusy}>
+                <CreditCard className="size-3.5" aria-hidden />
+                {portalBusy ? copy.managing : copy.manage}
+              </Button>
+            </div>
+          ) : null
+        }
+      />
 
       {error ? (
         <ErrorState className="mt-4" title={copy.loadFailed} message={error} />
       ) : null}
 
       {fetching ? (
-        <LoadingSkeleton className="mt-6" rows={3} />
+        <LoadingSkeleton className="mt-6" rows={5} />
       ) : (
-        <div className="mt-6 grid max-w-2xl gap-4">
+        <div className="mt-6 space-y-5">
           {awaitingWebhook ? (
-            <Surface className="border-teal/40 bg-teal-soft p-4">
-              <p className="m-0 text-sm font-semibold text-ink">{copy.confirming}</p>
-              <p className="mt-1 m-0 text-sm text-text-secondary">
+            <div className="rounded-[var(--radius-md)] border border-teal/30 bg-teal-soft/70 px-4 py-3">
+              <p className="m-0 text-sm font-semibold text-ink">
+                {copy.confirming}
+              </p>
+              <p className="mt-0.5 m-0 text-sm text-text-secondary">
                 {copy.confirmingHint}
               </p>
-            </Surface>
+            </div>
           ) : null}
 
-          {!subscription ? (
+          {subscription ? (
+            <section className="ops-billing-hero overflow-hidden rounded-[var(--radius-lg)] text-white">
+              <div className="relative px-5 py-6 sm:px-7 sm:py-7">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="m-0 text-[11px] font-medium tracking-[0.14em] text-white/55 uppercase">
+                      {copy.plan}
+                    </p>
+                    <h2 className="mt-1 font-display text-3xl font-semibold tracking-tight capitalize sm:text-4xl">
+                      {planDisplayName(subscription.plan_key)}
+                    </h2>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <StatusPill status={subscription.status} />
+                      {subscription.is_entitled ? (
+                        <span className="text-xs text-teal-bright">
+                          {copy.active}
+                        </span>
+                      ) : null}
+                      {subscription.cancel_at_period_end ? (
+                        <span className="text-xs text-amber-200">
+                          {copy.cancelAtPeriodEnd}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="m-0 text-[11px] font-medium tracking-[0.12em] text-white/55 uppercase">
+                      {copy.periodEnd}
+                    </p>
+                    <p className="mt-1 m-0 font-mono text-sm text-white/90">
+                      {formatWhen(subscription.current_period_end)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          ) : (
             <EmptyState
+              icon={<CreditCard className="size-8" />}
               title={copy.noSubscription}
               description={copy.noSubscriptionHint}
               action={
@@ -153,183 +272,46 @@ export default function BillingPage() {
                 </Button>
               }
             />
-          ) : (
-            <Surface className="p-5">
-              <dl className="m-0 grid gap-4 sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-text-muted">
-                    {copy.plan}
-                  </dt>
-                  <dd className="mt-1 m-0 text-lg font-semibold capitalize text-ink">
-                    {subscription.plan_key}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-text-muted">
-                    {copy.status}
-                  </dt>
-                  <dd className="mt-1 m-0 font-mono text-sm uppercase text-ink">
-                    {subscription.status}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-text-muted">
-                    {copy.periodEnd}
-                  </dt>
-                  <dd className="mt-1 m-0 text-sm text-ink">
-                    {formatWhen(subscription.current_period_end)}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium uppercase tracking-wide text-text-muted">
-                    {copy.cancelAtPeriodEnd}
-                  </dt>
-                  <dd className="mt-1 m-0 text-sm text-ink">
-                    {subscription.cancel_at_period_end ? "Yes" : "No"}
-                  </dd>
-                </div>
-              </dl>
-
-              {subscription.entitlements ? (
-                <div className="mt-6 border-t border-border pt-4">
-                  <p className="m-0 text-xs font-medium uppercase tracking-wide text-text-muted">
-                    {copy.entitlements}
-                  </p>
-                  <dl className="mt-3 m-0 grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <dt className="text-xs text-text-muted">{copy.minutes}</dt>
-                      <dd className="m-0 text-sm font-medium text-ink">
-                        {subscription.entitlements.monthly_minutes}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-text-muted">{copy.concurrent}</dt>
-                      <dd className="m-0 text-sm font-medium text-ink">
-                        {subscription.entitlements.concurrent_calls}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-text-muted">{copy.numbers}</dt>
-                      <dd className="m-0 text-sm font-medium text-ink">
-                        {subscription.entitlements.phone_numbers}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-text-muted">{copy.users}</dt>
-                      <dd className="m-0 text-sm font-medium text-ink">
-                        {subscription.entitlements.team_users}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-text-muted">{copy.knowledge}</dt>
-                      <dd className="m-0 text-sm font-medium text-ink">
-                        {subscription.entitlements.knowledge_documents}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-text-muted">{copy.dispatch}</dt>
-                      <dd className="m-0 text-sm font-medium text-ink">
-                        {subscription.entitlements.dispatch_enabled
-                          ? "Included"
-                          : "Not included"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-text-muted">{copy.techMobile}</dt>
-                      <dd className="m-0 text-sm font-medium text-ink">
-                        {subscription.entitlements.tech_mobile_enabled
-                          ? "Included"
-                          : "Not included"}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              ) : null}
-
-              {usage ? (
-                <div className="mt-6 border-t border-border pt-4">
-                  <p className="m-0 text-xs font-medium uppercase tracking-wide text-text-muted">
-                    {copy.usage}
-                  </p>
-                  <p className="mt-1 m-0 text-xs text-text-secondary">
-                    {copy.usageHint}
-                  </p>
-                  <dl className="mt-3 m-0 grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <dt className="text-xs text-text-muted">
-                        {copy.minutesUsed}
-                      </dt>
-                      <dd className="m-0 text-sm font-medium text-ink">
-                        {usage.voice_minutes}
-                        {usage.included_minutes != null
-                          ? ` / ${usage.included_minutes}`
-                          : ""}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-text-muted">{copy.calls}</dt>
-                      <dd className="m-0 text-sm font-medium text-ink">
-                        {usage.call_count}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-text-muted">{copy.overage}</dt>
-                      <dd className="m-0 text-sm font-medium text-ink">
-                        {usage.overage_minutes} min
-                        {usage.estimated_overage_cents != null
-                          ? ` ($${(usage.estimated_overage_cents / 100).toFixed(2)})`
-                          : ""}
-                      </dd>
-                    </div>
-                  </dl>
-                  <p className="mt-4 m-0 text-xs font-medium uppercase tracking-wide text-text-muted">
-                    {copy.resources}
-                  </p>
-                  <dl className="mt-3 m-0 grid gap-3 sm:grid-cols-2">
-                    {(
-                      [
-                        ["users", usage.resources.team_users],
-                        ["numbers", usage.resources.phone_numbers],
-                        ["knowledge", usage.resources.knowledge_documents],
-                        ["concurrent", usage.resources.concurrent_calls],
-                      ] as const
-                    ).map(([labelKey, slot]) => (
-                      <div key={labelKey}>
-                        <dt className="text-xs text-text-muted">
-                          {copy[labelKey]}
-                        </dt>
-                        <dd className="m-0 text-sm font-medium text-ink">
-                          {slot.used}
-                          {slot.limit != null ? ` / ${slot.limit}` : ""}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                </div>
-              ) : null}
-
-              {subscription.is_entitled ? (
-                <p className="mt-4 m-0 text-sm text-text-secondary">{copy.active}</p>
-              ) : null}
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Button onClick={onPortal} disabled={portalBusy}>
-                  {portalBusy ? copy.managing : copy.manage}
-                </Button>
-                {canCheckout ? (
-                  <Button
-                    variant="secondary"
-                    onClick={onCheckout}
-                    disabled={checkoutBusy}
-                  >
-                    {checkoutBusy
-                      ? copy.startingCheckout
-                      : copy.completeCheckout}
-                  </Button>
-                ) : null}
-              </div>
-            </Surface>
           )}
+
+          {usage ? (
+            <UsageSummaryPanel usage={usage} className="ops-surface-rise" />
+          ) : null}
+
+          {limitRows.length > 0 ? (
+            <Surface className="ops-surface-rise p-5">
+              <h2 className="m-0 text-sm font-semibold text-ink">
+                {copy.entitlements}
+              </h2>
+              <ul className="mt-4 m-0 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
+                {limitRows.map((row) => {
+                  const Icon = row.icon;
+                  return (
+                    <li
+                      key={row.label}
+                      className="flex items-start gap-3 rounded-[var(--radius-md)] border border-border/80 bg-fog/60 px-3 py-3"
+                    >
+                      <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-teal-soft text-teal">
+                        <Icon className="size-4" aria-hidden />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="m-0 text-xs text-text-muted">{row.label}</p>
+                        <p
+                          className={
+                            row.muted
+                              ? "mt-0.5 m-0 text-sm text-text-muted"
+                              : "mt-0.5 m-0 text-sm font-semibold text-ink"
+                          }
+                        >
+                          {row.value}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Surface>
+          ) : null}
         </div>
       )}
     </AppShell>

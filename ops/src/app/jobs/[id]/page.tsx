@@ -20,6 +20,7 @@ import { safeUserError } from "@/lib/safe-error";
 import {
   Breadcrumbs,
   Button,
+  ConfirmDialog,
   ErrorState,
   Field,
   Input,
@@ -39,6 +40,8 @@ export default function JobDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(true);
   const [noteBusy, setNoteBusy] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
 
   const isTech = user?.role === "technician";
   const btnSize = isTech ? "lg" : "md";
@@ -132,6 +135,20 @@ export default function JobDetailPage() {
       setJob(updated.job);
     } catch (e) {
       setError(safeUserError(e, errors.saveFailed));
+    }
+  }
+
+  async function onConfirmCancel() {
+    setCancelBusy(true);
+    setError(null);
+    try {
+      const updated = await transitionJob(job!.id, "canceled");
+      setJob(updated.job);
+      setCancelOpen(false);
+    } catch (e) {
+      setError(safeUserError(e, errors.saveFailed));
+    } finally {
+      setCancelBusy(false);
     }
   }
 
@@ -239,7 +256,7 @@ export default function JobDetailPage() {
               <Button
                 variant="danger"
                 size={btnSize}
-                onClick={() => onTransition("canceled")}
+                onClick={() => setCancelOpen(true)}
               >
                 Cancel
               </Button>
@@ -290,6 +307,22 @@ export default function JobDetailPage() {
           </Button>
         </form>
       </Surface>
+
+      <ConfirmDialog
+        open={cancelOpen}
+        title="Cancel this job?"
+        description={`${job.reference_code} will be marked canceled. This cannot be undone from Ops.`}
+        confirmLabel="Cancel job"
+        danger
+        busy={cancelBusy}
+        onConfirm={() => {
+          void onConfirmCancel();
+        }}
+        onCancel={() => {
+          if (cancelBusy) return;
+          setCancelOpen(false);
+        }}
+      />
     </AppShell>
   );
 }

@@ -138,7 +138,9 @@ class PurchasePhoneBody(BaseModel):
 
 
 class ReleasePhoneBody(BaseModel):
-    phone_number_sid: str
+    """Twilio SID is optional; when omitted the platform uses stored provisioning details."""
+
+    phone_number_sid: str | None = None
 
 
 class TestCallBody(BaseModel):

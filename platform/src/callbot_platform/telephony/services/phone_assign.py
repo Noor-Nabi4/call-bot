@@ -114,6 +114,14 @@ class PhoneAssignmentService:
                 phone.tenant_id,
                 phone_profile_id=phone.agent_profile_id,
             )
+        details = phone.provisioning_details or {}
+        phone_sid = details.get("phone_number_sid")
+        can_release = (
+            phone.onboarding_path == "platform_purchase"
+            and phone.connection_status != "released"
+            and isinstance(phone_sid, str)
+            and bool(phone_sid.strip())
+        )
         return {
             "id": str(phone.id),
             "tenant_id": str(phone.tenant_id),
@@ -131,6 +139,7 @@ class PhoneAssignmentService:
             if effective_profile_id
             else None,
             "is_primary": bool(phone.is_primary),
+            "can_release": can_release,
             "created_at": phone.created_at.isoformat() if phone.created_at else None,
             "updated_at": phone.updated_at.isoformat() if phone.updated_at else None,
         }

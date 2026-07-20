@@ -364,7 +364,7 @@ class PlatformPurchaseService:
         *,
         tenant_id: UUID,
         phone_number_id: UUID,
-        phone_number_sid: str,
+        phone_number_sid: str | None = None,
         actor: str = "tenant_user",
     ) -> dict[str, Any]:
         row = self._owned(tenant_id, phone_number_id)
@@ -373,6 +373,14 @@ class PlatformPurchaseService:
                 "release_not_allowed",
                 "Only platform-purchased numbers can be released via this API",
             )
+        details = row.provisioning_details or {}
+        resolved_sid = phone_number_sid or details.get("phone_number_sid")
+        if not isinstance(resolved_sid, str) or not resolved_sid.strip():
+            raise PurchaseError(
+                "missing_phone_sid",
+                "Phone number SID is missing from provisioning details",
+            )
+        phone_number_sid = resolved_sid.strip()
         account_sid, auth_token = self._tenant_twilio_creds(tenant_id)
         self._provisioning.release(
             account_sid=account_sid,

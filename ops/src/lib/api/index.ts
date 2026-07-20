@@ -59,6 +59,7 @@ export {
   purchasePhoneNumber,
   confirmPhoneTrunk,
   startPhoneVerification,
+  releasePhoneNumber,
   createTestCall,
 } from "./phones";
 export { listAppointments, listCalls, reviewCallQuality, listCustomers, listTeamUsers, inviteTeamUser, updateTeamUser, getSupervisorSnapshot, listQueue, claimQueueItem, completeQueueItem, type TeamUser, type SupervisorSnapshot, type QueueItem } from "./admin";

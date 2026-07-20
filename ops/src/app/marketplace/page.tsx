@@ -14,6 +14,7 @@ import { safeUserError } from "@/lib/safe-error";
 import type { IndustryTemplate } from "@/types";
 import {
   Button,
+  ConfirmDialog,
   EmptyState,
   ErrorState,
   FilterBar,
@@ -35,6 +36,9 @@ export default function MarketplacePage() {
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [installingKey, setInstallingKey] = useState<string | null>(null);
+  const [installTarget, setInstallTarget] = useState<IndustryTemplate | null>(
+    null,
+  );
 
   const load = useCallback(async () => {
     const data = await getMarketplaceCatalog();
@@ -44,10 +48,18 @@ export default function MarketplacePage() {
 
   useEffect(() => {
     if (!user) return;
-    setFetching(true);
-    load()
-      .catch((e) => setError(safeUserError(e, errors.loadFailed)))
-      .finally(() => setFetching(false));
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      load()
+        .catch((e) => setError(safeUserError(e, errors.loadFailed)))
+        .finally(() => {
+          if (!cancelled) setFetching(false);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [user, load]);
 
   const visible = useMemo(() => {
@@ -55,15 +67,17 @@ export default function MarketplacePage() {
     return templates.filter((t) => t.category === category);
   }, [templates, category]);
 
-  async function onInstall(template: IndustryTemplate) {
-    setInstallingKey(template.key);
+  async function onConfirmInstall() {
+    if (!installTarget) return;
+    setInstallingKey(installTarget.key);
     try {
       const data = await installMarketplaceAgent({
-        industry_key: template.key,
+        industry_key: installTarget.key,
         seed_knowledge: seedKnowledge,
         set_as_default: setDefault,
       });
       toast.push(copy.installed, "success");
+      setInstallTarget(null);
       window.location.assign(`/agents/${data.profile.id}`);
     } catch (e) {
       toast.push(safeUserError(e, errors.saveFailed), "error");
@@ -175,7 +189,7 @@ export default function MarketplacePage() {
                 <Button
                   size="sm"
                   disabled={busy || installingKey != null}
-                  onClick={() => void onInstall(template)}
+                  onClick={() => setInstallTarget(template)}
                 >
                   {busy ? copy.installing : copy.install}
                 </Button>
@@ -184,6 +198,25 @@ export default function MarketplacePage() {
           })}
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={!!installTarget}
+        title={copy.installTitle}
+        description={
+          installTarget
+            ? copy.installBody.replace("{name}", installTarget.name)
+            : undefined
+        }
+        confirmLabel={copy.install}
+        busy={installingKey != null}
+        onConfirm={() => {
+          void onConfirmInstall();
+        }}
+        onCancel={() => {
+          if (installingKey) return;
+          setInstallTarget(null);
+        }}
+      />
     </AppShell>
   );
 }

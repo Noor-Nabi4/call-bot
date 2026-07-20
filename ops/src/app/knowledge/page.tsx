@@ -11,6 +11,7 @@ import type { AgentProfile } from "@/types";
 import {
   Button,
   ConfirmDialog,
+  DetailDrawer,
   EmptyState,
   ErrorState,
   Field,
@@ -25,6 +26,8 @@ import {
   Textarea,
   useToast,
 } from "@/components/ui";
+
+const ARTICLE_FORM_ID = "knowledge-article-form";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
@@ -176,6 +179,13 @@ export default function KnowledgePage() {
     );
   }
 
+  function closeForm() {
+    if (saveBusy) return;
+    setShowForm(false);
+    setEditingId(null);
+    setForm(emptyForm());
+  }
+
   function openCreate() {
     setEditingId(null);
     setForm(emptyForm());
@@ -304,87 +314,14 @@ export default function KnowledgePage() {
         title={copy.title}
         description={copy.description}
         actions={
-          <Button size="sm" onClick={() => (showForm ? setShowForm(false) : openCreate())}>
-            {showForm ? copy.hideForm : copy.add}
+          <Button size="sm" onClick={openCreate}>
+            {copy.add}
           </Button>
         }
       />
 
       {error ? (
         <ErrorState className="mb-4" message={error} onRetry={() => setError(null)} />
-      ) : null}
-
-      {showForm ? (
-        <Surface className="mb-4 p-4">
-          <h2 className="m-0 text-sm font-semibold text-ink">
-            {editingId ? copy.edit : copy.add}
-          </h2>
-          <form onSubmit={onSave} className="mt-3 grid gap-3">
-            <Field label="Title">
-              <Input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                required
-              />
-            </Field>
-            <Field label="Body">
-              <Textarea
-                rows={4}
-                value={form.body}
-                onChange={(e) => setForm({ ...form, body: e.target.value })}
-                required
-              />
-            </Field>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Category">
-                <Input
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                />
-              </Field>
-              <Field label="Tags" hint="Comma-separated">
-                <Input
-                  value={form.tags}
-                  onChange={(e) => setForm({ ...form, tags: e.target.value })}
-                />
-              </Field>
-              <Field label={copy.agentScope} hint={copy.agentScopeHint}>
-                <Select
-                  value={form.agent_profile_id}
-                  onChange={(e) =>
-                    setForm({ ...form, agent_profile_id: e.target.value })
-                  }
-                >
-                  <option value="">{copy.allAgents}</option>
-                  {profiles.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              {editingId ? (
-                <Field label="Status">
-                  <Select
-                    value={form.is_active ? "active" : "inactive"}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        is_active: e.target.value === "active",
-                      })
-                    }
-                  >
-                    <option value="active">{copy.ready}</option>
-                    <option value="inactive">{copy.needsAttention}</option>
-                  </Select>
-                </Field>
-              ) : null}
-            </div>
-            <Button type="submit" className="w-fit" disabled={saveBusy}>
-              {saveBusy ? copy.saving : editingId ? copy.save : copy.add}
-            </Button>
-          </form>
-        </Surface>
       ) : null}
 
       <Surface className="mb-4 p-4">
@@ -506,11 +443,9 @@ export default function KnowledgePage() {
           }
           description={copy.emptyHint}
           action={
-            !showForm ? (
-              <Button size="sm" onClick={openCreate}>
-                {copy.add}
-              </Button>
-            ) : undefined
+            <Button size="sm" onClick={openCreate}>
+              {copy.add}
+            </Button>
           }
         />
       ) : (
@@ -570,6 +505,89 @@ export default function KnowledgePage() {
           ))}
         </ul>
       )}
+
+      <DetailDrawer
+        open={showForm}
+        onClose={closeForm}
+        title={editingId ? copy.edit : copy.add}
+        description={copy.agentScopeHint}
+        width="md"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={closeForm} disabled={saveBusy}>
+              Cancel
+            </Button>
+            <Button
+              form={ARTICLE_FORM_ID}
+              type="submit"
+              disabled={saveBusy}
+            >
+              {saveBusy ? copy.saving : editingId ? copy.save : copy.add}
+            </Button>
+          </div>
+        }
+      >
+        <form id={ARTICLE_FORM_ID} onSubmit={onSave} className="grid gap-3">
+          <Field label="Title">
+            <Input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              required
+            />
+          </Field>
+          <Field label="Body">
+            <Textarea
+              rows={6}
+              value={form.body}
+              onChange={(e) => setForm({ ...form, body: e.target.value })}
+              required
+            />
+          </Field>
+          <Field label="Category">
+            <Input
+              value={form.category}
+              onChange={(e) => setForm({ ...form, category: e.target.value })}
+            />
+          </Field>
+          <Field label="Tags" hint="Comma-separated">
+            <Input
+              value={form.tags}
+              onChange={(e) => setForm({ ...form, tags: e.target.value })}
+            />
+          </Field>
+          <Field label={copy.agentScope} hint={copy.agentScopeHint}>
+            <Select
+              value={form.agent_profile_id}
+              onChange={(e) =>
+                setForm({ ...form, agent_profile_id: e.target.value })
+              }
+            >
+              <option value="">{copy.allAgents}</option>
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          {editingId ? (
+            <Field label="Status">
+              <Select
+                value={form.is_active ? "active" : "inactive"}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    is_active: e.target.value === "active",
+                  })
+                }
+              >
+                <option value="active">{copy.ready}</option>
+                <option value="inactive">{copy.needsAttention}</option>
+              </Select>
+            </Field>
+          ) : null}
+        </form>
+      </DetailDrawer>
 
       <ConfirmDialog
         open={!!deleteId}

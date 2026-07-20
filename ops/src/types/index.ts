@@ -134,6 +134,7 @@ export type PhoneNumber = {
   agent_profile_id?: string | null;
   effective_agent_profile_id?: string | null;
   is_primary?: boolean;
+  can_release?: boolean;
 };
 
 export type InventoryNumber = {

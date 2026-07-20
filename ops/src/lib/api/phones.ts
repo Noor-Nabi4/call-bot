@@ -75,6 +75,16 @@ export function startPhoneVerification(phoneNumberId: string) {
   );
 }
 
+export function releasePhoneNumber(phoneNumberId: string) {
+  return api<Record<string, unknown>>(
+    `/api/admin/phone-numbers/${phoneNumberId}/release`,
+    {
+      method: "POST",
+      body: JSON.stringify({}),
+    },
+  );
+}
+
 export function createTestCall(agentProfileId?: string | null) {
   return api<TestCallSession>("/api/admin/test-call", {
     method: "POST",

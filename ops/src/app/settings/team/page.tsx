@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Plus, UserPlus } from "lucide-react";
 import { AppShell } from "@/components/shell";
+import { UsageSummaryPanel, seatsAtLimit } from "@/components/ops";
 import { useAuth } from "@/lib/use-auth";
 import { errors, team as copy } from "@/lib/copy";
 import { safeUserError } from "@/lib/safe-error";
@@ -12,6 +13,7 @@ import {
   updateTeamUser,
   type TeamUser,
 } from "@/lib/api/admin";
+import { getUsage, type TenantUsage } from "@/lib/api";
 import {
   Button,
   ConfirmDialog,
@@ -41,6 +43,7 @@ export default function TeamPage() {
   const { user, loading } = useAuth({ roles: ["admin"] });
   const toast = useToast();
   const [users, setUsers] = useState<TeamUser[]>([]);
+  const [usage, setUsage] = useState<TenantUsage | null>(null);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -50,8 +53,12 @@ export default function TeamPage() {
   const [confirmTarget, setConfirmTarget] = useState<TeamUser | null>(null);
 
   const refresh = useCallback(async () => {
-    const data = await listTeamUsers();
-    setUsers(data.users || []);
+    const [teamData, usageData] = await Promise.all([
+      listTeamUsers(),
+      getUsage(),
+    ]);
+    setUsers(teamData.users || []);
+    setUsage(usageData.usage);
   }, []);
 
   useEffect(() => {
@@ -70,6 +77,16 @@ export default function TeamPage() {
     };
   }, [user, refresh]);
 
+  const atSeatLimit = seatsAtLimit(usage);
+
+  function openInvite() {
+    if (atSeatLimit) {
+      toast.push(copy.seatLimitReached, "error");
+      return;
+    }
+    setInviteOpen(true);
+  }
+
   function closeInvite() {
     if (inviteBusy) return;
     setInviteOpen(false);
@@ -78,6 +95,10 @@ export default function TeamPage() {
 
   async function onInvite(e: FormEvent) {
     e.preventDefault();
+    if (atSeatLimit) {
+      toast.push(copy.seatLimitReached, "error");
+      return;
+    }
     setInviteBusy(true);
     setError(null);
     try {
@@ -201,7 +222,7 @@ export default function TeamPage() {
         title={copy.title}
         description={copy.description}
         actions={
-          <Button size="sm" onClick={() => setInviteOpen(true)}>
+          <Button size="sm" onClick={openInvite} disabled={atSeatLimit}>
             <Plus className="size-3.5" aria-hidden />
             {copy.invite}
           </Button>
@@ -222,6 +243,15 @@ export default function TeamPage() {
         />
       ) : null}
 
+      {usage ? (
+        <UsageSummaryPanel
+          usage={usage}
+          compact
+          showBillingLink
+          className="mb-4"
+        />
+      ) : null}
+
       {fetching ? (
         <LoadingSkeleton rows={6} />
       ) : (
@@ -233,7 +263,7 @@ export default function TeamPage() {
               title={copy.noUsers}
               description={copy.noUsersHint}
               action={
-                <Button size="sm" onClick={() => setInviteOpen(true)}>
+                <Button size="sm" onClick={openInvite} disabled={atSeatLimit}>
                   <UserPlus className="size-3.5" aria-hidden />
                   {copy.invite}
                 </Button>
