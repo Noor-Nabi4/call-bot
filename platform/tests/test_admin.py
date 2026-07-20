@@ -62,3 +62,41 @@ def test_advanced_call_metrics(session: Session, tenant: Tenant) -> None:
     assert "participant_disconnected" in metrics["disconnect_reasons"]
     assert isinstance(metrics["calls_by_day"], list)
     assert len(metrics["calls_by_day"]) >= 1
+
+
+def test_list_calls_status_filter_for_live_monitor(
+    session: Session, tenant: Tenant
+) -> None:
+    repo = CallRepository(session)
+    active = repo.start(
+        tenant.id,
+        room_name="live-room",
+        caller_number="+15550003333",
+        called_number="+15550004444",
+    )
+    ended = repo.start(
+        tenant.id,
+        room_name="ended-room",
+        caller_number="+15550005555",
+    )
+    repo.end(
+        tenant.id,
+        call_id=uuid.UUID(ended["id"]),
+        status="closed",
+        disconnect_reason="completed",
+        metrics={"handoff_requested": True},
+    )
+
+    admin = AdminRepository(session)
+    live = admin.list_calls(tenant.id, status="active")
+    assert len(live) == 1
+    assert live[0]["id"] == active["id"]
+    assert live[0]["status"] == "active"
+    assert live[0]["elapsed_seconds"] is not None
+    assert live[0]["elapsed_seconds"] >= 0
+    assert live[0]["handoff_requested"] is False
+
+    closed = admin.list_calls(tenant.id, status="closed")
+    assert any(c["id"] == ended["id"] for c in closed)
+    closed_row = next(c for c in closed if c["id"] == ended["id"])
+    assert closed_row["handoff_requested"] is True

@@ -73,6 +73,19 @@ export const calls = {
   empty: "No calls found for this period",
   emptyHint: "Call records appear when customers reach your AI receptionist.",
   detailTitle: "Call detail",
+  liveLink: "Live now",
+} as const;
+
+export const liveCalls = {
+  title: "Live calls",
+  description:
+    "Active conversations right now. Auto-refreshes; listen-in and barge come later.",
+  empty: "No active calls",
+  emptyHint: "When a caller connects, they will appear here within a few seconds.",
+  elapsed: "Elapsed",
+  handoff: "Handoff requested",
+  history: "Call history",
+  refreshing: "Refreshing…",
 } as const;
 
 export const knowledge = {

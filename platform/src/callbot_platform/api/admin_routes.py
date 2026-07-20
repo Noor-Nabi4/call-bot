@@ -5,11 +5,11 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from callbot_platform.admin.repos import AdminRepository
+from callbot_platform.admin.repos import AdminError, AdminRepository
 from callbot_platform.api.deps import CurrentUser, db_dep, require_entitled_ops_roles
 from callbot_platform.auth.repos import AuthError, AuthRepository
 from callbot_platform.security.session import (
@@ -46,7 +46,9 @@ class RetentionBody(BaseModel):
 
 @router.get("/customers")
 def customers(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     return {"customers": AdminRepository(session).list_customers(user.tenant_id)}
@@ -54,15 +56,34 @@ def customers(
 
 @router.get("/calls")
 def calls(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
     session: Session = Depends(db_dep),
+    status: str | None = Query(
+        default=None,
+        max_length=32,
+        description="Optional status filter (e.g. active for live monitoring)",
+    ),
+    limit: int = Query(default=100, ge=1, le=200),
 ) -> dict[str, Any]:
-    return {"calls": AdminRepository(session).list_calls(user.tenant_id)}
+    try:
+        return {
+            "calls": AdminRepository(session).list_calls(
+                user.tenant_id, status=status, limit=limit
+            )
+        }
+    except AdminError as exc:
+        raise HTTPException(
+            status_code=400, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
 
 
 @router.get("/appointments")
 def appointments(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     return {"appointments": AdminRepository(session).list_appointments(user.tenant_id)}
@@ -71,7 +92,9 @@ def appointments(
 @router.get("/metrics")
 def metrics(
     days: int = 30,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     return {

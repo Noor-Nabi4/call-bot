@@ -180,13 +180,21 @@ function CallsWorkspace() {
         title={copy.title}
         description={copy.description}
         actions={
-          <SearchInput
-            className="w-full sm:w-64"
-            placeholder="Search calls…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onClear={() => setSearch("")}
-          />
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/live"
+              className="text-sm font-medium text-brand hover:underline"
+            >
+              {copy.liveLink}
+            </Link>
+            <SearchInput
+              className="w-full sm:w-64"
+              placeholder="Search calls…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onClear={() => setSearch("")}
+            />
+          </div>
         }
       />
 

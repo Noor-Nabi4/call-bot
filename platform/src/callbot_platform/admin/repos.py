@@ -57,26 +57,53 @@ class AdminRepository:
             for c in rows
         ]
 
-    def list_calls(self, tenant_id: UUID, *, limit: int = 100) -> list[dict[str, Any]]:
+    def list_calls(
+        self,
+        tenant_id: UUID,
+        *,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """List tenant calls, optionally filtered by status (e.g. active for live monitor)."""
+        stmt = select(Call).where(Call.tenant_id == tenant_id)
+        if status is not None:
+            normalized = status.strip().lower()
+            if not normalized or len(normalized) > 32:
+                raise AdminError("invalid_status", "Invalid call status filter")
+            stmt = stmt.where(Call.status == normalized)
         rows = self._session.scalars(
-            select(Call)
-            .where(Call.tenant_id == tenant_id)
-            .order_by(Call.started_at.desc())
-            .limit(max(1, min(limit, 200)))
+            stmt.order_by(Call.started_at.desc()).limit(max(1, min(limit, 200)))
         ).all()
-        return [
-            {
-                "id": str(c.id),
-                "room_name": c.room_name,
-                "status": c.status,
-                "caller_number": c.caller_number,
-                "called_number": c.called_number,
-                "started_at": c.started_at.isoformat() if c.started_at else None,
-                "ended_at": c.ended_at.isoformat() if c.ended_at else None,
-                "customer_id": str(c.customer_id) if c.customer_id else None,
-            }
-            for c in rows
-        ]
+        now = datetime.now(UTC)
+        out: list[dict[str, Any]] = []
+        for c in rows:
+            metrics = c.metrics if isinstance(c.metrics, dict) else {}
+            elapsed: int | None = None
+            if c.started_at:
+                start = c.started_at
+                if start.tzinfo is None:
+                    start = start.replace(tzinfo=UTC)
+                end = c.ended_at or now
+                if end.tzinfo is None:
+                    end = end.replace(tzinfo=UTC)
+                elapsed = max(0, int((end - start).total_seconds()))
+            out.append(
+                {
+                    "id": str(c.id),
+                    "room_name": c.room_name,
+                    "status": c.status,
+                    "caller_number": c.caller_number,
+                    "called_number": c.called_number,
+                    "started_at": c.started_at.isoformat() if c.started_at else None,
+                    "ended_at": c.ended_at.isoformat() if c.ended_at else None,
+                    "customer_id": str(c.customer_id) if c.customer_id else None,
+                    "billable_seconds": c.billable_seconds,
+                    "disconnect_reason": c.disconnect_reason,
+                    "elapsed_seconds": elapsed,
+                    "handoff_requested": bool(metrics.get("handoff_requested")),
+                }
+            )
+        return out
 
     def list_appointments(
         self, tenant_id: UUID, *, limit: int = 100

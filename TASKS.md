@@ -979,7 +979,7 @@ Deferred: Stripe metered overage invoices, in-app plan upgrades via Checkout, em
 * Supervisor dashboard
 * Queue management
 * Quality monitoring
-* Live monitoring
+* [x] Live monitoring (`GET /api/admin/calls?status=active`, Ops `/live` with polling — listen-in/whisper/barge deferred)
 
 ## Phase 6
 

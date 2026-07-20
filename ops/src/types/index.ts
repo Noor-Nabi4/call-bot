@@ -168,8 +168,15 @@ export type Appointment = {
 
 export type Call = {
   id: string;
+  room_name?: string;
   status: string;
   caller_number?: string | null;
+  called_number?: string | null;
   started_at?: string | null;
   ended_at?: string | null;
+  customer_id?: string | null;
+  billable_seconds?: number | null;
+  disconnect_reason?: string | null;
+  elapsed_seconds?: number | null;
+  handoff_requested?: boolean;
 };

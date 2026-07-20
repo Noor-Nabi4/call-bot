@@ -13,8 +13,12 @@ export function listAppointments() {
   return api<{ appointments: Appointment[] }>("/api/admin/appointments");
 }
 
-export function listCalls() {
-  return api<{ calls: Call[] }>("/api/admin/calls");
+export function listCalls(opts?: { status?: string; limit?: number }) {
+  const params = new URLSearchParams();
+  if (opts?.status) params.set("status", opts.status);
+  if (opts?.limit != null) params.set("limit", String(opts.limit));
+  const qs = params.toString();
+  return api<{ calls: Call[] }>(`/api/admin/calls${qs ? `?${qs}` : ""}`);
 }
 
 export function listCustomers() {
