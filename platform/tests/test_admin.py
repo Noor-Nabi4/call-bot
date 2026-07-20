@@ -100,3 +100,40 @@ def test_list_calls_status_filter_for_live_monitor(
     assert any(c["id"] == ended["id"] for c in closed)
     closed_row = next(c for c in closed if c["id"] == ended["id"])
     assert closed_row["handoff_requested"] is True
+
+
+def test_supervisor_snapshot(session: Session, tenant: Tenant) -> None:
+    repo = CallRepository(session)
+    active = repo.start(
+        tenant.id,
+        room_name="sup-active",
+        caller_number="+15550006666",
+    )
+    active_id = uuid.UUID(active["id"])
+    row = session.get(Call, active_id)
+    assert row is not None
+    row.metrics = {"handoff_requested": True}
+    session.flush()
+
+    closed = repo.start(
+        tenant.id,
+        room_name="sup-closed",
+        caller_number="+15550007777",
+    )
+    repo.end(
+        tenant.id,
+        call_id=uuid.UUID(closed["id"]),
+        status="closed",
+        disconnect_reason="completed",
+        metrics={},
+    )
+
+    snap = AdminRepository(session).supervisor_snapshot(tenant.id, recent_limit=10)
+    assert snap["summary"]["calls_active"] == 1
+    assert snap["summary"]["handoffs_open"] == 1
+    assert snap["summary"]["calls_today"] >= 2
+    assert len(snap["active_calls"]) == 1
+    assert snap["active_calls"][0]["id"] == active["id"]
+    assert len(snap["attention"]) == 1
+    assert any(c["id"] == closed["id"] for c in snap["recent_calls"])
+    assert all(c["status"] != "active" for c in snap["recent_calls"])

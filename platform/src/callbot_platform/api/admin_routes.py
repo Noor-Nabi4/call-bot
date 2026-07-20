@@ -102,6 +102,22 @@ def metrics(
     }
 
 
+@router.get("/supervisor")
+def supervisor(
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
+    session: Session = Depends(db_dep),
+    recent_limit: int = Query(default=20, ge=1, le=50),
+) -> dict[str, Any]:
+    """Supervisor read-only snapshot: live calls, recent history, handoff attention."""
+    return {
+        "snapshot": AdminRepository(session).supervisor_snapshot(
+            user.tenant_id, recent_limit=recent_limit
+        )
+    }
+
+
 @router.get("/audit")
 def audit(
     user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),

@@ -88,6 +88,26 @@ export const liveCalls = {
   refreshing: "Refreshing…",
 } as const;
 
+export const supervisor = {
+  title: "Supervisor",
+  description:
+    "Monitor live volume, handoffs, and recent outcomes. Listen-in and whisper are not available yet.",
+  active: "Active now",
+  handoffsOpen: "Open handoffs",
+  callsToday: "Calls today",
+  handoffsToday: "Handoffs today",
+  avgDuration: "Avg duration today",
+  attention: "Needs attention",
+  attentionEmpty: "No open handoff requests",
+  live: "Active calls",
+  liveEmpty: "No active calls",
+  recent: "Recent calls",
+  recentEmpty: "No recent calls yet",
+  openLive: "Open live view",
+  openMetrics: "Metrics",
+  refreshing: "Refreshing…",
+} as const;
+
 export const knowledge = {
   title: "Knowledge",
   description:

@@ -976,7 +976,7 @@ Deferred: Stripe metered overage invoices, in-app plan upgrades via Checkout, em
 ## Phase 5
 
 * Call center features
-* Supervisor dashboard
+* [x] Supervisor dashboard (`GET /api/admin/supervisor`, Ops `/supervisor` — read-only live + recent + handoff attention; whisper/barge deferred)
 * Queue management
 * Quality monitoring
 * [x] Live monitoring (`GET /api/admin/calls?status=active`, Ops `/live` with polling — listen-in/whisper/barge deferred)

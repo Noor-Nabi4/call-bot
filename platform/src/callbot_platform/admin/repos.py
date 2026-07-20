@@ -105,6 +105,31 @@ class AdminRepository:
             )
         return out
 
+    def supervisor_snapshot(
+        self, tenant_id: UUID, *, recent_limit: int = 20
+    ) -> dict[str, Any]:
+        """Read-only call-center snapshot for supervisors (no listen-in)."""
+        limit = max(1, min(recent_limit, 50))
+        active = self.list_calls(tenant_id, status="active", limit=100)
+        recent_all = self.list_calls(tenant_id, limit=limit + len(active))
+        recent = [c for c in recent_all if c["status"] != "active"][:limit]
+        attention = [c for c in active if c.get("handoff_requested")]
+        today_metrics = self.metrics_summary(tenant_id, days=1)
+        return {
+            "active_calls": active,
+            "recent_calls": recent,
+            "attention": attention,
+            "summary": {
+                "calls_active": len(active),
+                "handoffs_open": len(attention),
+                "calls_today": int(today_metrics.get("calls") or 0),
+                "handoffs_today": int(today_metrics.get("handoffs_requested") or 0),
+                "avg_call_duration_seconds": float(
+                    today_metrics.get("avg_call_duration_seconds") or 0
+                ),
+            },
+        }
+
     def list_appointments(
         self, tenant_id: UUID, *, limit: int = 100
     ) -> list[dict[str, Any]]:

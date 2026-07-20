@@ -21,6 +21,30 @@ export function listCalls(opts?: { status?: string; limit?: number }) {
   return api<{ calls: Call[] }>(`/api/admin/calls${qs ? `?${qs}` : ""}`);
 }
 
+export type SupervisorSnapshot = {
+  active_calls: Call[];
+  recent_calls: Call[];
+  attention: Call[];
+  summary: {
+    calls_active: number;
+    handoffs_open: number;
+    calls_today: number;
+    handoffs_today: number;
+    avg_call_duration_seconds: number;
+  };
+};
+
+export function getSupervisorSnapshot(opts?: { recent_limit?: number }) {
+  const params = new URLSearchParams();
+  if (opts?.recent_limit != null) {
+    params.set("recent_limit", String(opts.recent_limit));
+  }
+  const qs = params.toString();
+  return api<{ snapshot: SupervisorSnapshot }>(
+    `/api/admin/supervisor${qs ? `?${qs}` : ""}`,
+  );
+}
+
 export function listCustomers() {
   return api<{ customers: CustomerOption[] }>("/api/admin/customers").then(
     (d) => ({

@@ -15,6 +15,7 @@ and `src/components/ops/`.
 | `/dispatch` | Kanban job assignment workspace |
 | `/board` | Redirects to `/dispatch` (compat) |
 | `/live` | Active calls (auto-refresh) |
+| `/supervisor` | Supervisor snapshot (live + recent + handoffs) |
 | `/calls` | Call history |
 | `/agents` | Multi-profile agent builder |
 | `/agents/[id]/flow` | Ordered call-flow steps for an agent |
