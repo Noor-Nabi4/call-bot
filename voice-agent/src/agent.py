@@ -43,6 +43,11 @@ from session.lifecycle import CallLifecycle
 from session.state import CallState
 from session.userdata import SessionUserData
 from tenant.agent_profile import AgentProfile, CallFacts
+from tenant.marketing import (
+    is_marketing_demo_metadata,
+    marketing_demo_profile,
+    marketing_demo_resolution,
+)
 from tenant.resolve import (
     PlatformTenantResolver,
     TenantResolution,
@@ -204,6 +209,10 @@ async def _prepare_tenant_profile(
     livekit_inbound_trunk_id: str | None,
     is_sip: bool,
 ) -> tuple[TenantResolution, AgentProfile]:
+    # Public landing demo: talk-only CallBot persona — no tenant, CRM, or tools.
+    if is_marketing_demo_metadata(job_metadata, is_sip=is_sip):
+        return marketing_demo_resolution(), marketing_demo_profile()
+
     resolution = await run_in_thread(
         lambda: resolver.resolve(
             job_metadata=job_metadata,
@@ -533,7 +542,7 @@ async def entrypoint(ctx: JobContext) -> None:
         tools.extend(build_handoff_tools(handoff_client))
     await agent.update_tools(tools)
 
-    # Overlap CRM call-start HTTP with greeting generation.
+    # Overlap CRM call-start HTTP with greeting generation (skip marketing demo).
     async def _start_crm_call() -> str | None:
         try:
             started = await run_in_thread(
@@ -559,7 +568,10 @@ async def entrypoint(ctx: JobContext) -> None:
             )
             return None
 
-    crm_task = asyncio.create_task(_start_crm_call())
+    is_marketing = resolution.source == "marketing"
+    crm_task: asyncio.Task[str | None] | None = None
+    if not is_marketing:
+        crm_task = asyncio.create_task(_start_crm_call())
 
     state.mark_active(participant.identity)
     metrics.participant_identity = participant.identity
@@ -577,19 +589,21 @@ async def entrypoint(ctx: JobContext) -> None:
         caller_number=caller_number,
         called_number=called_number,
         early_prepare=not sip,
+        marketing_demo=is_marketing,
     )
 
-    # Greeting only after successful tenant + profile resolution.
+    # Greeting only after successful tenant + profile resolution (or marketing demo).
     await agent.speak_greeting()
-    userdata.platform_call_id = await crm_task
-    if userdata.platform_call_id:
-        log_event(
-            logger,
-            "crm_call_started",
-            call_id=call_id,
-            tenant_id=resolution.tenant_id,
-            platform_call_id=userdata.platform_call_id,
-        )
+    if crm_task is not None:
+        userdata.platform_call_id = await crm_task
+        if userdata.platform_call_id:
+            log_event(
+                logger,
+                "crm_call_started",
+                call_id=call_id,
+                tenant_id=resolution.tenant_id,
+                platform_call_id=userdata.platform_call_id,
+            )
 
 
 # Keep a stable name for tests and local imports.

@@ -37,25 +37,25 @@ export default function TwitterImage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <div
             style={{
-              fontSize: 64,
+              fontSize: 58,
               fontWeight: 600,
               lineHeight: 1.05,
               letterSpacing: "-0.035em",
-              maxWidth: 900,
+              maxWidth: 920,
             }}
           >
-            Answer Every Call With AI
+            AI Voice Platform for Service Businesses & Call Centers
           </div>
           <div
             style={{
-              fontSize: 28,
+              fontSize: 26,
               lineHeight: 1.35,
               color: "#9bb0b6",
               maxWidth: 820,
             }}
           >
-            AI voice platform for reception, support, sales, booking, and
-            handoff.
+            Reception, support, sales, booking, and human handoff — one
+            platform.
           </div>
         </div>
       </div>

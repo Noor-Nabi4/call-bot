@@ -123,7 +123,7 @@ export function buildJsonLd() {
     featureList: features.items.map((item) => item.title),
     audience: {
       "@type": "Audience",
-      audienceType: "Field service businesses",
+      audienceType: "Service businesses and call centers",
     },
     provider: { "@id": `${siteUrl}/#organization` },
   };
@@ -168,7 +168,7 @@ export function buildJsonLd() {
     },
     speakable: {
       "@type": "SpeakableSpecification",
-      cssSelector: ["#hero-heading", "#platform-heading", "#features-heading"],
+      cssSelector: ["#hero-heading", "#demo-heading", "#features-heading"],
     },
     inLanguage: "en-US",
   };

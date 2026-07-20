@@ -1,6 +1,6 @@
-# Call Bot landing
+# CallBot landing
 
-Public marketing site for Call Bot with SEO metadata, sitemap, and structured data.
+Public marketing site for CallBot — AI Voice Platform for service businesses and call centers.
 
 ## Run
 
@@ -16,22 +16,30 @@ Open http://localhost:3002
 | Variable | Purpose |
 |---|---|
 | `NEXT_PUBLIC_SITE_URL` | Canonical site origin (required in production for sitemap/OG) |
-| `NEXT_PUBLIC_PLAYGROUND_URL` | Voice demo link (default `http://localhost:3000`) |
-| `NEXT_PUBLIC_OPS_URL` | Ops / dispatch link (default `http://localhost:3001`) |
+| `NEXT_PUBLIC_OPS_URL` | Ops console link (default `http://localhost:3001`) |
 | `NEXT_PUBLIC_PLATFORM_API_URL` | Platform API for signup / plans (default `http://localhost:8000`) |
+| `LIVEKIT_URL` | LiveKit WebSocket URL for embedded voice demo |
+| `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` | Token minting for `/api/token` |
+| `AGENT_NAME` | Agent dispatch name (default `voice-agent`) |
+| `METADATA_HMAC_SECRET` | Optional; must match voice-agent if set (signs `source=marketing`) |
 
 ## Routes
 
 | Path | Purpose |
 |------|---------|
-| `/` | Marketing landing |
-| `/signup` | Create tenant + admin, redirect to Stripe Checkout (default plan: Growth) |
+| `/` | Landing: Hero → Voice demo → Features → Industries → Pricing → FAQ → CTA |
+| `/signup` | Multi-step onboarding (business, industry, plan, account) → Stripe Checkout |
+| `/api/token` | Rate-limited LiveKit token for the embedded browser voice demo |
 
-Signup flow: `/#pricing` → `/signup` → Stripe Checkout → ops `/settings/billing`. Subscription activation requires Stripe webhooks on the platform API.
+Signup flow: `/#demo` or `/#pricing` → `/signup` → Stripe Checkout → ops. Subscription activation requires Stripe webhooks on the platform API.
 
-Pricing model: included voice minutes, concurrent calls, and operational feature unlocks (dispatch / tech mobile on Growth+). Per-user pricing is secondary via add-ons.
+The embedded voice demo is tenant-less (`source=marketing`): visitors talk to a fixed CallBot persona with no CRM/tools. Tenant-specific testing lives in Ops → Playground (`/playground`).
 
-Platform CORS must allow `http://localhost:3002` (see `OPS_CORS_ORIGINS`).
+The embedded voice demo requires a running `voice-agent` worker plus LiveKit credentials in `web/.env.local`.
+
+## Analytics
+
+Conversion events fire via `track()` (`web/src/lib/analytics.ts`): CustomEvent `callbot:analytics`, optional `window.dataLayer`, and optional `window.callbotTrack`.
 
 ## SEO surfaces
 

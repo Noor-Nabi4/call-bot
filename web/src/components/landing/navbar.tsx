@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useEffect, useId, useState } from "react";
 import { Button } from "@/components/landing/button";
+import { track } from "@/lib/analytics";
 import { opsLoginUrl } from "@/lib/site-urls";
 
 const links = [
-  { href: "#platform", label: "Platform" },
+  { href: "#demo", label: "Demo" },
   { href: "#features", label: "Features" },
   { href: "#industries", label: "Industries" },
   { href: "#pricing", label: "Pricing" },
@@ -15,14 +16,13 @@ const links = [
 
 type NavbarProps = {
   brand: string;
-  variant?: "hero" | "solid";
 };
 
-export function Navbar({ brand, variant = "hero" }: NavbarProps) {
+export function Navbar({ brand }: NavbarProps) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const panelId = useId();
-  const solid = variant === "solid" || scrolled;
+  const solid = scrolled;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
@@ -63,6 +63,7 @@ export function Navbar({ brand, variant = "hero" }: NavbarProps) {
             <a
               key={link.href}
               href={link.href}
+              onClick={() => track("nav_click", { target: link.href })}
               className={`rounded-[var(--radius-sm)] px-3 py-2 text-sm font-medium transition-colors ${
                 solid
                   ? "text-muted hover:bg-bg hover:text-ink"
@@ -85,7 +86,13 @@ export function Navbar({ brand, variant = "hero" }: NavbarProps) {
           >
             Sign in
           </a>
-          <Button href="/signup" variant={solid ? "primary" : "inverse"} size="md">
+          <Button
+            href="/signup"
+            variant={solid ? "primary" : "inverse"}
+            size="md"
+            className="tracking-[-0.01em]"
+            onClick={() => track("cta_start_trial", { source: "nav" })}
+          >
             Start Free Trial
           </Button>
         </div>
@@ -102,7 +109,6 @@ export function Navbar({ brand, variant = "hero" }: NavbarProps) {
           aria-label={open ? "Close menu" : "Open menu"}
           onClick={() => setOpen((value) => !value)}
         >
-          <span className="sr-only">{open ? "Close" : "Menu"}</span>
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
             {open ? (
               <path
@@ -135,7 +141,10 @@ export function Navbar({ brand, variant = "hero" }: NavbarProps) {
                   <a
                     href={link.href}
                     className="block rounded-[var(--radius-sm)] px-3 py-3 text-sm font-medium text-ink hover:bg-bg"
-                    onClick={() => setOpen(false)}
+                    onClick={() => {
+                      track("nav_click", { target: link.href });
+                      setOpen(false);
+                    }}
                   >
                     {link.label}
                   </a>
@@ -145,7 +154,12 @@ export function Navbar({ brand, variant = "hero" }: NavbarProps) {
                 <Button href={opsLoginUrl()} variant="secondary" className="w-full">
                   Sign in
                 </Button>
-                <Button href="/signup" variant="primary" className="w-full">
+                <Button
+                  href="/signup"
+                  variant="primary"
+                  className="w-full"
+                  onClick={() => track("cta_start_trial", { source: "nav_mobile" })}
+                >
                   Start Free Trial
                 </Button>
               </li>

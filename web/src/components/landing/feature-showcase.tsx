@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { Reveal } from "@/components/landing/reveal";
+import { track } from "@/lib/analytics";
 
 export type FeatureShowcaseItem = {
   tab: string;
@@ -93,9 +94,9 @@ export function FeatureShowcase({
 
   return (
     <section
-      id="platform"
+      id="features"
       className="section-pad border-t border-line bg-bg"
-      aria-labelledby="platform-heading"
+      aria-labelledby="features-heading"
     >
       <div className="content-width">
         <Reveal>
@@ -104,7 +105,7 @@ export function FeatureShowcase({
               Platform
             </p>
             <h2
-              id="platform-heading"
+              id="features-heading"
               className="font-display m-0 text-[clamp(1.9rem,4vw,2.85rem)] font-semibold leading-[1.1] tracking-[-0.045em] text-ink"
             >
               {title}
@@ -120,7 +121,7 @@ export function FeatureShowcase({
             id={tabsId}
             role="tablist"
             aria-label="Platform capabilities"
-            className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-1.5 rounded-full border border-line bg-surface p-1.5 shadow-[var(--shadow-sm)] sm:gap-2 sm:p-2"
+            className="mx-auto flex max-w-5xl gap-1.5 overflow-x-auto rounded-full border border-line bg-surface p-1.5 shadow-[var(--shadow-sm)] [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap sm:justify-center sm:gap-2 sm:overflow-visible sm:p-2 [&::-webkit-scrollbar]:hidden"
           >
             {items.map((item, index) => {
               const selected = index === active;
@@ -132,8 +133,11 @@ export function FeatureShowcase({
                   aria-selected={selected}
                   aria-controls={`platform-panel-${index}`}
                   id={`platform-tab-${index}`}
-                  onClick={() => setActive(index)}
-                  className={`rounded-full px-3.5 py-2 text-sm tracking-[-0.02em] transition-[background-color,color,box-shadow,transform] duration-300 sm:px-4 ${
+                  onClick={() => {
+                    setActive(index);
+                    track("feature_tab_select", { tab: item.tab });
+                  }}
+                  className={`shrink-0 rounded-full px-3.5 py-2 text-sm tracking-[-0.02em] transition-[background-color,color,box-shadow,transform] duration-300 sm:px-4 ${
                     selected
                       ? "bg-ink font-medium text-white shadow-[var(--shadow-sm)]"
                       : "bg-transparent font-normal text-ink-soft hover:bg-bg hover:text-ink"

@@ -8,7 +8,6 @@ import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
 import {
   applyAgentTemplate,
-  createTestCall,
   getAgentProfile,
   listIndustryTemplates,
   listPhoneNumbers,
@@ -66,7 +65,6 @@ export default function AgentBuilderPage() {
   const [supportedLanguagesText, setSupportedLanguagesText] = useState("en");
   const [serviceAreasText, setServiceAreasText] = useState("");
   const [restrictedTopicsText, setRestrictedTopicsText] = useState("");
-  const [testInfo, setTestInfo] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const [profileData, templateData, phoneData] = await Promise.all([
@@ -160,18 +158,6 @@ export default function AgentBuilderPage() {
     }
   }
 
-  async function onTestCall() {
-    try {
-      const session = await createTestCall(profileId);
-      setTestInfo(
-        `Room ${session.room_name} ready. Connect with LiveKit using the issued participant token (expires soon). Server: ${session.server_url}`,
-      );
-      toast.push("Test call session created", "success");
-    } catch (err) {
-      toast.push(safeUserError(err, "Could not start test call"), "error");
-    }
-  }
-
   if (loading || !user) {
     return (
       <div className="p-6">
@@ -205,10 +191,12 @@ export default function AgentBuilderPage() {
                 Call flow
               </Button>
             </Link>
-            <Button variant="secondary" size="sm" onClick={onTestCall}>
-              <PhoneCall className="size-3.5" aria-hidden />
-              Test call
-            </Button>
+            <Link href={`/playground?profile=${encodeURIComponent(profileId)}`}>
+              <Button variant="secondary" size="sm">
+                <PhoneCall className="size-3.5" aria-hidden />
+                Test call
+              </Button>
+            </Link>
             <Button size="sm" onClick={() => onSave()} disabled={saving}>
               {saving ? "Saving…" : "Save"}
             </Button>
@@ -217,11 +205,6 @@ export default function AgentBuilderPage() {
       />
 
       {error ? <ErrorState message={error} onRetry={() => load()} /> : null}
-      {testInfo ? (
-        <p className="mt-3 rounded-lg border border-brand/30 bg-brand-soft px-3 py-2 text-sm text-text-secondary">
-          {testInfo}
-        </p>
-      ) : null}
 
       <div className="mt-5 flex flex-wrap gap-2">
         {STEPS.map((label, idx) => (

@@ -13,3 +13,4 @@ export { PricingSection } from "./pricing-section";
 export { Reveal } from "./reveal";
 export { SectionHeader } from "./section-header";
 export { TestimonialCard } from "./testimonial-card";
+export { VoiceDemoSection } from "./voice-demo";

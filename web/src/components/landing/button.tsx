@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { MouseEventHandler, ReactNode } from "react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "inverse" | "outline-light";
 type ButtonSize = "md" | "lg";
@@ -29,9 +29,10 @@ export type ButtonProps = {
   size?: ButtonSize;
   className?: string;
   external?: boolean;
+  onClick?: MouseEventHandler<HTMLAnchorElement>;
 };
 
-function isInternalHref(href: string): boolean {
+function isNextLinkHref(href: string): boolean {
   return href.startsWith("/") && !href.startsWith("//");
 }
 
@@ -42,12 +43,13 @@ export function Button({
   size = "md",
   className = "",
   external = false,
+  onClick,
 }: ButtonProps) {
   const classes = `inline-flex items-center justify-center gap-2 rounded-[var(--radius-md)] font-semibold tracking-[-0.01em] transition-[transform,background-color,border-color,box-shadow,color] duration-200 hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${variants[variant]} ${sizes[size]} ${className}`;
 
-  if (!external && isInternalHref(href)) {
+  if (!external && isNextLinkHref(href)) {
     return (
-      <Link href={href} className={classes}>
+      <Link href={href} className={classes} onClick={onClick}>
         {children}
       </Link>
     );
@@ -57,6 +59,7 @@ export function Button({
     <a
       href={href}
       className={classes}
+      onClick={onClick}
       {...(external
         ? { target: "_blank", rel: "noopener noreferrer" }
         : {})}

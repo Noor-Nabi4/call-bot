@@ -40,6 +40,13 @@ const OPS_NAV: NavItem[] = [
   { href: "/calls", label: "Calls", icon: Phone, section: "work" },
   { href: "/appointments", label: "Appointments", icon: Calendar, section: "work" },
   { href: "/metrics", label: "Metrics", icon: BarChart3, section: "work" },
+  {
+    href: "/playground",
+    label: "Playground",
+    icon: PhoneCall,
+    roles: ["admin"],
+    section: "ai",
+  },
   { href: "/agents", label: "Agents", icon: Bot, roles: ["admin"], section: "ai" },
   { href: "/marketplace", label: "Marketplace", icon: Store, roles: ["admin"], section: "ai" },
   { href: "/phones", label: "Phones", icon: Phone, roles: ["admin"], section: "ai" },
@@ -102,6 +109,9 @@ export function isActivePath(pathname: string, href: string): boolean {
   }
   if (href === "/agents") {
     return pathname === "/agents" || pathname.startsWith("/agents/");
+  }
+  if (href === "/playground") {
+    return pathname === "/playground" || pathname.startsWith("/playground/");
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

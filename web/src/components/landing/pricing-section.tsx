@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/landing/button";
 import { Reveal } from "@/components/landing/reveal";
+import { track } from "@/lib/analytics";
 
 export type PricingPlanOption = {
   key: string;
@@ -135,7 +136,10 @@ export function PricingSection({
                     type="button"
                     role="option"
                     aria-selected={active}
-                    onClick={() => setSelectedKey(plan.key)}
+                    onClick={() => {
+                      setSelectedKey(plan.key);
+                      track("pricing_plan_select", { plan: plan.key });
+                    }}
                     className={`flex w-full items-center justify-between gap-4 rounded-[16px] px-5 py-4 text-left transition-[background-color,box-shadow,opacity,transform] duration-300 ease-out ${
                       active
                         ? "translate-x-0 bg-bg shadow-[5px_8px_18px_rgba(12,26,30,0.12)]"
