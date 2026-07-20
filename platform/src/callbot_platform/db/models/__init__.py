@@ -7,6 +7,7 @@ from callbot_platform.db.models.agent_profile import (
     default_business_hours,
     default_enabled_tools,
 )
+from callbot_platform.db.models.api_keys import TenantApiKey
 from callbot_platform.db.models.automation import AutomationRule
 from callbot_platform.db.models.base import Base, JsonType, _utcnow, _uuid
 from callbot_platform.db.models.billing import StripeWebhookEvent, TenantSubscription
@@ -59,6 +60,7 @@ __all__ = [
     "TelephonyIdempotencyKey",
     "Tenant",
     "TenantAgentSettings",
+    "TenantApiKey",
     "TenantHandoffSettings",
     "TenantPhoneNumber",
     "TenantRetentionSettings",

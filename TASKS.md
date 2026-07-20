@@ -987,7 +987,7 @@ Deferred: Stripe metered overage invoices, in-app plan upgrades via Checkout, em
 * White label
 * Multi-agent routing
 * [x] Enterprise integrations (thin: automation `post_webhook` HTTPS action with SSRF guards + HMAC signature; HubSpot/Salesforce OAuth deferred)
-* Public APIs
+* [x] Public APIs (tenant API keys hashed-at-rest, Ops `/settings/api-keys`, `GET /v1/customers` + `GET /v1/calls`; migration `0016_api_keys`)
 
 ---
 

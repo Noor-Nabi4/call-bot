@@ -148,6 +148,25 @@ export const marketplace = {
   openAgent: "Open agent",
 } as const;
 
+export const apiKeys = {
+  title: "API keys",
+  description:
+    "Issue keys for the public /v1 API (customers and calls read). Secrets are shown once.",
+  create: "Create key",
+  creating: "Creating…",
+  created: "API key created",
+  name: "Name",
+  scopesHint: "Scopes",
+  empty: "No API keys yet",
+  emptyHint: "Create a key to call GET /v1/customers and GET /v1/calls.",
+  revoke: "Revoke",
+  revoked: "API key revoked",
+  active: "Active",
+  inactive: "Revoked",
+  secretOnce: "Copy this secret now — it will not be shown again.",
+  dismissSecret: "I saved the secret",
+} as const;
+
 export const knowledge = {
   title: "Knowledge",
   description:

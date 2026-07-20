@@ -16,6 +16,10 @@ from callbot_platform.config import Settings, get_settings
 from callbot_platform.db import get_db
 from callbot_platform.security.crypto import CredentialCipher
 from callbot_platform.security.metadata import MetadataSigner
+from callbot_platform.security.rate_limit import (
+    RateLimitExceeded,
+    SlidingWindowRateLimiter,
+)
 from callbot_platform.security.session import decode_session_token
 from callbot_platform.telephony.adapters.livekit_sip import LiveKitSipService
 from callbot_platform.telephony.adapters.twilio_adapter import (
@@ -27,6 +31,8 @@ from callbot_platform.telephony.services.connect_existing import ConnectExisting
 from callbot_platform.telephony.services.purchase import PlatformPurchaseService
 from callbot_platform.telephony.services.resolver import DbTenantDidResolver
 from callbot_platform.telephony.services.verification import DbNumberVerificationService
+
+_API_KEY_LIMITER = SlidingWindowRateLimiter(max_requests=120, window_sec=60.0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +57,21 @@ class CurrentUser:
             "role": self.role,
             "technician_id": str(self.technician_id) if self.technician_id else None,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class ApiKeyPrincipal:
+    key_id: UUID
+    tenant_id: UUID
+    scopes: frozenset[str]
+    name: str
+
+    def require_scope(self, scope: str) -> None:
+        if scope not in self.scopes:
+            raise HTTPException(
+                status_code=403,
+                detail={"code": "missing_scope", "message": f"Missing scope: {scope}"},
+            )
 
 
 def settings_dep() -> Settings:
@@ -108,6 +129,43 @@ def require_tenant_user(
             UUID(user["technician_id"]) if user.get("technician_id") else None
         ),
     )
+
+
+def require_api_key(
+    request: Request,
+    session: Session = Depends(db_dep),
+) -> ApiKeyPrincipal:
+    """Authenticate public /v1 requests with Authorization: Bearer cbk_…."""
+    from callbot_platform.api_keys import ApiKeyRepository
+
+    auth = request.headers.get("Authorization") or ""
+    if not auth.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "unauthorized", "message": "Bearer API key required"},
+        )
+    token = auth[7:].strip()
+    row = ApiKeyRepository(session).authenticate(token)
+    if row is None:
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "unauthorized", "message": "Invalid API key"},
+        )
+    principal = ApiKeyPrincipal(
+        key_id=row.id,
+        tenant_id=row.tenant_id,
+        scopes=frozenset(row.scopes or []),
+        name=row.name,
+    )
+    try:
+        _API_KEY_LIMITER.check(str(row.id))
+    except RateLimitExceeded as exc:
+        raise HTTPException(
+            status_code=429,
+            detail={"code": "rate_limited", "message": "Too many API requests"},
+            headers={"Retry-After": str(int(exc.retry_after_sec) + 1)},
+        ) from exc
+    return principal
 
 
 def require_ops_roles(*roles: str) -> Callable[..., CurrentUser]:

@@ -24,6 +24,7 @@ and `src/components/ops/`.
 | `/metrics` | Call analytics |
 | `/settings` | Team, retention, audit |
 | `/settings/automations` | Event-driven automation rules |
+| `/settings/api-keys` | Public /v1 API keys |
 | `/settings/billing` | SaaS subscription status + Stripe Customer Portal |
 | `/settings/assistant` | Voice assistant profile |
 | `/tech` | Technician mobile jobs |

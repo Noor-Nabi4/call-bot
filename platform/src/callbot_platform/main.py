@@ -11,26 +11,42 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env.local")
 
 from callbot_platform.api.admin_routes import router as admin_router  # noqa: E402
-from callbot_platform.api.agent_admin_routes import router as agent_admin_router  # noqa: E402
-from callbot_platform.api.automation_routes import router as automation_router  # noqa: E402
+from callbot_platform.api.agent_admin_routes import (
+    router as agent_admin_router,  # noqa: E402
+)
+from callbot_platform.api.api_key_admin_routes import (
+    router as api_key_admin_router,  # noqa: E402
+)
 from callbot_platform.api.auth_routes import router as auth_router  # noqa: E402
+from callbot_platform.api.automation_routes import (
+    router as automation_router,  # noqa: E402
+)
 from callbot_platform.api.billing_routes import router as billing_router  # noqa: E402
 from callbot_platform.api.crm_routes import (  # noqa: E402
     internal_tenant_router,
-    router as crm_router,
     tenant_settings_router,
+)
+from callbot_platform.api.crm_routes import (
+    router as crm_router,
 )
 from callbot_platform.api.handoff_routes import (  # noqa: E402
     internal_router as handoff_internal_router,
 )
-from callbot_platform.api.handoff_routes import ops_router as handoff_ops_router  # noqa: E402
+from callbot_platform.api.handoff_routes import (
+    ops_router as handoff_ops_router,  # noqa: E402
+)
 from callbot_platform.api.jobs_routes import router as jobs_router  # noqa: E402
 from callbot_platform.api.knowledge_routes import (  # noqa: E402
     internal_router as knowledge_internal_router,
 )
-from callbot_platform.api.knowledge_routes import ops_router as knowledge_ops_router  # noqa: E402
+from callbot_platform.api.knowledge_routes import (
+    ops_router as knowledge_ops_router,  # noqa: E402
+)
 from callbot_platform.api.routes import router  # noqa: E402
-from callbot_platform.api.scheduling_routes import router as scheduling_router  # noqa: E402
+from callbot_platform.api.scheduling_routes import (
+    router as scheduling_router,  # noqa: E402
+)
+from callbot_platform.api.v1_routes import router as v1_router  # noqa: E402
 from callbot_platform.config import get_settings  # noqa: E402
 from callbot_platform.db import init_db  # noqa: E402
 
@@ -68,8 +84,10 @@ app.include_router(handoff_internal_router)
 app.include_router(handoff_ops_router)
 app.include_router(admin_router)
 app.include_router(agent_admin_router)
+app.include_router(api_key_admin_router)
 app.include_router(automation_router)
 app.include_router(tenant_settings_router)
+app.include_router(v1_router)
 
 
 @app.on_event("startup")
