@@ -5,7 +5,9 @@ technician mobile UI.
 
 Premium ops product: VoxPilot palette (`#0F766E` / `#14B8A6` / `#0EA5E9`),
 Inter + IBM Plex Mono, left sidebar navigation. Shared UI under `src/components/ui/`
-and `src/components/ops/`. Brand assets: `/branding` and `public/branding`.
+and `src/components/ops/`. Brand assets: repo `/branding` (source of truth);
+ops serves a slim set under `public/branding` (logos + favicons) plus root
+favicons for browsers.
 
 ## Routes
 

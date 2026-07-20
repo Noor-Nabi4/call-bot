@@ -85,8 +85,9 @@
   --color-sidebar: var(--ops-sidebar);
   --color-sidebar-muted: var(--ops-sidebar-muted);
   --font-sans: var(--font-sans), Inter, system-ui, sans-serif;
-  --font-display: var(--font-display), Inter, system-ui, sans-serif;
-  --font-heading: var(--font-display), Inter, system-ui, sans-serif;
+  /* Display/heading share Inter with sans (single next/font load). */
+  --font-display: var(--font-sans), Inter, system-ui, sans-serif;
+  --font-heading: var(--font-sans), Inter, system-ui, sans-serif;
   --font-mono: var(--font-mono), "IBM Plex Mono", ui-monospace, monospace;
   --radius-panel: var(--radius-md);
   --shadow-elevated: var(--shadow-md);

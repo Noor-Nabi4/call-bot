@@ -9,12 +9,6 @@ const inter = Inter({
   display: "swap",
 });
 
-const display = Inter({
-  subsets: ["latin"],
-  variable: "--font-display",
-  display: "swap",
-});
-
 const mono = IBM_Plex_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
@@ -44,7 +38,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} ${display.variable} ${mono.variable} antialiased`}
+        className={`${inter.variable} ${mono.variable} antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

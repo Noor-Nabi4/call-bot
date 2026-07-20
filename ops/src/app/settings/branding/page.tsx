@@ -44,7 +44,7 @@ export default function BrandingPage() {
   const [form, setForm] = useState<Branding>({
     product_name: "",
     logo_url: "",
-    primary_color: "#1f6f5b",
+    primary_color: "#0F766E",
     accent_color: "",
     support_email: "",
   });
@@ -56,7 +56,7 @@ export default function BrandingPage() {
     setForm({
       product_name: data.branding.product_name || "",
       logo_url: data.branding.logo_url || "",
-      primary_color: data.branding.primary_color || "#1f6f5b",
+      primary_color: data.branding.primary_color || "#0F766E",
       accent_color: data.branding.accent_color || "",
       support_email: data.branding.support_email || "",
     });
@@ -129,7 +129,7 @@ export default function BrandingPage() {
                 onChange={(e) =>
                   setForm({ ...form, primary_color: e.target.value })
                 }
-                placeholder="#1f6f5b"
+                placeholder="#0F766E"
               />
             </Field>
             <Field label={copy.accentColor}>
