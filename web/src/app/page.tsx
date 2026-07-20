@@ -1,3 +1,4 @@
+import Image from "next/image";
 import {
   answer,
   book,
@@ -33,6 +34,15 @@ function resolveFooterHref(
 function HeroVisual() {
   return (
     <div className="hero-stage" aria-hidden="true">
+      <Image
+        src="/images/hero-voice-ops.jpg"
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="hero-photo"
+      />
+      <div className="hero-photo-veil" />
       <div className="hero-glow" />
       <div className="hero-grid" />
       <div
@@ -73,6 +83,29 @@ function HeroVisual() {
           strokeWidth="2.5"
         />
       </svg>
+    </div>
+  );
+}
+
+function SectionMedia({
+  src,
+  alt,
+  priority = false,
+}: {
+  src: string;
+  alt: string;
+  priority?: boolean;
+}) {
+  return (
+    <div className="section-media">
+      <Image
+        src={src}
+        alt={alt}
+        fill
+        priority={priority}
+        sizes="(max-width: 1024px) 100vw, 50vw"
+        className="object-cover"
+      />
     </div>
   );
 }
@@ -179,16 +212,22 @@ export default function LandingPage() {
           className="section-band px-6 py-24 sm:px-10 lg:px-12"
           aria-labelledby="answer-heading"
         >
-          <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
-            <h2
-              id="answer-heading"
-              className="font-display m-0 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink"
-            >
-              {answer.title}
-            </h2>
-            <p className="m-0 max-w-md text-base leading-relaxed text-muted sm:text-lg">
-              {answer.body}
-            </p>
+          <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-2 lg:items-center">
+            <div>
+              <h2
+                id="answer-heading"
+                className="font-display m-0 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink"
+              >
+                {answer.title}
+              </h2>
+              <p className="mt-6 m-0 max-w-md text-base leading-relaxed text-muted sm:text-lg">
+                {answer.body}
+              </p>
+            </div>
+            <SectionMedia
+              src="/images/section-answer.jpg"
+              alt="Coordinator answering a call with a headset at a service desk"
+            />
           </div>
         </section>
 
@@ -196,16 +235,22 @@ export default function LandingPage() {
           className="border-t border-line bg-paper px-6 py-24 sm:px-10 lg:px-12"
           aria-labelledby="book-heading"
         >
-          <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
-            <p className="m-0 order-2 max-w-md text-base leading-relaxed text-muted sm:text-lg lg:order-1">
-              {book.body}
-            </p>
-            <h2
-              id="book-heading"
-              className="font-display order-1 m-0 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink lg:order-2 lg:text-right"
-            >
-              {book.title}
-            </h2>
+          <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-2 lg:items-center">
+            <SectionMedia
+              src="/images/section-book.jpg"
+              alt="Appointment book and calendar ready for scheduling"
+            />
+            <div className="lg:pl-4">
+              <h2
+                id="book-heading"
+                className="font-display m-0 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink"
+              >
+                {book.title}
+              </h2>
+              <p className="mt-6 m-0 max-w-md text-base leading-relaxed text-muted sm:text-lg">
+                {book.body}
+              </p>
+            </div>
           </div>
         </section>
 
@@ -276,28 +321,34 @@ export default function LandingPage() {
           className="border-t border-line bg-fog px-6 py-24 sm:px-10 lg:px-12"
           aria-labelledby="platform-heading"
         >
-          <div className="mx-auto max-w-6xl">
-            <h2
-              id="platform-heading"
-              className="font-display m-0 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink"
-            >
-              {platform.title}
-            </h2>
-            <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
-              {platform.supporting}
-            </p>
-            <ul className="mt-12 m-0 grid list-none gap-10 p-0 lg:grid-cols-3">
-              {platform.items.map((item) => (
-                <li key={item.title} className="border-t border-line pt-6">
-                  <h3 className="m-0 text-xl font-semibold tracking-[-0.02em] text-ink">
-                    {item.title}
-                  </h3>
-                  <p className="mt-2 m-0 text-base leading-relaxed text-muted">
-                    {item.body}
-                  </p>
-                </li>
-              ))}
-            </ul>
+          <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-2 lg:items-center">
+            <div>
+              <h2
+                id="platform-heading"
+                className="font-display m-0 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink"
+              >
+                {platform.title}
+              </h2>
+              <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted sm:text-lg">
+                {platform.supporting}
+              </p>
+              <ul className="mt-10 m-0 grid list-none gap-8 p-0">
+                {platform.items.map((item) => (
+                  <li key={item.title} className="border-t border-line pt-6">
+                    <h3 className="m-0 text-xl font-semibold tracking-[-0.02em] text-ink">
+                      {item.title}
+                    </h3>
+                    <p className="mt-2 m-0 text-base leading-relaxed text-muted">
+                      {item.body}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <SectionMedia
+              src="/images/section-platform.jpg"
+              alt="Operations desk with live call monitoring displays"
+            />
           </div>
         </section>
 
@@ -306,6 +357,15 @@ export default function LandingPage() {
           aria-labelledby="industries-heading"
         >
           <div className="mx-auto max-w-6xl">
+            <div className="section-media section-media-wide mb-12">
+              <Image
+                src="/images/section-industries.jpg"
+                alt="Industry playbooks and tools ready for marketplace agent installs"
+                fill
+                sizes="100vw"
+                className="object-cover"
+              />
+            </div>
             <h2
               id="industries-heading"
               className="font-display m-0 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink"
@@ -334,16 +394,22 @@ export default function LandingPage() {
           className="border-t border-line bg-fog px-6 py-24 sm:px-10 lg:px-12"
           aria-labelledby="handoff-heading"
         >
-          <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
-            <h2
-              id="handoff-heading"
-              className="font-display m-0 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink"
-            >
-              {handoff.title}
-            </h2>
-            <p className="m-0 max-w-md text-base leading-relaxed text-muted sm:text-lg">
-              {handoff.body}
-            </p>
+          <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-2 lg:items-center">
+            <SectionMedia
+              src="/images/section-handoff.jpg"
+              alt="Support teammate picking up a call after an escalation"
+            />
+            <div>
+              <h2
+                id="handoff-heading"
+                className="font-display m-0 text-[clamp(2rem,4vw,3rem)] font-semibold leading-[1.05] tracking-[-0.03em] text-ink"
+              >
+                {handoff.title}
+              </h2>
+              <p className="mt-6 m-0 max-w-md text-base leading-relaxed text-muted sm:text-lg">
+                {handoff.body}
+              </p>
+            </div>
           </div>
         </section>
 
