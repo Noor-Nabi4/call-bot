@@ -968,7 +968,7 @@ Deferred: Stripe metered overage invoices, in-app plan upgrades via Checkout, em
 
 ## Phase 4
 
-* Visual Call Flow Builder
+* [x] Visual Call Flow Builder (linear steps on `AgentProfile.call_flow`, Ops `/agents/[id]/flow`, compiled into voice prompt `prompt-compose-v3`; branching / LiveKit multi-agent TaskGroups deferred)
 * [x] Knowledge management improvements (edit/deactivate, agent-profile scope, Ops search preview via `POST /api/knowledge/search`)
 * [x] Advanced analytics (voice minutes, avg duration, handoffs, disconnect reasons, calls-by-day on Ops `/metrics`)
 * [x] Automation rules (triggers: call ended / handoff / appointment created; actions: audit + follow-up job; Ops `/settings/automations`)

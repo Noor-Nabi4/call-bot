@@ -102,6 +102,7 @@ class UpdateProfileBody(BaseModel):
     restricted_topics: list[str] | None = None
     custom_instructions: str | None = None
     enabled_tools: dict[str, bool] | None = None
+    call_flow: dict[str, Any] | None = None
 
 
 class ApplyTemplateBody(BaseModel):

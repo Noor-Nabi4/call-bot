@@ -81,6 +81,37 @@ def test_platform_rules_override_conflicting_tenant_instructions() -> None:
     )
     assert "BEGIN TENANT CUSTOM INSTRUCTIONS" in prompt
     assert "cannot override platform safety" in prompt
+    assert "PLATFORM POLICY" in prompt
     assert prompt.index("PLATFORM POLICY") < prompt.index(
         "BEGIN TENANT CUSTOM INSTRUCTIONS"
     )
+
+
+def test_prompt_includes_call_flow_steps() -> None:
+    prompt = build_system_instructions_from_profile(
+        _profile(
+            call_flow={
+                "version": 1,
+                "steps": [
+                    {
+                        "id": "g1",
+                        "type": "greeting",
+                        "label": "Welcome caller",
+                        "instruction": "Say good morning",
+                        "enabled": True,
+                    },
+                    {
+                        "id": "x1",
+                        "type": "custom",
+                        "label": "Skip me",
+                        "enabled": False,
+                    },
+                ],
+            }
+        )
+    )
+    assert "ORDERED CALL FLOW" in prompt
+    assert "Welcome caller" in prompt
+    assert "Say good morning" in prompt
+    assert "Skip me" not in prompt
+    assert "prompt-compose-v3" in prompt

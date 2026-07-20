@@ -81,6 +81,19 @@ export type EnabledTools = {
   sms?: boolean;
 };
 
+export type CallFlowStep = {
+  id: string;
+  type: "greeting" | "qualify" | "book" | "faq" | "handoff" | "custom" | string;
+  label: string;
+  instruction?: string | null;
+  enabled: boolean;
+};
+
+export type CallFlow = {
+  version: number;
+  steps: CallFlowStep[];
+};
+
 export type AgentProfile = AgentSettings & {
   id: string;
   name: string;
@@ -91,6 +104,7 @@ export type AgentProfile = AgentSettings & {
   is_default: boolean;
   business_hours?: Record<string, string[][]>;
   enabled_tools?: EnabledTools;
+  call_flow?: CallFlow | null;
   created_at?: string | null;
 };
 

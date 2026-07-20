@@ -105,6 +105,9 @@ class AgentProfile(Base):
     enabled_tools: Mapped[dict[str, Any]] = mapped_column(
         JsonType, nullable=False, default=default_enabled_tools
     )
+    call_flow: Mapped[dict[str, Any] | None] = mapped_column(
+        JsonType, nullable=True, default=None
+    )
     profile_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

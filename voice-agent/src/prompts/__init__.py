@@ -11,6 +11,7 @@ from prompts.business import (
     tenant_conversation_preferences,
     tenant_identity_section,
 )
+from prompts.call_flow import render_call_flow_section
 from prompts.safety import platform_safety_rules
 from prompts.system import (
     call_ending_rules,
@@ -20,7 +21,7 @@ from prompts.system import (
 from prompts.tool_rules import tool_usage_rules
 from tenant.agent_profile import AgentProfile, CallFacts
 
-PROMPT_COMPOSITION_VERSION = "prompt-compose-v2"
+PROMPT_COMPOSITION_VERSION = "prompt-compose-v3"
 
 
 def build_system_instructions_from_profile(
@@ -37,24 +38,31 @@ def build_system_instructions_from_profile(
       3. Tenant identity
       4. Tenant business rules
       5. Tenant conversation preferences (custom instructions delimited)
-      6. Tool usage rules
-      7. Current call context
+      6. Ordered call flow (when configured)
+      7. Tool usage rules
+      8. Current call context
     """
     sentences = max_spoken_sentences or profile.max_spoken_sentences()
-    return "\n\n".join(
+    sections = [
+        f"[prompt-composition {PROMPT_COMPOSITION_VERSION}]",
+        platform_safety_rules(),
+        core_voice_behavior(max_spoken_sentences=sentences),
+        tenant_identity_section(profile),
+        tenant_business_rules_section(profile),
+        tenant_conversation_preferences(profile),
+    ]
+    flow_section = render_call_flow_section(profile.call_flow)
+    if flow_section:
+        sections.append(flow_section)
+    sections.extend(
         [
-            f"[prompt-composition {PROMPT_COMPOSITION_VERSION}]",
-            platform_safety_rules(),
-            core_voice_behavior(max_spoken_sentences=sentences),
-            tenant_identity_section(profile),
-            tenant_business_rules_section(profile),
-            tenant_conversation_preferences(profile),
             tool_usage_rules(),
             unsupported_request_rules(),
             call_ending_rules(),
             call_context_section(call_facts),
         ]
     )
+    return "\n\n".join(sections)
 
 
 def build_system_instructions(

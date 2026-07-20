@@ -215,5 +215,28 @@ def test_admin_agent_profile_apis(
         )
         assert updated.status_code == 200
         assert updated.json()["profile"]["greeting"] == "Support hello"
+
+        flow_updated = client.put(
+            f"/api/admin/agent-profiles/{profile_id}",
+            json={
+                "call_flow": {
+                    "version": 1,
+                    "steps": [
+                        {
+                            "id": "g1",
+                            "type": "greeting",
+                            "label": "Warm open",
+                            "instruction": "Greet briefly",
+                            "enabled": True,
+                        }
+                    ],
+                }
+            },
+        )
+        assert flow_updated.status_code == 200, flow_updated.text
+        assert (
+            flow_updated.json()["profile"]["call_flow"]["steps"][0]["label"]
+            == "Warm open"
+        )
     finally:
         app.dependency_overrides.clear()

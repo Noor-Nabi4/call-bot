@@ -11,6 +11,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from callbot_platform.agent_templates import get_template
+from callbot_platform.call_flow import (
+    CallFlowError,
+    default_call_flow,
+    validate_call_flow,
+)
 from callbot_platform.crm.errors import CrmError, as_str_list
 from callbot_platform.db.models import AgentProfile, KnowledgeArticle, Tenant
 from callbot_platform.db.models.agent_profile import (
@@ -169,6 +174,9 @@ class AgentProfileRepository:
             restricted_topics=as_str_list(fields.get("restricted_topics")),
             custom_instructions=fields.get("custom_instructions"),
             enabled_tools=tools,
+            call_flow=validate_call_flow(
+                fields.get("call_flow") or default_call_flow()
+            ),
             profile_version=1,
         )
         self._session.add(row)
@@ -252,6 +260,11 @@ class AgentProfileRepository:
         for key, attr in mapping.items():
             if key in fields and fields[key] is not None:
                 _set(attr, fields[key])
+        if "call_flow" in fields and fields["call_flow"] is not None:
+            try:
+                _set("call_flow", validate_call_flow(fields["call_flow"]))
+            except CallFlowError as exc:
+                raise CrmError(exc.code, str(exc)) from exc
         if (
             "supported_languages" in fields
             and fields["supported_languages"] is not None
@@ -455,6 +468,9 @@ class AgentProfileRepository:
             "restricted_topics": as_str_list(row.restricted_topics),
             "custom_instructions": row.custom_instructions,
             "enabled_tools": row.enabled_tools or default_enabled_tools(),
+            "call_flow": validate_call_flow(row.call_flow)
+            if row.call_flow
+            else default_call_flow(),
             "profile_version": int(row.profile_version or 1),
             "created_at": row.created_at.isoformat() if row.created_at else None,
             "updated_at": row.updated_at.isoformat() if row.updated_at else None,
@@ -500,6 +516,7 @@ class AgentProfileRepository:
             "restricted_topics": as_str_list(settings.get("restricted_topics")),
             "custom_instructions": settings.get("custom_instructions"),
             "enabled_tools": settings.get("enabled_tools") or default_enabled_tools(),
+            "call_flow": settings.get("call_flow") or default_call_flow(),
             "profile_version": int(settings.get("profile_version") or 1),
             "updated_at": settings.get("updated_at"),
             "voice": settings.get("voice"),

@@ -200,6 +200,11 @@ export default function AgentBuilderPage() {
                 All agents
               </Button>
             </Link>
+            <Link href={`/agents/${profileId}/flow`}>
+              <Button variant="secondary" size="sm">
+                Call flow
+              </Button>
+            </Link>
             <Button variant="secondary" size="sm" onClick={onTestCall}>
               <PhoneCall className="size-3.5" aria-hidden />
               Test call

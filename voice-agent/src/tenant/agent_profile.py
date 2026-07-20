@@ -68,6 +68,7 @@ class AgentProfile:
         "handoff",
         "sms",
     )
+    call_flow: dict[str, Any] | None = None
     profile_version: int = 1
     updated_at: str | None = None
     voice: str | None = None
@@ -113,6 +114,11 @@ class AgentProfile:
         else:
             enabled = ["crm", "scheduling", "knowledge", "handoff", "sms"]
 
+        call_flow_raw = payload.get("call_flow")
+        call_flow: dict[str, Any] | None = None
+        if isinstance(call_flow_raw, dict):
+            call_flow = call_flow_raw
+
         profile_id = _optional_str(payload.get("agent_profile_id")) or _optional_str(
             payload.get("id")
         )
@@ -140,6 +146,7 @@ class AgentProfile:
             restricted_topics=tuple(_str_list(payload.get("restricted_topics"))),
             custom_instructions=_optional_str(payload.get("custom_instructions")),
             enabled_tools=tuple(enabled),
+            call_flow=call_flow,
             profile_version=profile_version,
             updated_at=_optional_str(payload.get("updated_at")),
             voice=_optional_str(payload.get("voice")),
@@ -170,6 +177,7 @@ class AgentProfile:
             "restricted_topics": list(self.restricted_topics),
             "custom_instructions": self.custom_instructions,
             "enabled_tools": tools_dict,
+            "call_flow": self.call_flow,
             "profile_version": self.profile_version,
             "updated_at": self.updated_at,
             "voice": self.voice,

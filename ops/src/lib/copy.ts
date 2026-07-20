@@ -314,6 +314,26 @@ export const automations = {
   emptyHint: "Create a rule to react to handoffs or bookings automatically.",
 } as const;
 
+export const callFlow = {
+  title: "Call flow",
+  description:
+    "Ordered steps the voice assistant should follow. Saved to this agent and compiled into call instructions.",
+  hint: "This is a linear flow editor. Full branching graphs can layer on later without changing these steps.",
+  backToAgent: "Back to agent",
+  addStep: "Add step",
+  save: "Save flow",
+  saving: "Saving…",
+  saved: "Call flow saved",
+  empty: "No steps yet. Add a greeting to get started.",
+  step: "Step",
+  label: "Label",
+  type: "Type",
+  status: "Status",
+  enabled: "Enabled",
+  disabled: "Disabled",
+  instruction: "Guidance",
+} as const;
+
 export const tech = {
   title: "My jobs",
   description: "Today’s assigned field work.",
