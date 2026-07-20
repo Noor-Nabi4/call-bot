@@ -12,6 +12,7 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env.local")
 
 from callbot_platform.api.admin_routes import router as admin_router  # noqa: E402
 from callbot_platform.api.auth_routes import router as auth_router  # noqa: E402
+from callbot_platform.api.billing_routes import router as billing_router  # noqa: E402
 from callbot_platform.api.crm_routes import (  # noqa: E402
     internal_tenant_router,
     router as crm_router,
@@ -36,8 +37,10 @@ _cors_origins = list(_settings.ops_cors_origin_list)
 for _extra in (
     "http://localhost:3000",
     "http://localhost:3001",
+    "http://localhost:3002",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
 ):
     if _extra not in _cors_origins:
         _cors_origins.append(_extra)
@@ -55,6 +58,7 @@ app.include_router(crm_router)
 app.include_router(internal_tenant_router)
 app.include_router(scheduling_router)
 app.include_router(auth_router)
+app.include_router(billing_router)
 app.include_router(jobs_router)
 app.include_router(knowledge_internal_router)
 app.include_router(knowledge_ops_router)

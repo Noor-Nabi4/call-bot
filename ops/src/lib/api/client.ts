@@ -18,13 +18,21 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     let message: string = errors.generic;
+    let code: string | undefined;
     try {
       const body = await res.json();
       const detail = body?.detail;
       if (typeof detail === "string") message = detail;
       else if (detail?.message) message = detail.message;
+      if (typeof detail === "object" && detail?.code) code = detail.code;
     } catch {
       /* ignore */
+    }
+    if (code === "subscription_required" && typeof window !== "undefined") {
+      const pathNow = window.location.pathname;
+      if (!pathNow.startsWith("/settings/billing")) {
+        window.location.assign("/settings/billing");
+      }
     }
     throw new Error(safeUserError(message, errors.generic));
   }

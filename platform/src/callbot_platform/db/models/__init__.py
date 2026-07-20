@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from callbot_platform.db.models.base import Base, JsonType, _utcnow, _uuid
+from callbot_platform.db.models.billing import StripeWebhookEvent, TenantSubscription
 from callbot_platform.db.models.crm import (
     Call,
     Customer,
@@ -42,6 +43,7 @@ __all__ = [
     "KnowledgeArticle",
     "Lead",
     "NotificationOutbox",
+    "StripeWebhookEvent",
     "Technician",
     "TelephonyAuditEvent",
     "TelephonyIdempotencyKey",
@@ -51,6 +53,7 @@ __all__ = [
     "TenantPhoneNumber",
     "TenantRetentionSettings",
     "TenantScheduleSettings",
+    "TenantSubscription",
     "TenantTwilioSubaccount",
     "TenantUser",
     "_utcnow",

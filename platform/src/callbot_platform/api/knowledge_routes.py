@@ -13,7 +13,7 @@ from callbot_platform.api.deps import (
     CurrentUser,
     db_dep,
     require_internal_token,
-    require_ops_roles,
+    require_entitled_ops_roles,
 )
 from callbot_platform.knowledge.repos import KnowledgeError, KnowledgeRepository
 from callbot_platform.security.session import ROLE_ADMIN, ROLE_DISPATCHER
@@ -67,7 +67,7 @@ def internal_search(
 
 @ops_router.get("")
 def list_articles(
-    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     return {"articles": KnowledgeRepository(session).list(user.tenant_id)}
@@ -76,7 +76,7 @@ def list_articles(
 @ops_router.post("")
 def create_article(
     body: ArticleBody,
-    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     try:
@@ -97,7 +97,7 @@ def create_article(
 def update_article(
     article_id: UUID,
     body: ArticleBody,
-    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     try:
@@ -119,7 +119,7 @@ def update_article(
 @ops_router.delete("/{article_id}")
 def delete_article(
     article_id: UUID,
-    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
     session: Session = Depends(db_dep),
 ) -> dict[str, bool]:
     try:

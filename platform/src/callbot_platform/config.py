@@ -47,6 +47,23 @@ class Settings(BaseSettings):
     )
     session_ttl_hours: int = Field(default=72, alias="SESSION_TTL_HOURS")
 
+    # Platform SaaS Stripe account (subscriptions). Do NOT use Stripe Connect keys here.
+    # Plans live in code (billing/plans.py); Checkout uses price_data — no Stripe Products/Prices to register.
+    stripe_secret_key: str = Field(default="", alias="STRIPE_SECRET_KEY")
+    stripe_webhook_secret: str = Field(default="", alias="STRIPE_WEBHOOK_SECRET")
+    stripe_checkout_success_url: str = Field(
+        default="http://localhost:3001/settings/billing?checkout=success",
+        alias="STRIPE_CHECKOUT_SUCCESS_URL",
+    )
+    stripe_checkout_cancel_url: str = Field(
+        default="http://localhost:3002/signup?canceled=1",
+        alias="STRIPE_CHECKOUT_CANCEL_URL",
+    )
+    stripe_portal_return_url: str = Field(
+        default="http://localhost:3001/settings/billing",
+        alias="STRIPE_PORTAL_RETURN_URL",
+    )
+
     allow_env_tenant_fallback: bool = Field(
         default=True, alias="ALLOW_ENV_TENANT_FALLBACK"
     )

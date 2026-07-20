@@ -231,6 +231,20 @@ export default function SettingsPage() {
               Open
             </Link>
           </Surface>
+          <Surface className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div>
+              <h2 className="text-sm font-semibold text-text-primary">
+                {copy.billingLink}
+              </h2>
+              <p className="text-sm text-text-secondary">{copy.billingLinkHint}</p>
+            </div>
+            <Link
+              href="/settings/billing"
+              className="rounded-[10px] border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-2"
+            >
+              Open
+            </Link>
+          </Surface>
           <section>
             <div className="mb-3 flex items-center gap-2">
               <Users className="size-4 text-text-muted" aria-hidden />

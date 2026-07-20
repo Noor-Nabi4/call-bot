@@ -113,14 +113,57 @@ export const handoff = {
 
 export const close = {
   title: "Ready for your next busy season?",
-  body: "Start with a browser demo, configure your assistant profile, then connect phone numbers when you’re ready for live callers.",
-  primaryCta: "Start the demo",
+  body: "Pick a plan, create your business account, and finish checkout. Ops opens once Stripe confirms your subscription.",
+  primaryCta: "View pricing",
   secondaryCta: "Sign in to ops",
+} as const;
+
+export const pricing = {
+  brand: "Call Bot",
+  title: "Voice minutes. Real ops. Clear limits.",
+  supporting:
+    "Pick the plan that matches your call volume and crew — not a seat count.",
+  comparisonTitle: "At a glance",
+  trialTitle: "Try before you connect a number",
+  numbersTitle: "Phone numbers",
+  addOnsTitle: "Add-ons",
+  annualNote:
+    "Pay annually and get about two months free: Starter $990 · Growth $2,490 · Pro $4,990.",
+  note: "Plans activate after Stripe confirms payment. SaaS billing uses our platform Stripe account — separate from any future Connect payouts.",
+  contactSalesHref: "mailto:sales@callbot.example?subject=Call%20Bot%20Enterprise",
+  primaryCta: "Start with Growth",
+} as const;
+
+export const signup = {
+  brand: "Call Bot",
+  heading: "Open your workspace",
+  supporting:
+    "Create the business account, then finish payment in Stripe Checkout.",
+  asideTitle: "Answer every call. Dispatch the work.",
+  asideBody:
+    "Your plan unlocks after Stripe confirms the subscription — not on the success redirect.",
+  businessName: "Business name",
+  businessId: "Business ID",
+  businessIdHint: "Used at sign-in. Lowercase, numbers, hyphens.",
+  timezone: "Timezone",
+  yourName: "Your name",
+  email: "Work email",
+  password: "Password",
+  passwordHint: "At least 8 characters",
+  plan: "Choose a plan",
+  submit: "Continue to checkout",
+  submitting: "Starting checkout…",
+  failedTitle: "Could not start signup",
+  failedMessage: "Check your details and try again.",
+  canceled: "Checkout was canceled. Pick a plan and try again when you’re ready.",
+  signIn: "Already have an account? Sign in",
+  comparePlans: "Compare plans",
 } as const;
 
 export const footer = {
   note: "Multi-tenant field service voice AI — HVAC, plumbing, electrical, and more.",
   links: [
+    { label: "Pricing", hrefEnv: "pricing" as const },
     { label: "Voice demo", hrefEnv: "playground" as const },
     { label: "Dispatch ops", hrefEnv: "ops" as const },
     { label: "Sign in", hrefEnv: "login" as const },

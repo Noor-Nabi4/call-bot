@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 from callbot_platform.api.deps import (
     CurrentUser,
     db_dep,
-    require_ops_roles,
-    require_tenant_user,
+    require_entitled_ops_roles,
+    require_entitled_tenant_user,
 )
 from callbot_platform.jobs.repos import JobRepository, JobsError, TechnicianRepository
 from callbot_platform.security.session import (
@@ -79,7 +79,7 @@ def _jobs_http(exc: Exception) -> HTTPException:
 
 @router.get("/technicians")
 def list_technicians(
-    user: CurrentUser = Depends(require_ops_roles(*OPS_ROLES)),
+    user: CurrentUser = Depends(require_entitled_ops_roles(*OPS_ROLES)),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     techs = TechnicianRepository(session).list(user.tenant_id)
@@ -89,7 +89,7 @@ def list_technicians(
 @router.post("/technicians")
 def create_technician(
     body: CreateTechnicianBody,
-    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     try:
@@ -116,7 +116,7 @@ def create_technician(
 def list_jobs(
     status: str | None = None,
     technician_id: UUID | None = None,
-    user: CurrentUser = Depends(require_tenant_user),
+    user: CurrentUser = Depends(require_entitled_tenant_user),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     tech_filter = technician_id
@@ -133,7 +133,7 @@ def list_jobs(
 @router.post("/jobs")
 def create_job(
     body: CreateJobBody,
-    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     try:
@@ -154,7 +154,7 @@ def create_job(
 @router.get("/jobs/{job_id}")
 def get_job(
     job_id: UUID,
-    user: CurrentUser = Depends(require_tenant_user),
+    user: CurrentUser = Depends(require_entitled_tenant_user),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     job = JobRepository(session).get(user.tenant_id, job_id)
@@ -175,7 +175,7 @@ def get_job(
 def assign_job(
     job_id: UUID,
     body: AssignBody,
-    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     try:
@@ -194,7 +194,7 @@ def assign_job(
 def transition_job(
     job_id: UUID,
     body: TransitionBody,
-    user: CurrentUser = Depends(require_tenant_user),
+    user: CurrentUser = Depends(require_entitled_tenant_user),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     # Technicians may start/complete; dispatchers/admins may dispatch/cancel/etc.
@@ -228,7 +228,7 @@ def transition_job(
 def update_checklist(
     job_id: UUID,
     body: ChecklistBody,
-    user: CurrentUser = Depends(require_tenant_user),
+    user: CurrentUser = Depends(require_entitled_tenant_user),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     if user.role == ROLE_TECHNICIAN:
@@ -253,7 +253,7 @@ def update_checklist(
 def add_note(
     job_id: UUID,
     body: NoteBody,
-    user: CurrentUser = Depends(require_tenant_user),
+    user: CurrentUser = Depends(require_entitled_tenant_user),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     try:
@@ -272,7 +272,7 @@ def add_note(
 @router.post("/tech/location")
 def update_location(
     body: LocationBody,
-    user: CurrentUser = Depends(require_tenant_user),
+    user: CurrentUser = Depends(require_entitled_tenant_user),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     if user.role != ROLE_TECHNICIAN or not user.technician_id:

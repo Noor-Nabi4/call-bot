@@ -6,8 +6,25 @@ from enum import Enum
 
 
 class TenantStatus(str, Enum):
+    PENDING_SUBSCRIPTION = "pending_subscription"
     ACTIVE = "active"
     SUSPENDED = "suspended"
+
+
+class PlanKey(str, Enum):
+    STARTER = "starter"
+    GROWTH = "growth"
+    PRO = "pro"
+
+
+class SubscriptionStatus(str, Enum):
+    INCOMPLETE = "incomplete"
+    TRIALING = "trialing"
+    ACTIVE = "active"
+    PAST_DUE = "past_due"
+    CANCELED = "canceled"
+    UNPAID = "unpaid"
+    INCOMPLETE_EXPIRED = "incomplete_expired"
 
 
 class TelephonyProviderId(str, Enum):

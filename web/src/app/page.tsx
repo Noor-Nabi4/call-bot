@@ -20,9 +20,12 @@ const OPS =
   process.env.NEXT_PUBLIC_OPS_URL?.replace(/\/$/, "") ||
   "http://localhost:3001";
 
-function resolveFooterHref(kind: "playground" | "ops" | "login"): string {
+function resolveFooterHref(
+  kind: "playground" | "ops" | "login" | "pricing",
+): string {
   if (kind === "playground") return PLAYGROUND;
   if (kind === "ops") return OPS;
+  if (kind === "pricing") return "/pricing";
   return `${OPS}/login`;
 }
 
@@ -108,10 +111,18 @@ export default function LandingPage() {
                   </li>
                   <li>
                     <a
-                      href="#faq"
+                      href="/pricing"
                       className="text-sm font-medium text-[#afc2ba] transition-colors hover:text-[#f3f8f5]"
                     >
-                      FAQ
+                      Pricing
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/signup"
+                      className="text-sm font-medium text-[#afc2ba] transition-colors hover:text-[#f3f8f5]"
+                    >
+                      Sign up
                     </a>
                   </li>
                   <li>
@@ -138,16 +149,16 @@ export default function LandingPage() {
               </p>
               <div className="animate-rise-delay-2 flex flex-wrap items-center gap-3">
                 <a
-                  href={PLAYGROUND}
+                  href="/pricing"
                   className="inline-flex items-center justify-center rounded-md bg-[#45d6ac] px-5 py-3 text-sm font-semibold text-[#07120f] transition-[transform,background-color] duration-200 hover:translate-y-[-1px] hover:bg-[#71f0ca]"
                 >
-                  {hero.primaryCta}
+                  View pricing
                 </a>
                 <a
-                  href={OPS}
+                  href={PLAYGROUND}
                   className="inline-flex items-center justify-center rounded-md border border-[rgba(185,225,210,0.28)] bg-transparent px-5 py-3 text-sm font-semibold text-[#f3f8f5] transition-colors duration-200 hover:border-[#45d6ac]/70 hover:bg-[rgba(69,214,172,0.08)]"
                 >
-                  {hero.secondaryCta}
+                  {hero.primaryCta}
                 </a>
               </div>
             </div>
@@ -354,7 +365,7 @@ export default function LandingPage() {
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-3 sm:justify-center">
               <a
-                href={PLAYGROUND}
+                href="/pricing"
                 className="inline-flex items-center justify-center rounded-md bg-[#45d6ac] px-5 py-3 text-sm font-semibold text-[#07120f] transition-[transform,background-color] duration-200 hover:translate-y-[-1px] hover:bg-[#71f0ca]"
               >
                 {close.primaryCta}

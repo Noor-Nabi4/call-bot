@@ -14,6 +14,9 @@ and `src/components/ops/`.
 | `/dashboard` | Default landing after login (ops overview) |
 | `/dispatch` | Kanban job assignment workspace |
 | `/board` | Redirects to `/dispatch` (compat) |
+| `/settings` | Team, retention, audit |
+| `/settings/billing` | SaaS subscription status + Stripe Customer Portal |
+| `/settings/assistant` | Voice assistant profile |
 | `/tech` | Technician mobile jobs |
 
 ## Run
@@ -27,7 +30,11 @@ npm run dev   # http://localhost:3001
 
 Platform API must be running on `:8000` with `SESSION_SECRET` set and CORS allowing `http://localhost:3001`.
 
-## Bootstrap first admin
+## Signup (preferred)
+
+Public signup lives on the marketing site (`web/` → `/pricing` → `/signup`). After Stripe Checkout, users land on `/settings/billing`. Plan activation requires Stripe webhooks — the success redirect alone does not activate.
+
+## Bootstrap first admin (internal / legacy)
 
 ```bash
 curl -X POST http://localhost:8000/auth/bootstrap \

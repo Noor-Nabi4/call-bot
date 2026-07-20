@@ -33,3 +33,9 @@ export {
 export { getHandoffSettings } from "./handoff";
 export { getAgentSettings, updateAgentSettings } from "./agent";
 export { listAppointments, listCalls, listCustomers } from "./admin";
+export {
+  getSubscription,
+  createCheckout,
+  createPortal,
+  type TenantSubscription,
+} from "./billing";

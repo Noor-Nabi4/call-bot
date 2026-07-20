@@ -48,10 +48,34 @@ Booking an appointment auto-creates a `scheduled` job for the dispatch board.
 
 Public auth:
 
+- `POST /auth/signup` — create tenant + admin + Stripe Checkout Session (sets session cookie; **does not** activate plan)
 - `POST /auth/login` (sets HTTP-only session cookie)
 - `POST /auth/logout`
 - `GET /auth/me`
+- `PUT /auth/me`
 - `POST /auth/bootstrap` (first admin only; requires `X-Internal-Token`)
+
+SaaS billing (platform Stripe account — **not** Connect):
+
+- `GET /billing/plans` — public catalog from code: Starter ($99 / 250 min), Growth ($249 / 800 min, most popular), Pro ($499 / 2,000 min), plus Enterprise (contact sales), trial, number pricing, and add-ons. Each paid plan includes `entitlements` (minutes, concurrency, numbers, users, knowledge, feature flags).
+- `GET /billing/subscription` — admin session (includes plan entitlements)
+- `POST /billing/checkout` — resume Checkout when incomplete/canceled
+- `POST /billing/portal` — Stripe Customer Portal (payment method / cancel)
+- `POST /billing/webhooks/stripe` — signature-verified webhooks (source of truth for activation)
+
+Plans are **not** registered as Stripe Products/Prices. Checkout uses inline `price_data` from `billing/plans.py`. Only `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` are required.
+
+Set `SESSION_SECRET` and `OPS_CORS_ORIGINS` (include ops `http://localhost:3001` and marketing `http://localhost:3002`).
+
+Configure Stripe (platform account):
+
+1. Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (platform Stripe account)
+2. Webhook endpoint → `/billing/webhooks/stripe` for `checkout.session.completed`, `customer.subscription.*`, `invoice.paid`, `invoice.payment_failed`
+3. Customer Portal: payment method update + cancellation (plan switching in Portal needs registered Prices — not used; upgrades go through new Checkout with `price_data`)
+
+Do **not** reuse Stripe Connect keys here. Tenant merchant payments (Phase 6) are separate.
+
+`POST /tenants` requires `X-Internal-Token`. Public onboarding uses `/auth/signup`.
 
 Session-authenticated ops API (`/api/...`):
 
@@ -59,7 +83,7 @@ Session-authenticated ops API (`/api/...`):
 - Jobs list/get/create/assign/transition/checklist/notes
 - `POST /api/tech/location`
 
-Set `SESSION_SECRET` and `OPS_CORS_ORIGINS` (include `http://localhost:3001`).
+Gated routes require subscription status `trialing` or `active` (legacy tenants with no subscription row and `tenant.status=active` remain entitled).
 
 ## Docs
 

@@ -22,6 +22,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from callbot_platform.db.models.base import Base, JsonType, _utcnow, _uuid
 
 if TYPE_CHECKING:
+    from callbot_platform.db.models.billing import TenantSubscription
     from callbot_platform.db.models.crm import Customer, TenantAgentSettings
     from callbot_platform.db.models.handoff import (
         TenantHandoffSettings,
@@ -86,6 +87,9 @@ class Tenant(Base):
         back_populates="tenant", uselist=False, cascade="all, delete-orphan"
     )
     retention_settings: Mapped[TenantRetentionSettings | None] = relationship(
+        back_populates="tenant", uselist=False, cascade="all, delete-orphan"
+    )
+    subscription: Mapped[TenantSubscription | None] = relationship(
         back_populates="tenant", uselist=False, cascade="all, delete-orphan"
     )
 

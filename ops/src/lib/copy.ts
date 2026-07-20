@@ -113,6 +113,40 @@ export const settings = {
     "Sensitive configuration values are never displayed publicly.",
   assistantLink: "Voice assistant",
   assistantLinkHint: "Edit how the phone assistant greets and helps callers.",
+  billingLink: "Billing",
+  billingLinkHint: "View your plan and manage payment in Stripe.",
+} as const;
+
+export const billing = {
+  title: "Billing",
+  description:
+    "Subscription status comes from Stripe webhooks. Completing Checkout does not activate your plan until Stripe confirms it.",
+  confirming: "Confirming with Stripe…",
+  confirmingHint:
+    "Payment succeeded in Checkout. Waiting for Stripe to confirm your subscription.",
+  noSubscription: "No subscription on file",
+  noSubscriptionHint:
+    "Complete Checkout to start a plan. Status updates only after Stripe webhooks arrive.",
+  plan: "Plan",
+  status: "Status",
+  periodEnd: "Current period ends",
+  cancelAtPeriodEnd: "Cancels at period end",
+  entitlements: "Plan limits",
+  minutes: "Included voice minutes",
+  concurrent: "Concurrent calls",
+  numbers: "Phone numbers",
+  users: "Team users",
+  knowledge: "Knowledge documents",
+  dispatch: "Dispatch board",
+  techMobile: "Technician mobile",
+  manage: "Manage billing",
+  managing: "Opening portal…",
+  completeCheckout: "Complete checkout",
+  startingCheckout: "Starting checkout…",
+  active: "Your subscription is active.",
+  loadFailed: "Could not load billing details.",
+  portalFailed: "Could not open the billing portal.",
+  checkoutFailed: "Could not start checkout.",
 } as const;
 
 export const assistantSettings = {

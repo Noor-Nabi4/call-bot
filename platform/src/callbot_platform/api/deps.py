@@ -121,6 +121,52 @@ def require_ops_roles(*roles: str) -> Callable[..., CurrentUser]:
     return _dep
 
 
+def require_entitled_ops_roles(*roles: str) -> Callable[..., CurrentUser]:
+    """Ops role check that also requires an active/trialing SaaS subscription.
+
+    Legacy tenants with no subscription row remain entitled when tenant.status is active.
+    """
+    role_dep = require_ops_roles(*roles)
+
+    def _dep(
+        user: CurrentUser = Depends(role_dep),
+        session: Session = Depends(db_dep),
+        settings: Settings = Depends(settings_dep),
+    ) -> CurrentUser:
+        from callbot_platform.billing.service import BillingService
+
+        if not BillingService(session, settings).tenant_is_entitled(user.tenant_id):
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "code": "subscription_required",
+                    "message": "An active subscription is required. Complete billing setup.",
+                },
+            )
+        return user
+
+    return _dep
+
+
+def require_entitled_tenant_user(
+    user: CurrentUser = Depends(require_tenant_user),
+    session: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
+) -> CurrentUser:
+    """Any authenticated tenant user with an entitled subscription."""
+    from callbot_platform.billing.service import BillingService
+
+    if not BillingService(session, settings).tenant_is_entitled(user.tenant_id):
+        raise HTTPException(
+            status_code=402,
+            detail={
+                "code": "subscription_required",
+                "message": "An active subscription is required. Complete billing setup.",
+            },
+        )
+    return user
+
+
 def signer_dep(settings: Settings = Depends(settings_dep)) -> MetadataSigner:
     try:
         return MetadataSigner(settings.metadata_hmac_secret)

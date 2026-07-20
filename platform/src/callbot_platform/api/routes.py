@@ -87,7 +87,7 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@router.post("/tenants")
+@router.post("/tenants", dependencies=[Depends(require_internal_token)])
 def create_tenant(body: CreateTenantBody, session: Session = Depends(db_dep)) -> dict:
     existing = session.scalar(select(Tenant).where(Tenant.slug == body.slug))
     if existing:
