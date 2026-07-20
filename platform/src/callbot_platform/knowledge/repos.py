@@ -10,6 +10,7 @@ from uuid import UUID
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from callbot_platform.billing.entitlements import EntitlementError, EntitlementGuard
 from callbot_platform.db.models import KnowledgeArticle
 from callbot_platform.telephony.audit import write_audit
 
@@ -80,6 +81,12 @@ class KnowledgeRepository:
     ) -> dict[str, Any]:
         if not title.strip() or not body.strip():
             raise KnowledgeError("invalid_article", "title and body are required")
+        try:
+            EntitlementGuard(self._session).require_capacity(
+                tenant_id, "knowledge_documents"
+            )
+        except EntitlementError as exc:
+            raise KnowledgeError(exc.code, str(exc)) from exc
         row = KnowledgeArticle(
             tenant_id=tenant_id,
             agent_profile_id=agent_profile_id,

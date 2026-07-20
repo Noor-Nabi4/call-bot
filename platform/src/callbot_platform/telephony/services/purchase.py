@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
-import json
 import re
 from datetime import UTC, datetime
 from typing import Any
@@ -12,12 +12,13 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from callbot_platform.billing.entitlements import EntitlementError, EntitlementGuard
 from callbot_platform.config import Settings
 from callbot_platform.db.models import (
+    TelephonyIdempotencyKey,
     Tenant,
     TenantPhoneNumber,
     TenantTwilioSubaccount,
-    TelephonyIdempotencyKey,
 )
 from callbot_platform.domain.enums import (
     AuthMethod,
@@ -177,6 +178,13 @@ class PlatformPurchaseService:
                 "idempotency_required",
                 "Idempotency-Key is required for purchases",
             )
+
+        try:
+            EntitlementGuard(self._session).require_capacity(
+                tenant_id, "phone_numbers"
+            )
+        except EntitlementError as exc:
+            raise PurchaseError(exc.code, str(exc)) from exc
 
         prior = self._session.scalar(
             select(TelephonyIdempotencyKey).where(
@@ -372,15 +380,11 @@ class PlatformPurchaseService:
             phone_number_sid=phone_number_sid,
         )
         if row.livekit_dispatch_rule_id:
-            try:
+            with contextlib.suppress(Exception):
                 self._livekit.delete_dispatch_rule(row.livekit_dispatch_rule_id)
-            except Exception:
-                pass
         if row.livekit_inbound_trunk_id:
-            try:
+            with contextlib.suppress(Exception):
                 self._livekit.delete_livekit_inbound_trunk(row.livekit_inbound_trunk_id)
-            except Exception:
-                pass
         row.connection_status = ConnectionStatus.RELEASED.value
         row.updated_at = datetime.now(UTC)
         write_audit(
@@ -403,14 +407,20 @@ class PlatformPurchaseService:
         if row.livekit_dispatch_rule_id:
             try:
                 self._livekit.delete_dispatch_rule(row.livekit_dispatch_rule_id)
-                details["rollback"] = details.get("rollback", []) + ["dispatch_rule"]
+                details["rollback"] = [
+                    *details.get("rollback", []),
+                    "dispatch_rule",
+                ]
                 row.livekit_dispatch_rule_id = None
             except Exception as exc:
                 details["rollback_error_dispatch"] = str(exc)
         if row.livekit_inbound_trunk_id:
             try:
                 self._livekit.delete_livekit_inbound_trunk(row.livekit_inbound_trunk_id)
-                details["rollback"] = details.get("rollback", []) + ["inbound_trunk"]
+                details["rollback"] = [
+                    *details.get("rollback", []),
+                    "inbound_trunk",
+                ]
                 row.livekit_inbound_trunk_id = None
             except Exception as exc:
                 details["rollback_error_trunk"] = str(exc)

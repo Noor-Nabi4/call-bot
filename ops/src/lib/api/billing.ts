@@ -23,8 +23,32 @@ export type TenantSubscription = {
   } | null;
 };
 
+export type TenantUsage = {
+  period_start: string;
+  period_end: string;
+  period_kind: string;
+  plan_key: string | null;
+  voice_seconds: number;
+  voice_minutes: number;
+  included_minutes: number | null;
+  overage_minutes: number;
+  overage_per_minute_cents: number | null;
+  estimated_overage_cents: number | null;
+  call_count: number;
+  resources: {
+    team_users: { used: number; limit: number | null };
+    phone_numbers: { used: number; limit: number | null };
+    knowledge_documents: { used: number; limit: number | null };
+    concurrent_calls: { used: number; limit: number | null };
+  };
+};
+
 export function getSubscription() {
   return api<{ subscription: TenantSubscription | null }>("/billing/subscription");
+}
+
+export function getUsage() {
+  return api<{ usage: TenantUsage }>("/billing/usage");
 }
 
 export function createCheckout(plan_key?: string) {

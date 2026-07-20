@@ -11,7 +11,9 @@ import {
   createPortal,
   formatWhen,
   getSubscription,
+  getUsage,
   type TenantSubscription,
+  type TenantUsage,
 } from "@/lib/api";
 import {
   Button,
@@ -39,14 +41,19 @@ export default function BillingPage() {
   const [subscription, setSubscription] = useState<TenantSubscription | null>(
     null,
   );
+  const [usage, setUsage] = useState<TenantUsage | null>(null);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [portalBusy, setPortalBusy] = useState(false);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
 
   const refresh = useCallback(async () => {
-    const data = await getSubscription();
-    setSubscription(data.subscription);
+    const [subData, usageData] = await Promise.all([
+      getSubscription(),
+      getUsage(),
+    ]);
+    setSubscription(subData.subscription);
+    setUsage(usageData.usage);
   }, []);
 
   useEffect(() => {
@@ -235,6 +242,68 @@ export default function BillingPage() {
                           : "Not included"}
                       </dd>
                     </div>
+                  </dl>
+                </div>
+              ) : null}
+
+              {usage ? (
+                <div className="mt-6 border-t border-border pt-4">
+                  <p className="m-0 text-xs font-medium uppercase tracking-wide text-text-muted">
+                    {copy.usage}
+                  </p>
+                  <p className="mt-1 m-0 text-xs text-text-secondary">
+                    {copy.usageHint}
+                  </p>
+                  <dl className="mt-3 m-0 grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-xs text-text-muted">
+                        {copy.minutesUsed}
+                      </dt>
+                      <dd className="m-0 text-sm font-medium text-ink">
+                        {usage.voice_minutes}
+                        {usage.included_minutes != null
+                          ? ` / ${usage.included_minutes}`
+                          : ""}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-text-muted">{copy.calls}</dt>
+                      <dd className="m-0 text-sm font-medium text-ink">
+                        {usage.call_count}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-text-muted">{copy.overage}</dt>
+                      <dd className="m-0 text-sm font-medium text-ink">
+                        {usage.overage_minutes} min
+                        {usage.estimated_overage_cents != null
+                          ? ` ($${(usage.estimated_overage_cents / 100).toFixed(2)})`
+                          : ""}
+                      </dd>
+                    </div>
+                  </dl>
+                  <p className="mt-4 m-0 text-xs font-medium uppercase tracking-wide text-text-muted">
+                    {copy.resources}
+                  </p>
+                  <dl className="mt-3 m-0 grid gap-3 sm:grid-cols-2">
+                    {(
+                      [
+                        ["users", usage.resources.team_users],
+                        ["numbers", usage.resources.phone_numbers],
+                        ["knowledge", usage.resources.knowledge_documents],
+                        ["concurrent", usage.resources.concurrent_calls],
+                      ] as const
+                    ).map(([labelKey, slot]) => (
+                      <div key={labelKey}>
+                        <dt className="text-xs text-text-muted">
+                          {copy[labelKey]}
+                        </dt>
+                        <dd className="m-0 text-sm font-medium text-ink">
+                          {slot.used}
+                          {slot.limit != null ? ` / ${slot.limit}` : ""}
+                        </dd>
+                      </div>
+                    ))}
                   </dl>
                 </div>
               ) : null}

@@ -36,6 +36,13 @@ const OPS_NAV: NavItem[] = [
   { href: "/handoff", label: "Handoff", icon: PhoneForwarded, section: "ai" },
   { href: "/settings", label: "Settings", icon: Settings, roles: ["admin"], section: "admin" },
   {
+    href: "/settings/team",
+    label: "Team",
+    icon: Users,
+    roles: ["admin"],
+    section: "admin",
+  },
+  {
     href: "/settings/billing",
     label: "Billing",
     icon: CreditCard,

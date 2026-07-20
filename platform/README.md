@@ -59,9 +59,14 @@ SaaS billing (platform Stripe account — **not** Connect):
 
 - `GET /billing/plans` — public catalog from code: Starter ($99 / 250 min), Growth ($249 / 800 min, most popular), Pro ($499 / 2,000 min), plus Enterprise (contact sales), trial, number pricing, and add-ons. Each paid plan includes `entitlements` (minutes, concurrency, numbers, users, knowledge, feature flags).
 - `GET /billing/subscription` — admin session (includes plan entitlements)
+- `GET /billing/usage` — current UTC calendar-month voice minutes + resource usage vs plan limits
 - `POST /billing/checkout` — resume Checkout when incomplete/canceled
 - `POST /billing/portal` — Stripe Customer Portal (payment method / cancel)
 - `POST /billing/webhooks/stripe` — signature-verified webhooks (source of truth for activation)
+
+Hard entitlement enforcement (SaaS tenants with a plan row): team seats, phone numbers, and knowledge documents cannot exceed plan limits. Voice minutes are soft — tracked and overage estimated; Stripe metered overage invoicing is not yet wired.
+
+Ops: `/settings/billing` shows usage; `/settings/team` manages invite / role / deactivate.
 
 Plans are **not** registered as Stripe Products/Prices. Checkout uses inline `price_data` from `billing/plans.py`. Only `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` are required.
 

@@ -94,7 +94,7 @@ export const knowledge = {
 export const settings = {
   title: "Settings",
   description:
-    "Invite teammates, manage data retention, and review account activity.",
+    "Manage data retention, review account activity, and open billing or team.",
   users: "Team members",
   invite: "Invite teammate",
   retention: "Data retention",
@@ -114,7 +114,28 @@ export const settings = {
   assistantLink: "Voice assistant",
   assistantLinkHint: "Edit how the phone assistant greets and helps callers.",
   billingLink: "Billing",
-  billingLinkHint: "View your plan and manage payment in Stripe.",
+  billingLinkHint: "View your plan, usage, and manage payment in Stripe.",
+  teamLink: "Team",
+  teamLinkHint: "Invite teammates, change roles, and deactivate accounts.",
+} as const;
+
+export const team = {
+  title: "Team",
+  description:
+    "Invite teammates within your plan seat limit. Deactivated users cannot sign in.",
+  invite: "Invite teammate",
+  inviteHint:
+    "Share the temporary password securely. Teammates can change it after signing in.",
+  inviteAction: "Invite",
+  inviting: "Inviting…",
+  invited: "Teammate invited",
+  updated: "Teammate updated",
+  deactivate: "Deactivate",
+  reactivate: "Reactivate",
+  deactivated: "Teammate deactivated",
+  reactivated: "Teammate reactivated",
+  noUsers: "No team members yet",
+  noUsersHint: "Invite teammates to access your organization.",
 } as const;
 
 export const billing = {
@@ -133,6 +154,13 @@ export const billing = {
   cancelAtPeriodEnd: "Cancels at period end",
   entitlements: "Plan limits",
   minutes: "Included voice minutes",
+  minutesUsed: "Voice minutes this month",
+  usage: "Usage this month",
+  usageHint:
+    "Minutes are counted from call start to end (UTC calendar month). Overage is estimated from your plan rate.",
+  overage: "Estimated overage",
+  calls: "Ended calls",
+  resources: "Resource usage",
   concurrent: "Concurrent calls",
   numbers: "Phone numbers",
   users: "Team users",

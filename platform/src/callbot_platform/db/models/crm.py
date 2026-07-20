@@ -175,6 +175,9 @@ class Call(Base):
     ended_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    billable_seconds: Mapped[int | None] = mapped_column(
+        Integer, nullable=True, default=None
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     disconnect_reason: Mapped[str | None] = mapped_column(String(128), nullable=True)
     metrics: Mapped[dict[str, Any]] = mapped_column(

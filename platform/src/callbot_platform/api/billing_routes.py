@@ -71,6 +71,16 @@ def get_subscription(
     return {"subscription": sub}
 
 
+@router.get("/usage")
+def get_usage(
+    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN)),
+    session: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
+) -> dict[str, Any]:
+    service = BillingService(session, settings)
+    return {"usage": service.get_usage(user.tenant_id)}
+
+
 @router.post("/checkout")
 def create_checkout(
     body: CheckoutBody,

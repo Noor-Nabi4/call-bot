@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from callbot_platform.billing.usage import compute_billable_seconds
 from callbot_platform.crm.errors import CrmError
 from callbot_platform.db.models import Call, Customer
 from callbot_platform.domain.phone import PhoneNumberError, normalize_e164
@@ -91,6 +92,7 @@ class CallRepository:
         if call is None:
             raise CrmError("call_not_found", "Call not found for tenant")
         call.ended_at = datetime.now(UTC)
+        call.billable_seconds = compute_billable_seconds(call.started_at, call.ended_at)
         call.status = status
         call.disconnect_reason = disconnect_reason
         if metrics is not None:
@@ -124,6 +126,7 @@ class CallRepository:
             "job_id": call.job_id,
             "started_at": call.started_at.isoformat() if call.started_at else None,
             "ended_at": call.ended_at.isoformat() if call.ended_at else None,
+            "billable_seconds": call.billable_seconds,
             "status": call.status,
             "disconnect_reason": call.disconnect_reason,
             "metrics": call.metrics,

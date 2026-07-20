@@ -59,10 +59,12 @@ export {
   startPhoneVerification,
   createTestCall,
 } from "./phones";
-export { listAppointments, listCalls, listCustomers } from "./admin";
+export { listAppointments, listCalls, listCustomers, listTeamUsers, inviteTeamUser, updateTeamUser, type TeamUser } from "./admin";
 export {
   getSubscription,
+  getUsage,
   createCheckout,
   createPortal,
   type TenantSubscription,
+  type TenantUsage,
 } from "./billing";

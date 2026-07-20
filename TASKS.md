@@ -957,11 +957,14 @@ Deferred to later Telephony phase: call recording, forwarding, caller ID, voicem
 
 ## Phase 3
 
-* Billing
-* Stripe
-* Customer Portal
-* Usage tracking
-* Team management
+* [x] Billing (Stripe Checkout + webhooks + ops entitlement gate — existing)
+* [x] Stripe (platform account Checkout / Portal / signature-verified webhooks — existing)
+* [x] Customer Portal (Ops → Stripe Billing Portal — existing)
+* [x] Usage tracking (`billable_seconds` on calls, `GET /billing/usage`, Ops billing usage panel)
+* [x] Entitlement enforcement (hard: team seats, phone numbers, knowledge docs; soft: voice minutes/overage estimate)
+* [x] Team management (`PATCH /api/admin/users/{id}`, Ops `/settings/team` invite/role/deactivate)
+
+Deferred: Stripe metered overage invoices, in-app plan upgrades via Checkout, email invite/magic link, true no-card trial.
 
 ## Phase 4
 

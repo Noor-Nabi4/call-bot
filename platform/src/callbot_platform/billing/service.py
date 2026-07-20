@@ -70,6 +70,11 @@ class BillingService:
         data["entitlements"] = entitlements_for_plan(row.plan_key)
         return data
 
+    def get_usage(self, tenant_id: UUID) -> dict[str, Any]:
+        from callbot_platform.billing.usage import UsageService
+
+        return UsageService(self._session).usage_summary(tenant_id)
+
     def tenant_is_entitled(self, tenant_id: UUID) -> bool:
         """Whether the tenant may use gated ops features."""
         tenant = self._session.get(Tenant, tenant_id)

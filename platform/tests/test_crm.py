@@ -134,3 +134,5 @@ def test_call_lifecycle(session: Session, tenant: Tenant) -> None:
     )
     assert ended["status"] == "closed"
     assert ended["metrics"]["duration_sec"] == 12
+    assert ended["billable_seconds"] is not None
+    assert ended["billable_seconds"] >= 0

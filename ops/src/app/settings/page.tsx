@@ -16,7 +16,6 @@ import {
   Input,
   LoadingSkeleton,
   PageHeader,
-  Select,
   Surface,
   useToast,
   type DataTableColumn,
@@ -25,13 +24,6 @@ import {
 const API =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
   "http://localhost:8000";
-
-type TenantUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-};
 
 type AuditEvent = {
   id: string;
@@ -43,29 +35,18 @@ type AuditEvent = {
 export default function SettingsPage() {
   const { user, loading } = useAuth({ roles: ["admin"] });
   const toast = useToast();
-  const [users, setUsers] = useState<TenantUser[]>([]);
   const [audit, setAudit] = useState<AuditEvent[]>([]);
   const [retention, setRetention] = useState({
     recording_retention_days: 30,
     transcript_retention_days: 90,
     audit_retention_days: 365,
   });
-  const [invite, setInvite] = useState({
-    name: "",
-    email: "",
-    password: "",
-    role: "dispatcher",
-  });
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [inviteBusy, setInviteBusy] = useState(false);
   const [retentionBusy, setRetentionBusy] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [u, a, r] = await Promise.all([
-      fetch(`${API}/api/admin/users`, { credentials: "include" }).then((x) =>
-        x.json(),
-      ),
+    const [a, r] = await Promise.all([
       fetch(`${API}/api/admin/audit`, { credentials: "include" }).then((x) =>
         x.json(),
       ),
@@ -73,7 +54,6 @@ export default function SettingsPage() {
         x.json(),
       ),
     ]);
-    setUsers(u.users || []);
     setAudit(a.events || []);
     if (r.settings) setRetention(r.settings);
   }, []);
@@ -93,27 +73,6 @@ export default function SettingsPage() {
       cancelled = true;
     };
   }, [user, refresh]);
-
-  const userColumns: DataTableColumn<TenantUser>[] = [
-    {
-      id: "name",
-      header: "Name",
-      cell: (u) => <span className="font-medium">{u.name}</span>,
-    },
-    {
-      id: "email",
-      header: "Email",
-      cell: (u) => <span className="text-text-secondary">{u.email}</span>,
-    },
-    {
-      id: "role",
-      header: "Role",
-      cell: (u) => (
-        <span className="font-mono text-xs uppercase">{u.role}</span>
-      ),
-      className: "w-28",
-    },
-  ];
 
   const auditColumns: DataTableColumn<AuditEvent>[] = [
     {
@@ -145,28 +104,6 @@ export default function SettingsPage() {
         <LoadingSkeleton rows={6} />
       </div>
     );
-  }
-
-  async function onInvite(e: FormEvent) {
-    e.preventDefault();
-    setInviteBusy(true);
-    setError(null);
-    try {
-      const res = await fetch(`${API}/api/admin/users`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(invite),
-      });
-      if (!res.ok) throw new Error(errors.createFailed);
-      setInvite({ name: "", email: "", password: "", role: "dispatcher" });
-      toast.push("User invited", "success");
-      await refresh();
-    } catch (err) {
-      setError(safeUserError(err, errors.createFailed));
-    } finally {
-      setInviteBusy(false);
-    }
   }
 
   async function onRetention(e: FormEvent) {
@@ -225,7 +162,24 @@ export default function SettingsPage() {
               </div>
             </div>
             <Link
-              href="/settings/assistant"
+              href="/agents"
+              className="rounded-[10px] border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-2"
+            >
+              Open
+            </Link>
+          </Surface>
+          <Surface className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="flex items-start gap-2">
+              <Users className="mt-0.5 size-4 text-text-muted" aria-hidden />
+              <div>
+                <h2 className="text-sm font-semibold text-text-primary">
+                  {copy.teamLink}
+                </h2>
+                <p className="text-sm text-text-secondary">{copy.teamLinkHint}</p>
+              </div>
+            </div>
+            <Link
+              href="/settings/team"
               className="rounded-[10px] border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-2"
             >
               Open
@@ -245,70 +199,6 @@ export default function SettingsPage() {
               Open
             </Link>
           </Surface>
-          <section>
-            <div className="mb-3 flex items-center gap-2">
-              <Users className="size-4 text-text-muted" aria-hidden />
-              <h2 className="text-sm font-semibold text-text-primary">
-                {copy.users}
-              </h2>
-            </div>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Surface className="p-4">
-                <h3 className="text-sm font-medium">{copy.invite}</h3>
-                <form onSubmit={onInvite} className="mt-3 grid gap-3">
-                  <Field label="Name">
-                    <Input
-                      value={invite.name}
-                      onChange={(e) => setInvite({ ...invite, name: e.target.value })}
-                      required
-                    />
-                  </Field>
-                  <Field label="Email">
-                    <Input
-                      type="email"
-                      value={invite.email}
-                      onChange={(e) => setInvite({ ...invite, email: e.target.value })}
-                      required
-                    />
-                  </Field>
-                  <Field label="Temporary password" hint="Minimum 8 characters">
-                    <Input
-                      type="password"
-                      value={invite.password}
-                      onChange={(e) =>
-                        setInvite({ ...invite, password: e.target.value })
-                      }
-                      required
-                      minLength={8}
-                    />
-                  </Field>
-                  <Field label="Role">
-                    <Select
-                      value={invite.role}
-                      onChange={(e) => setInvite({ ...invite, role: e.target.value })}
-                    >
-                      <option value="admin">admin</option>
-                      <option value="dispatcher">dispatcher</option>
-                      <option value="technician">technician</option>
-                    </Select>
-                  </Field>
-                  <Button type="submit" disabled={inviteBusy} className="w-fit">
-                    {inviteBusy ? "Inviting…" : "Invite"}
-                  </Button>
-                </form>
-              </Surface>
-              <DataTable
-                columns={userColumns}
-                rows={users}
-                empty={
-                  <EmptyState
-                    title={copy.noUsers}
-                    description={copy.noUsersHint}
-                  />
-                }
-              />
-            </div>
-          </section>
 
           <section>
             <div className="mb-3 flex items-center gap-2">

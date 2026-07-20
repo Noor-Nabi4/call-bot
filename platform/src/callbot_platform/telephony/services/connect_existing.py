@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from callbot_platform.billing.entitlements import EntitlementError, EntitlementGuard
 from callbot_platform.config import Settings
 from callbot_platform.db.models import Tenant, TenantPhoneNumber
 from callbot_platform.domain.enums import (
@@ -21,7 +22,10 @@ from callbot_platform.domain.enums import (
 )
 from callbot_platform.domain.phone import PhoneNumberError, normalize_e164
 from callbot_platform.security.metadata import MetadataSigner
-from callbot_platform.telephony.adapters.livekit_sip import LiveKitApiError, LiveKitSipService
+from callbot_platform.telephony.adapters.livekit_sip import (
+    LiveKitApiError,
+    LiveKitSipService,
+)
 from callbot_platform.telephony.audit import write_audit
 
 
@@ -69,6 +73,13 @@ class ConnectExistingService:
                 "duplicate_number",
                 f"Phone number {e164} is already registered",
             )
+
+        try:
+            EntitlementGuard(self._session).require_capacity(
+                tenant_id, "phone_numbers"
+            )
+        except EntitlementError as exc:
+            raise ConnectExistingError(exc.code, str(exc)) from exc
 
         row = TenantPhoneNumber(
             tenant_id=tenant_id,

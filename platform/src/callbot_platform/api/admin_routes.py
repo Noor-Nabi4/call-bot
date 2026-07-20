@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 from typing import Any
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from callbot_platform.admin.repos import AdminRepository
 from callbot_platform.api.deps import CurrentUser, db_dep, require_entitled_ops_roles
 from callbot_platform.auth.repos import AuthError, AuthRepository
-from callbot_platform.admin.repos import AdminRepository
 from callbot_platform.security.session import (
     ROLE_ADMIN,
     ROLE_DISPATCHER,
@@ -26,6 +27,15 @@ class InviteUserBody(BaseModel):
     name: str
     role: str
     phone: str | None = None
+
+
+class UpdateUserBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    name: str | None = Field(default=None, max_length=255)
+    role: str | None = None
+    is_active: bool | None = None
+    password: str | None = Field(default=None, min_length=8)
 
 
 class RetentionBody(BaseModel):
@@ -107,6 +117,38 @@ def invite_user(
     except AuthError as exc:
         raise HTTPException(
             status_code=400, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+
+
+@router.patch("/users/{user_id}")
+def update_user(
+    user_id: str,
+    body: UpdateUserBody,
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    if body.role is not None and body.role not in VALID_ROLES:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    try:
+        updated = AuthRepository(session).update_user_admin(
+            user.tenant_id,
+            UUID(user_id),
+            actor_user_id=user.user_id,
+            actor_email=user.email,
+            role=body.role,
+            is_active=body.is_active,
+            name=body.name,
+            password=body.password,
+        )
+        return {"user": updated}
+    except AuthError as exc:
+        status = 404 if exc.code == "user_not_found" else 400
+        raise HTTPException(
+            status_code=status, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400, detail={"code": "invalid_user_id", "message": str(exc)}
         ) from exc
 
 

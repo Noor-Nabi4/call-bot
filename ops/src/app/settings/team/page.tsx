@@ -1,0 +1,251 @@
+"use client";
+
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { AppShell } from "@/components/shell";
+import { useAuth } from "@/lib/use-auth";
+import { errors, team as copy } from "@/lib/copy";
+import { safeUserError } from "@/lib/safe-error";
+import {
+  inviteTeamUser,
+  listTeamUsers,
+  updateTeamUser,
+  type TeamUser,
+} from "@/lib/api/admin";
+import {
+  Button,
+  DataTable,
+  EmptyState,
+  ErrorState,
+  Field,
+  Input,
+  LoadingSkeleton,
+  PageHeader,
+  Select,
+  Surface,
+  useToast,
+  type DataTableColumn,
+} from "@/components/ui";
+
+export default function TeamPage() {
+  const { user, loading } = useAuth({ roles: ["admin"] });
+  const toast = useToast();
+  const [users, setUsers] = useState<TeamUser[]>([]);
+  const [fetching, setFetching] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const [invite, setInvite] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "dispatcher",
+  });
+
+  const refresh = useCallback(async () => {
+    const data = await listTeamUsers();
+    setUsers(data.users || []);
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      refresh()
+        .catch((e) => setError(safeUserError(e, errors.loadFailed)))
+        .finally(() => {
+          if (!cancelled) setFetching(false);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, refresh]);
+
+  async function onInvite(e: FormEvent) {
+    e.preventDefault();
+    setInviteBusy(true);
+    setError(null);
+    try {
+      await inviteTeamUser(invite);
+      setInvite({ name: "", email: "", password: "", role: "dispatcher" });
+      toast.push(copy.invited, "success");
+      await refresh();
+    } catch (err) {
+      setError(safeUserError(err, errors.createFailed));
+    } finally {
+      setInviteBusy(false);
+    }
+  }
+
+  async function onRoleChange(target: TeamUser, role: string) {
+    if (role === target.role) return;
+    setRowBusy(target.id);
+    setError(null);
+    try {
+      await updateTeamUser(target.id, { role });
+      toast.push(copy.updated, "success");
+      await refresh();
+    } catch (err) {
+      setError(safeUserError(err, errors.saveFailed));
+    } finally {
+      setRowBusy(null);
+    }
+  }
+
+  async function onToggleActive(target: TeamUser) {
+    setRowBusy(target.id);
+    setError(null);
+    try {
+      await updateTeamUser(target.id, { is_active: !target.is_active });
+      toast.push(
+        target.is_active ? copy.deactivated : copy.reactivated,
+        "success",
+      );
+      await refresh();
+    } catch (err) {
+      setError(safeUserError(err, errors.saveFailed));
+    } finally {
+      setRowBusy(null);
+    }
+  }
+
+  const columns: DataTableColumn<TeamUser>[] = [
+    {
+      id: "name",
+      header: "Name",
+      cell: (u) => <span className="font-medium">{u.name}</span>,
+    },
+    {
+      id: "email",
+      header: "Email",
+      cell: (u) => <span className="text-text-secondary">{u.email}</span>,
+    },
+    {
+      id: "role",
+      header: "Role",
+      cell: (u) => (
+        <Select
+          value={u.role}
+          disabled={rowBusy === u.id || u.id === user?.id}
+          onChange={(e) => onRoleChange(u, e.target.value)}
+          className="max-w-[9rem]"
+        >
+          <option value="admin">admin</option>
+          <option value="dispatcher">dispatcher</option>
+          <option value="technician">technician</option>
+        </Select>
+      ),
+      className: "w-36",
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: (u) => (
+        <span className="font-mono text-xs uppercase">
+          {u.is_active ? "active" : "inactive"}
+        </span>
+      ),
+      className: "w-24",
+    },
+    {
+      id: "actions",
+      header: "",
+      cell: (u) => (
+        <Button
+          variant="secondary"
+          disabled={rowBusy === u.id || u.id === user?.id}
+          onClick={() => onToggleActive(u)}
+        >
+          {u.is_active ? copy.deactivate : copy.reactivate}
+        </Button>
+      ),
+      className: "w-36",
+    },
+  ];
+
+  if (loading || !user) {
+    return <LoadingSkeleton rows={6} />;
+  }
+
+  return (
+    <AppShell user={user}>
+      <PageHeader title={copy.title} description={copy.description} />
+
+      {error ? (
+        <ErrorState
+          className="mb-4"
+          message={error}
+          onRetry={() => {
+            setError(null);
+            setFetching(true);
+            refresh()
+              .catch((e) => setError(safeUserError(e, errors.loadFailed)))
+              .finally(() => setFetching(false));
+          }}
+        />
+      ) : null}
+
+      {fetching ? (
+        <LoadingSkeleton rows={6} />
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Surface className="p-4">
+            <h2 className="text-sm font-semibold text-ink">{copy.invite}</h2>
+            <p className="mt-1 m-0 text-sm text-text-secondary">{copy.inviteHint}</p>
+            <form onSubmit={onInvite} className="mt-3 grid gap-3">
+              <Field label="Name">
+                <Input
+                  value={invite.name}
+                  onChange={(e) => setInvite({ ...invite, name: e.target.value })}
+                  required
+                />
+              </Field>
+              <Field label="Email">
+                <Input
+                  type="email"
+                  value={invite.email}
+                  onChange={(e) =>
+                    setInvite({ ...invite, email: e.target.value })
+                  }
+                  required
+                />
+              </Field>
+              <Field label="Temporary password" hint="Minimum 8 characters">
+                <Input
+                  type="password"
+                  value={invite.password}
+                  onChange={(e) =>
+                    setInvite({ ...invite, password: e.target.value })
+                  }
+                  required
+                  minLength={8}
+                />
+              </Field>
+              <Field label="Role">
+                <Select
+                  value={invite.role}
+                  onChange={(e) => setInvite({ ...invite, role: e.target.value })}
+                >
+                  <option value="admin">admin</option>
+                  <option value="dispatcher">dispatcher</option>
+                  <option value="technician">technician</option>
+                </Select>
+              </Field>
+              <Button type="submit" disabled={inviteBusy} className="w-fit">
+                {inviteBusy ? copy.inviting : copy.inviteAction}
+              </Button>
+            </form>
+          </Surface>
+          <DataTable
+            columns={columns}
+            rows={users}
+            empty={
+              <EmptyState title={copy.noUsers} description={copy.noUsersHint} />
+            }
+          />
+        </div>
+      )}
+    </AppShell>
+  );
+}
