@@ -16,6 +16,7 @@ and `src/components/ops/`.
 | `/board` | Redirects to `/dispatch` (compat) |
 | `/live` | Active calls (auto-refresh) |
 | `/supervisor` | Supervisor snapshot (live + recent + handoffs) |
+| `/queue` | Handoff follow-up queue |
 | `/calls` | Call history |
 | `/agents` | Multi-profile agent builder |
 | `/agents/[id]/flow` | Ordered call-flow steps for an agent |

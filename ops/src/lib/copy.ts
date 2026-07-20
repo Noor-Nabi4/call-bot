@@ -115,6 +115,23 @@ export const supervisor = {
   refreshing: "Refreshing…",
 } as const;
 
+export const queue = {
+  title: "Queue",
+  description:
+    "Handoff follow-ups waiting for a human. Skills-based routing and departments come later.",
+  empty: "Queue is clear",
+  emptyHint: "Items appear when a call ends after a handoff request.",
+  claim: "Claim",
+  complete: "Complete",
+  cancel: "Cancel",
+  waiting: "Waiting",
+  claimed: "Claimed",
+  refreshing: "Refreshing…",
+  filterAll: "Open",
+  filterWaiting: "Waiting",
+  filterClaimed: "Claimed",
+} as const;
+
 export const knowledge = {
   title: "Knowledge",
   description:

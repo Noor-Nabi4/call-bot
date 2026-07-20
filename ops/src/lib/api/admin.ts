@@ -59,6 +59,46 @@ export function getSupervisorSnapshot(opts?: { recent_limit?: number }) {
   );
 }
 
+export type QueueItem = {
+  id: string;
+  call_id: string;
+  status: string;
+  reason: string;
+  priority: number;
+  notes?: string | null;
+  claimed_by?: string | null;
+  claimed_at?: string | null;
+  completed_at?: string | null;
+  created_at?: string | null;
+  caller_number?: string | null;
+  called_number?: string | null;
+  call_status?: string | null;
+};
+
+export function listQueue(opts?: { status?: string; limit?: number }) {
+  const params = new URLSearchParams();
+  if (opts?.status) params.set("status", opts.status);
+  if (opts?.limit != null) params.set("limit", String(opts.limit));
+  const qs = params.toString();
+  return api<{ items: QueueItem[] }>(`/api/admin/queue${qs ? `?${qs}` : ""}`);
+}
+
+export function claimQueueItem(itemId: string) {
+  return api<{ item: QueueItem }>(`/api/admin/queue/${itemId}/claim`, {
+    method: "POST",
+  });
+}
+
+export function completeQueueItem(
+  itemId: string,
+  body?: { notes?: string | null; cancel?: boolean },
+) {
+  return api<{ item: QueueItem }>(`/api/admin/queue/${itemId}/complete`, {
+    method: "POST",
+    body: JSON.stringify(body || {}),
+  });
+}
+
 export function listCustomers() {
   return api<{ customers: CustomerOption[] }>("/api/admin/customers").then(
     (d) => ({

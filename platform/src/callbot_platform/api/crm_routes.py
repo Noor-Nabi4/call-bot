@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 from uuid import UUID
 
@@ -20,6 +21,8 @@ from callbot_platform.crm.repos import (
 )
 from callbot_platform.db.models import Tenant
 from callbot_platform.domain.phone import PhoneNumberError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/internal/crm",
@@ -243,6 +246,27 @@ def call_end(body: CallEndBody, session: Session = Depends(db_dep)) -> dict:
                     body.tenant_id, "call.handoff_requested", payload=payload
                 )
             )
+            from callbot_platform.queue import CallQueueRepository, QueueError
+
+            try:
+                queued = CallQueueRepository(session).enqueue_for_call(
+                    body.tenant_id,
+                    body.call_id,
+                    reason="handoff",
+                    priority=10,
+                    actor="voice-agent",
+                )
+                if queued is not None:
+                    call["queue_item"] = queued
+            except QueueError as exc:
+                logger.warning(
+                    "call_queue_enqueue_failed",
+                    extra={
+                        "tenant_id": str(body.tenant_id),
+                        "call_id": str(body.call_id),
+                        "code": exc.code,
+                    },
+                )
         call["automations"] = fired
         return {"call": call}
     except Exception as exc:

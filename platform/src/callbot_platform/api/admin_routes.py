@@ -152,6 +152,85 @@ def supervisor(
     }
 
 
+class QueueCompleteBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    notes: str | None = Field(default=None, max_length=2000)
+    cancel: bool = False
+
+
+@router.get("/queue")
+def list_queue(
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
+    session: Session = Depends(db_dep),
+    status: str | None = Query(default=None, max_length=32),
+    limit: int = Query(default=50, ge=1, le=100),
+) -> dict[str, Any]:
+    from callbot_platform.queue import CallQueueRepository, QueueError
+
+    try:
+        return {
+            "items": CallQueueRepository(session).list_items(
+                user.tenant_id, status=status, limit=limit
+            )
+        }
+    except QueueError as exc:
+        raise HTTPException(
+            status_code=400, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+
+
+@router.post("/queue/{item_id}/claim")
+def claim_queue_item(
+    item_id: UUID,
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    from callbot_platform.queue import CallQueueRepository, QueueError
+
+    try:
+        item = CallQueueRepository(session).claim(
+            user.tenant_id, item_id, actor=user.email
+        )
+        return {"item": item}
+    except QueueError as exc:
+        status = 404 if exc.code == "queue_item_not_found" else 400
+        raise HTTPException(
+            status_code=status, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+
+
+@router.post("/queue/{item_id}/complete")
+def complete_queue_item(
+    item_id: UUID,
+    body: QueueCompleteBody,
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    from callbot_platform.queue import CallQueueRepository, QueueError
+
+    try:
+        item = CallQueueRepository(session).complete(
+            user.tenant_id,
+            item_id,
+            actor=user.email,
+            notes=body.notes,
+            cancel=body.cancel,
+        )
+        return {"item": item}
+    except QueueError as exc:
+        status = 404 if exc.code == "queue_item_not_found" else 400
+        raise HTTPException(
+            status_code=status, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+
+
 @router.get("/audit")
 def audit(
     user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),

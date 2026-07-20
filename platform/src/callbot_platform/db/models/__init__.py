@@ -23,6 +23,7 @@ from callbot_platform.db.models.handoff import (
 )
 from callbot_platform.db.models.jobs import Job, JobNote, Technician, TenantUser
 from callbot_platform.db.models.knowledge import KnowledgeArticle
+from callbot_platform.db.models.queue import CallQueueItem
 from callbot_platform.db.models.scheduling import (
     Appointment,
     NotificationOutbox,
@@ -43,6 +44,7 @@ __all__ = [
     "AutomationRule",
     "Base",
     "Call",
+    "CallQueueItem",
     "Customer",
     "CustomerPhone",
     "Job",
