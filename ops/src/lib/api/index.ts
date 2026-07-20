@@ -47,6 +47,8 @@ export {
   archiveAgentProfile,
   setDefaultAgentProfile,
   applyAgentTemplate,
+  getMarketplaceCatalog,
+  installMarketplaceAgent,
 } from "./agents";
 export {
   listPhoneNumbers,

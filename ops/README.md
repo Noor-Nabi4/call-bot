@@ -19,6 +19,7 @@ and `src/components/ops/`.
 | `/queue` | Handoff follow-up queue |
 | `/calls` | Call history |
 | `/agents` | Multi-profile agent builder |
+| `/marketplace` | One-click industry agent installs |
 | `/agents/[id]/flow` | Ordered call-flow steps for an agent |
 | `/metrics` | Call analytics |
 | `/settings` | Team, retention, audit |

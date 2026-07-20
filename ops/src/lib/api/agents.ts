@@ -63,3 +63,23 @@ export function applyAgentTemplate(
     },
   );
 }
+
+export function getMarketplaceCatalog() {
+  return api<{
+    templates: IndustryTemplate[];
+    categories: string[];
+    featured: IndustryTemplate[];
+  }>("/api/admin/marketplace");
+}
+
+export function installMarketplaceAgent(body: {
+  industry_key: string;
+  name?: string;
+  set_as_default?: boolean;
+  seed_knowledge?: boolean;
+}) {
+  return api<{ profile: AgentProfile; business_name: string }>(
+    "/api/admin/marketplace/install",
+    { method: "POST", body: JSON.stringify(body) },
+  );
+}

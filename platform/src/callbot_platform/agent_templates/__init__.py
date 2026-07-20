@@ -32,6 +32,9 @@ class IndustryTemplate:
     enabled_tools: dict[str, bool]
     example_questions: list[str]
     suggested_articles: list[SuggestedArticle] = field(default_factory=list)
+    category: str = "General"
+    marketplace_blurb: str | None = None
+    featured: bool = False
 
     def profile_defaults(self) -> dict[str, Any]:
         return {
@@ -55,6 +58,9 @@ class IndustryTemplate:
             "name": self.name,
             "description": self.description,
             "agent_type": self.agent_type,
+            "category": self.category,
+            "marketplace_blurb": self.marketplace_blurb or self.description,
+            "featured": self.featured,
             "example_questions": list(self.example_questions),
             "enabled_tools": dict(self.enabled_tools),
             "suggested_article_count": len(self.suggested_articles),
@@ -67,6 +73,16 @@ _ALL_TOOLS = {
     "knowledge": True,
     "handoff": True,
     "sms": True,
+}
+
+_CATEGORY_BY_TYPE = {
+    "receptionist": "Field service",
+    "booking": "Appointments",
+    "support": "Support",
+    "sales": "Sales",
+    "help_desk": "Support",
+    "call_center": "Call center",
+    "custom": "General",
 }
 
 
@@ -88,6 +104,9 @@ def _tpl(
     enabled_tools: dict[str, bool] | None = None,
     example_questions: list[str] | None = None,
     suggested_articles: list[SuggestedArticle] | None = None,
+    category: str | None = None,
+    marketplace_blurb: str | None = None,
+    featured: bool = False,
 ) -> IndustryTemplate:
     return IndustryTemplate(
         key=key,
@@ -109,6 +128,9 @@ def _tpl(
         enabled_tools=enabled_tools or dict(_ALL_TOOLS),
         example_questions=example_questions or [],
         suggested_articles=suggested_articles or [],
+        category=category or _CATEGORY_BY_TYPE.get(agent_type, "General"),
+        marketplace_blurb=marketplace_blurb,
+        featured=featured,
     )
 
 
@@ -117,6 +139,8 @@ TEMPLATES: dict[str, IndustryTemplate] = {
         key="hvac",
         name="HVAC",
         description="Heating, cooling, and maintenance reception.",
+        marketplace_blurb="Answer service calls, book jobs, and escalate emergencies for HVAC businesses.",
+        featured=True,
         agent_type="receptionist",
         greeting="Thanks for calling. How can I help with your heating or cooling today?",
         tone="friendly",
@@ -147,6 +171,9 @@ TEMPLATES: dict[str, IndustryTemplate] = {
         key="medical",
         name="Medical",
         description="Clinic front desk for appointments and general info.",
+        marketplace_blurb="Schedule appointments and answer office FAQs without giving clinical advice.",
+        featured=True,
+        category="Healthcare",
         agent_type="booking",
         greeting="Thank you for calling. I can help with appointments and general office information.",
         tone="professional",
@@ -169,6 +196,9 @@ TEMPLATES: dict[str, IndustryTemplate] = {
         key="restaurant",
         name="Restaurant",
         description="Reservations, hours, and menu questions.",
+        marketplace_blurb="Take reservations and answer dining questions around the clock.",
+        featured=True,
+        category="Hospitality",
         agent_type="booking",
         greeting="Thanks for calling. Looking to reserve a table or ask about tonight?",
         tone="friendly",
@@ -192,6 +222,8 @@ TEMPLATES: dict[str, IndustryTemplate] = {
         key="insurance",
         name="Insurance",
         description="Policy questions, claims intake, and transfers.",
+        marketplace_blurb="Intake quotes and claims, then route sensitive cases to your team.",
+        category="Financial services",
         agent_type="support",
         greeting="Thank you for calling. I can help with general policy questions or connect you to the right team.",
         tone="professional",
@@ -217,6 +249,9 @@ TEMPLATES: dict[str, IndustryTemplate] = {
         key="real_estate",
         name="Real Estate",
         description="Lead qualification and showing requests.",
+        marketplace_blurb="Qualify buyer/seller leads and book showings for your agents.",
+        featured=True,
+        category="Real estate",
         agent_type="sales",
         greeting="Thanks for calling. Are you looking to buy, sell, or schedule a showing?",
         tone="friendly",
@@ -233,6 +268,7 @@ TEMPLATES: dict[str, IndustryTemplate] = {
         key="call_center",
         name="Call Center",
         description="General inbound support with escalation paths.",
+        marketplace_blurb="Triage inbound support, answer FAQs, and escalate to supervisors.",
         agent_type="call_center",
         greeting="Thanks for calling support. How can I help you today?",
         tone="professional",
@@ -256,6 +292,8 @@ TEMPLATES: dict[str, IndustryTemplate] = {
         key="support",
         name="Customer Support",
         description="FAQ, troubleshooting, and order help.",
+        marketplace_blurb="Handle common support questions and capture issues for follow-up.",
+        featured=True,
         agent_type="support",
         greeting="Hi, you've reached support. What can I help you with?",
         tone="friendly",
@@ -267,6 +305,8 @@ TEMPLATES: dict[str, IndustryTemplate] = {
         key="sales",
         name="Sales",
         description="Lead qualification and product recommendations.",
+        marketplace_blurb="Qualify inbound sales interest and book demos or quote calls.",
+        featured=True,
         agent_type="sales",
         greeting="Thanks for calling. Are you exploring options or ready for a quote?",
         tone="friendly",
@@ -279,10 +319,38 @@ TEMPLATES: dict[str, IndustryTemplate] = {
             "Who is this a fit for?",
         ],
     ),
+    "collections": _tpl(
+        key="collections",
+        name="Collections",
+        description="Polite payment reminders and callback scheduling.",
+        marketplace_blurb="Remind customers about balances and schedule callback or payment windows.",
+        category="Financial services",
+        agent_type="support",
+        greeting="Hi, I'm calling about an open balance. Is now a good time to talk?",
+        tone="professional",
+        response_style="formal",
+        business_description="Collections outreach agent for reminders and payment arrangement intake.",
+        booking_rules="Never threaten. Capture preferred callback time or payment plan interest and escalate disputes.",
+        restricted_topics=["legal threats", "credit score manipulation"],
+        custom_instructions="Be respectful. Confirm identity lightly, state the reason for the call, and offer handoff for disputes.",
+        enabled_tools={
+            "crm": True,
+            "scheduling": True,
+            "knowledge": True,
+            "handoff": True,
+            "sms": True,
+        },
+        example_questions=[
+            "How much do I owe?",
+            "Can I set up a payment plan?",
+            "Please call me later",
+        ],
+    ),
     "custom": _tpl(
         key="custom",
         name="Custom",
         description="Blank template for fully configurable agents.",
+        marketplace_blurb="Start from a blank agent and configure prompts, tools, and flow yourself.",
         agent_type="custom",
         greeting="Thanks for calling. How can I help?",
         tone="professional",
@@ -295,6 +363,17 @@ TEMPLATES: dict[str, IndustryTemplate] = {
 
 def list_templates() -> list[dict[str, Any]]:
     return [TEMPLATES[k].summarize() for k in sorted(TEMPLATES.keys())]
+
+
+def list_marketplace_catalog() -> dict[str, Any]:
+    templates = list_templates()
+    categories = sorted({t["category"] for t in templates})
+    featured = [t for t in templates if t.get("featured")]
+    return {
+        "templates": templates,
+        "categories": categories,
+        "featured": featured,
+    }
 
 
 def get_template(key: str) -> IndustryTemplate | None:

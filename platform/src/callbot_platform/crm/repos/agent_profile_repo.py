@@ -371,6 +371,58 @@ class AgentProfileRepository:
         )
         return updated
 
+    def install_from_marketplace(
+        self,
+        tenant_id: UUID,
+        *,
+        industry_key: str,
+        name: str | None = None,
+        set_as_default: bool = False,
+        seed_knowledge: bool = True,
+        actor: str = "tenant_user",
+    ) -> dict[str, Any]:
+        """One-click install: create a new agent profile from a marketplace template."""
+        template = get_template(industry_key)
+        if template is None:
+            raise CrmError(
+                "unknown_template", f"Unknown industry template: {industry_key}"
+            )
+        profile_name = (name or template.name).strip()
+        if not profile_name:
+            raise CrmError("invalid_name", "Profile name is required")
+
+        existing = self.list(tenant_id, include_archived=False)
+        make_default = set_as_default or len(existing) == 0
+        created = self.create(
+            tenant_id,
+            name=profile_name,
+            agent_type=template.agent_type,
+            industry_key=template.key,
+            is_default=make_default,
+            actor=actor,
+        )
+        profile_id = UUID(created["id"])
+        installed = self.apply_template(
+            tenant_id,
+            profile_id,
+            industry_key=template.key,
+            actor=actor,
+            seed_knowledge=seed_knowledge,
+        )
+        write_audit(
+            self._session,
+            tenant_id=tenant_id,
+            actor=actor,
+            action="marketplace_agent_installed",
+            resource_ids={"agent_profile_id": str(profile_id)},
+            payload_summary={
+                "industry_key": template.key,
+                "seed_knowledge": seed_knowledge,
+                "set_as_default": make_default,
+            },
+        )
+        return installed
+
     def archive(
         self, tenant_id: UUID, profile_id: UUID, *, actor: str = "tenant_user"
     ) -> dict[str, Any]:

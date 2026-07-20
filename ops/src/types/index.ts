@@ -113,6 +113,9 @@ export type IndustryTemplate = {
   name: string;
   description: string;
   agent_type: string;
+  category?: string;
+  marketplace_blurb?: string;
+  featured?: boolean;
   example_questions: string[];
   enabled_tools: EnabledTools;
   suggested_article_count: number;

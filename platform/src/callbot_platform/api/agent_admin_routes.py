@@ -8,10 +8,14 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from livekit import api
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from callbot_platform.agent_templates import get_template, list_templates
+from callbot_platform.agent_templates import (
+    get_template,
+    list_marketplace_catalog,
+    list_templates,
+)
 from callbot_platform.api.deps import (
     CurrentUser,
     connect_service,
@@ -110,6 +114,15 @@ class ApplyTemplateBody(BaseModel):
     seed_knowledge: bool = True
 
 
+class MarketplaceInstallBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    industry_key: str = Field(min_length=1, max_length=64)
+    name: str | None = Field(default=None, max_length=128)
+    set_as_default: bool = False
+    seed_knowledge: bool = True
+
+
 class AssignPhoneProfileBody(BaseModel):
     agent_profile_id: UUID | None = None
 
@@ -170,6 +183,35 @@ def industry_templates(
 ) -> dict[str, Any]:
     _ = user
     return {"templates": list_templates()}
+
+
+@router.get("/marketplace")
+def marketplace_catalog(
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
+) -> dict[str, Any]:
+    _ = user
+    return list_marketplace_catalog()
+
+
+@router.post("/marketplace/install")
+def marketplace_install(
+    body: MarketplaceInstallBody,
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    _rate_limit(user)
+    try:
+        profile = AgentProfileRepository(session).install_from_marketplace(
+            user.tenant_id,
+            industry_key=body.industry_key,
+            name=body.name,
+            set_as_default=body.set_as_default,
+            seed_knowledge=body.seed_knowledge,
+            actor=user.email,
+        )
+        return {"profile": profile, "business_name": user.tenant_name}
+    except Exception as exc:
+        raise _crm_http(exc) from exc
 
 
 @router.get("/agent-profiles")

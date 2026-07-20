@@ -983,7 +983,7 @@ Deferred: Stripe metered overage invoices, in-app plan upgrades via Checkout, em
 
 ## Phase 6
 
-* Marketplace
+* [x] Marketplace (catalog metadata + `GET/POST /api/admin/marketplace[/install]`, Ops `/marketplace` one-click install; publisher billing deferred)
 * White label
 * Multi-agent routing
 * Enterprise integrations

@@ -132,6 +132,22 @@ export const queue = {
   filterClaimed: "Claimed",
 } as const;
 
+export const marketplace = {
+  title: "Marketplace",
+  description:
+    "Install ready-made AI agents for your industry. Customize prompts and tools after install.",
+  install: "Install",
+  installing: "Installing…",
+  installed: "Agent installed",
+  featured: "Featured",
+  all: "All categories",
+  seedKnowledge: "Seed starter knowledge",
+  setDefault: "Set as default agent",
+  articles: "starter articles",
+  empty: "No templates in this category",
+  openAgent: "Open agent",
+} as const;
+
 export const knowledge = {
   title: "Knowledge",
   description:

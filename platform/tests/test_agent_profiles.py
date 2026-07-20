@@ -238,5 +238,27 @@ def test_admin_agent_profile_apis(
             flow_updated.json()["profile"]["call_flow"]["steps"][0]["label"]
             == "Warm open"
         )
+
+        catalog = client.get("/api/admin/marketplace")
+        assert catalog.status_code == 200
+        assert "categories" in catalog.json()
+        assert any(t["key"] == "hvac" for t in catalog.json()["templates"])
+        assert any(t.get("featured") for t in catalog.json()["templates"])
+
+        installed = client.post(
+            "/api/admin/marketplace/install",
+            json={
+                "industry_key": "hvac",
+                "name": "HVAC Front Desk",
+                "seed_knowledge": True,
+                "set_as_default": False,
+            },
+        )
+        assert installed.status_code == 200, installed.text
+        assert installed.json()["profile"]["industry_key"] == "hvac"
+        assert installed.json()["profile"]["name"] == "HVAC Front Desk"
+        assert "heating or cooling" in (
+            installed.json()["profile"].get("greeting") or ""
+        ).lower()
     finally:
         app.dependency_overrides.clear()
