@@ -226,6 +226,24 @@ def call_end(body: CallEndBody, session: Session = Depends(db_dep)) -> dict:
             metrics=body.metrics,
             customer_id=body.customer_id,
         )
+        from callbot_platform.automation.service import AutomationService
+
+        automation = AutomationService(session)
+        payload = {
+            "call_id": call["id"],
+            "customer_id": call.get("customer_id"),
+            "status": call.get("status"),
+            "disconnect_reason": call.get("disconnect_reason"),
+        }
+        fired = automation.dispatch(body.tenant_id, "call.ended", payload=payload)
+        metrics = body.metrics if isinstance(body.metrics, dict) else {}
+        if metrics.get("handoff_requested"):
+            fired.extend(
+                automation.dispatch(
+                    body.tenant_id, "call.handoff_requested", payload=payload
+                )
+            )
+        call["automations"] = fired
         return {"call": call}
     except Exception as exc:
         raise _http_error(exc) from exc

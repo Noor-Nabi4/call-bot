@@ -295,6 +295,25 @@ export const metrics = {
   noDisconnect: "No ended calls in this window.",
 } as const;
 
+export const automations = {
+  title: "Automations",
+  description:
+    "Run follow-up jobs or audit events when calls end, handoffs happen, or appointments are booked.",
+  create: "New rule",
+  createAction: "Create rule",
+  saving: "Saving…",
+  created: "Automation created",
+  enabled: "Automation enabled",
+  disabled: "Automation disabled",
+  deleted: "Automation deleted",
+  enable: "Enable",
+  disable: "Disable",
+  delete: "Delete",
+  inactive: "paused",
+  empty: "No automations yet",
+  emptyHint: "Create a rule to react to handoffs or bookings automatically.",
+} as const;
+
 export const tech = {
   title: "My jobs",
   description: "Today’s assigned field work.",

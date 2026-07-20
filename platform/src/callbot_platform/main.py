@@ -12,6 +12,7 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env.local")
 
 from callbot_platform.api.admin_routes import router as admin_router  # noqa: E402
 from callbot_platform.api.agent_admin_routes import router as agent_admin_router  # noqa: E402
+from callbot_platform.api.automation_routes import router as automation_router  # noqa: E402
 from callbot_platform.api.auth_routes import router as auth_router  # noqa: E402
 from callbot_platform.api.billing_routes import router as billing_router  # noqa: E402
 from callbot_platform.api.crm_routes import (  # noqa: E402
@@ -67,6 +68,7 @@ app.include_router(handoff_internal_router)
 app.include_router(handoff_ops_router)
 app.include_router(admin_router)
 app.include_router(agent_admin_router)
+app.include_router(automation_router)
 app.include_router(tenant_settings_router)
 
 

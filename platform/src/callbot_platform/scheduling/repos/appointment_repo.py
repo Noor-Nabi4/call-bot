@@ -222,6 +222,18 @@ class AppointmentRepository:
         result["notifications"] = notifications
         if job is not None:
             result["job"] = job
+        from callbot_platform.automation.service import AutomationService
+
+        result["automations"] = AutomationService(self._session).dispatch(
+            tenant_id,
+            "appointment.created",
+            payload={
+                "appointment_id": str(appt.id),
+                "customer_id": str(customer_id),
+                "call_id": str(call_id) if call_id else None,
+                "service_type": appt.service_type,
+            },
+        )
         return result
 
     def reschedule(

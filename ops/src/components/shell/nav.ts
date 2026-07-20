@@ -12,6 +12,7 @@ import {
   Users,
   Wrench,
   BarChart3,
+  Zap,
 } from "lucide-react";
 import type { OpsUser } from "@/lib/api";
 
@@ -46,6 +47,13 @@ const OPS_NAV: NavItem[] = [
     href: "/settings/billing",
     label: "Billing",
     icon: CreditCard,
+    roles: ["admin"],
+    section: "admin",
+  },
+  {
+    href: "/settings/automations",
+    label: "Automations",
+    icon: Zap,
     roles: ["admin"],
     section: "admin",
   },
