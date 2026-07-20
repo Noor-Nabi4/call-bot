@@ -110,7 +110,7 @@ export function buildJsonLd() {
     "@id": `${siteUrl}/#software`,
     name: seo.brand,
     applicationCategory: "BusinessApplication",
-    applicationSubCategory: "Field Service Management",
+    applicationSubCategory: "AI Voice Agents & Call Center",
     operatingSystem: "Web",
     url: siteUrl,
     description: seo.description,
