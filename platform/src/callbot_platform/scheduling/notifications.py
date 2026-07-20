@@ -220,9 +220,7 @@ class NotificationService:
         message = client.messages.create(to=to, from_=from_number, body=body)
         return message.sid
 
-    def _resolve_twilio_creds(
-        self, tenant_id: UUID
-    ) -> tuple[str, str, str] | None:
+    def _resolve_twilio_creds(self, tenant_id: UUID) -> tuple[str, str, str] | None:
         from sqlalchemy import select
 
         settings = self._settings
@@ -260,11 +258,7 @@ class NotificationService:
             except Exception:
                 logger.exception("decrypt_subaccount_token_failed")
 
-        if (
-            settings.twilio_account_sid
-            and settings.twilio_auth_token
-            and from_number
-        ):
+        if settings.twilio_account_sid and settings.twilio_auth_token and from_number:
             return (
                 settings.twilio_account_sid,
                 settings.twilio_auth_token,

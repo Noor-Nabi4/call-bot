@@ -1,8 +1,7 @@
-"""Tenant-scoped scheduling repositories."""
+"""Appointment repository."""
 
 from __future__ import annotations
 
-import secrets
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -16,7 +15,6 @@ from callbot_platform.db.models import (
     Customer,
     Lead,
     Tenant,
-    TenantScheduleSettings,
     default_weekly_hours,
 )
 from callbot_platform.scheduling.availability import (
@@ -25,64 +23,14 @@ from callbot_platform.scheduling.availability import (
     ranges_overlap,
     resolve_tz,
 )
+from callbot_platform.scheduling.errors import (
+    SchedulingError,
+    confirmation_code,
+    ensure_aware,
+)
 from callbot_platform.scheduling.notifications import NotificationService
+from callbot_platform.scheduling.repos.settings_repo import ScheduleSettingsRepository
 from callbot_platform.telephony.audit import write_audit
-
-
-class SchedulingError(ValueError):
-    def __init__(self, code: str, message: str) -> None:
-        super().__init__(message)
-        self.code = code
-
-
-def _confirmation_code() -> str:
-    return f"APT-{secrets.token_hex(3).upper()}"
-
-
-def _ensure_aware(dt: datetime) -> datetime:
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC)
-    return dt.astimezone(UTC)
-
-
-class ScheduleSettingsRepository:
-    def __init__(self, session: Session) -> None:
-        self._session = session
-
-    def get_or_create(self, tenant_id: UUID) -> TenantScheduleSettings:
-        row = self._session.scalar(
-            select(TenantScheduleSettings).where(
-                TenantScheduleSettings.tenant_id == tenant_id
-            )
-        )
-        if row is not None:
-            return row
-        row = TenantScheduleSettings(
-            tenant_id=tenant_id,
-            timezone=None,
-            slot_minutes=60,
-            booking_horizon_days=14,
-            weekly_hours=default_weekly_hours(),
-        )
-        self._session.add(row)
-        self._session.flush()
-        return row
-
-    def effective_timezone(self, tenant_id: UUID) -> str:
-        tenant = self._session.get(Tenant, tenant_id)
-        if tenant is None:
-            raise SchedulingError("tenant_not_found", "Tenant not found")
-        settings = self.get_or_create(tenant_id)
-        return (settings.timezone or tenant.timezone or "UTC").strip() or "UTC"
-
-    def serialize(self, row: TenantScheduleSettings, tenant: Tenant) -> dict[str, Any]:
-        return {
-            "tenant_id": str(row.tenant_id),
-            "timezone": row.timezone or tenant.timezone,
-            "slot_minutes": row.slot_minutes,
-            "booking_horizon_days": row.booking_horizon_days,
-            "weekly_hours": row.weekly_hours,
-        }
 
 
 class AppointmentRepository:
@@ -135,9 +83,7 @@ class AppointmentRepository:
         booked = self._booked_ranges(
             tenant_id,
             window_start=candidates[0].starts_at if candidates else datetime.now(UTC),
-            window_end=(
-                candidates[-1].ends_at if candidates else datetime.now(UTC)
-            ),
+            window_end=(candidates[-1].ends_at if candidates else datetime.now(UTC)),
         )
         free = filter_free_slots(candidates, booked)[: max(1, min(limit, 100))]
         return {
@@ -213,7 +159,7 @@ class AppointmentRepository:
                 raise SchedulingError("call_not_found", "Call not found for tenant")
 
         settings = self._settings.get_or_create(tenant_id)
-        starts = _ensure_aware(starts_at)
+        starts = ensure_aware(starts_at)
         ends = starts + timedelta(minutes=settings.slot_minutes)
 
         if self._has_overlap(tenant_id, starts, ends):
@@ -232,7 +178,7 @@ class AppointmentRepository:
             status="scheduled",
             service_type=service_type.strip(),
             notes=notes.strip() if notes else None,
-            confirmation_code=_confirmation_code(),
+            confirmation_code=confirmation_code(),
             idempotency_key=idempotency_key,
         )
         self._session.add(appt)
@@ -288,7 +234,7 @@ class AppointmentRepository:
     ) -> dict[str, Any]:
         appt = self._get_active(tenant_id, appointment_id)
         settings = self._settings.get_or_create(tenant_id)
-        starts = _ensure_aware(starts_at)
+        starts = ensure_aware(starts_at)
         ends = starts + timedelta(minutes=settings.slot_minutes)
 
         if self._has_overlap(tenant_id, starts, ends, exclude_id=appt.id):
@@ -417,7 +363,7 @@ class AppointmentRepository:
         if exclude_id is not None:
             q = q.where(Appointment.id != exclude_id)
         rows = self._session.scalars(q).all()
-        return [(_ensure_aware(r.starts_at), _ensure_aware(r.ends_at)) for r in rows]
+        return [(ensure_aware(r.starts_at), ensure_aware(r.ends_at)) for r in rows]
 
     def _has_overlap(
         self,

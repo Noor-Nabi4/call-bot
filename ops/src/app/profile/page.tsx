@@ -28,7 +28,8 @@ export default function ProfilePage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (user) setName(user.name);
+    if (!user) return;
+    queueMicrotask(() => setName(user.name));
   }, [user]);
 
   if (loading || !user) {

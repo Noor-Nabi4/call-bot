@@ -1,8 +1,7 @@
-"""Tenant-scoped jobs and technicians repositories."""
+"""Job repository."""
 
 from __future__ import annotations
 
-import secrets
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -17,120 +16,24 @@ from callbot_platform.db.models import (
     JobNote,
     Technician,
 )
-from callbot_platform.security.session import ROLE_TECHNICIAN
+from callbot_platform.jobs.errors import (
+    ASSIGNABLE_STATUSES,
+    DEFAULT_CHECKLIST,
+    TRANSITIONS,
+    JobsError,
+    checklist_item_id,
+    job_ref,
+)
 from callbot_platform.telephony.audit import write_audit
-
-TRANSITIONS: dict[str, frozenset[str]] = {
-    "new": frozenset({"scheduled", "canceled"}),
-    "scheduled": frozenset({"dispatched", "canceled"}),
-    "dispatched": frozenset({"in_progress", "scheduled", "canceled"}),
-    "in_progress": frozenset({"completed", "canceled"}),
-    "completed": frozenset(),
-    "canceled": frozenset(),
-}
-
-ASSIGNABLE_STATUSES = frozenset({"new", "scheduled", "dispatched"})
-
-DEFAULT_CHECKLIST = [
-    {"id": "arrive", "label": "Arrive on site", "done": False},
-    {"id": "diagnose", "label": "Diagnose issue", "done": False},
-    {"id": "complete_work", "label": "Complete work", "done": False},
-    {"id": "customer_signoff", "label": "Customer sign-off", "done": False},
-]
-
-
-class JobsError(ValueError):
-    def __init__(self, code: str, message: str) -> None:
-        super().__init__(message)
-        self.code = code
-
-
-def _job_ref() -> str:
-    return f"JOB-{secrets.token_hex(3).upper()}"
-
-
-class TechnicianRepository:
-    def __init__(self, session: Session) -> None:
-        self._session = session
-
-    def list(self, tenant_id: UUID, *, active_only: bool = True) -> list[dict[str, Any]]:
-        q = select(Technician).where(Technician.tenant_id == tenant_id)
-        if active_only:
-            q = q.where(Technician.is_active.is_(True))
-        rows = self._session.scalars(q.order_by(Technician.display_name)).all()
-        return [self._serialize(r) for r in rows]
-
-    def create(
-        self,
-        tenant_id: UUID,
-        *,
-        email: str,
-        password: str,
-        name: str,
-        phone: str | None = None,
-        actor: str = "dispatcher",
-    ) -> dict[str, Any]:
-        from callbot_platform.auth.repos import AuthRepository
-
-        user = AuthRepository(self._session).create_user(
-            tenant_id,
-            email=email,
-            password=password,
-            name=name,
-            role=ROLE_TECHNICIAN,
-            phone=phone,
-            actor=actor,
-        )
-        tech_id = user.get("technician_id")
-        if not tech_id:
-            raise JobsError("tech_create_failed", "Technician profile was not created")
-        tech = self._session.get(Technician, UUID(tech_id))
-        assert tech is not None
-        return self._serialize(tech)
-
-    def update_location(
-        self,
-        tenant_id: UUID,
-        technician_id: UUID,
-        *,
-        lat: float,
-        lng: float,
-    ) -> dict[str, Any]:
-        tech = self._session.scalar(
-            select(Technician).where(
-                Technician.id == technician_id, Technician.tenant_id == tenant_id
-            )
-        )
-        if tech is None:
-            raise JobsError("technician_not_found", "Technician not found")
-        tech.last_lat = lat
-        tech.last_lng = lng
-        tech.last_location_at = datetime.now(UTC)
-        tech.updated_at = datetime.now(UTC)
-        self._session.flush()
-        return self._serialize(tech)
-
-    def _serialize(self, tech: Technician) -> dict[str, Any]:
-        return {
-            "id": str(tech.id),
-            "tenant_id": str(tech.tenant_id),
-            "user_id": str(tech.user_id),
-            "display_name": tech.display_name,
-            "phone": tech.phone,
-            "is_active": tech.is_active,
-            "last_lat": tech.last_lat,
-            "last_lng": tech.last_lng,
-            "last_location_at": (
-                tech.last_location_at.isoformat() if tech.last_location_at else None
-            ),
-        }
 
 
 class JobRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
 
-    def create_from_appointment(self, appointment: Appointment) -> dict[str, Any] | None:
+    def create_from_appointment(
+        self, appointment: Appointment
+    ) -> dict[str, Any] | None:
         existing = self._session.scalar(
             select(Job).where(
                 Job.tenant_id == appointment.tenant_id,
@@ -150,7 +53,7 @@ class JobRepository:
             scheduled_starts_at=appointment.starts_at,
             scheduled_ends_at=appointment.ends_at,
             checklist=[dict(item) for item in DEFAULT_CHECKLIST],
-            reference_code=_job_ref(),
+            reference_code=job_ref(),
         )
         self._session.add(job)
         self._session.flush()
@@ -203,7 +106,7 @@ class JobRepository:
             scheduled_starts_at=scheduled_starts_at,
             scheduled_ends_at=scheduled_ends_at,
             checklist=[dict(item) for item in DEFAULT_CHECKLIST],
-            reference_code=_job_ref(),
+            reference_code=job_ref(),
         )
         self._session.add(job)
         self._session.flush()
@@ -354,7 +257,7 @@ class JobRepository:
         for item in checklist:
             cleaned.append(
                 {
-                    "id": str(item.get("id") or secrets.token_hex(4)),
+                    "id": str(item.get("id") or checklist_item_id()),
                     "label": str(item.get("label") or "").strip() or "Item",
                     "done": bool(item.get("done")),
                 }
@@ -409,9 +312,7 @@ class JobRepository:
             raise JobsError("job_not_found", "Job not found for tenant")
         return job
 
-    def _serialize(
-        self, job: Job, *, include_notes: bool = False
-    ) -> dict[str, Any]:
+    def _serialize(self, job: Job, *, include_notes: bool = False) -> dict[str, Any]:
         customer = None
         if job.customer is not None:
             customer = {
@@ -463,7 +364,9 @@ class JobRepository:
                             str(n.author_user_id) if n.author_user_id else None
                         ),
                         "author_name": n.author.name if n.author else None,
-                        "created_at": n.created_at.isoformat() if n.created_at else None,
+                        "created_at": n.created_at.isoformat()
+                        if n.created_at
+                        else None,
                     }
                 )
             data["notes"] = notes_out
