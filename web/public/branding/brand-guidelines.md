@@ -128,6 +128,4 @@ Do not substitute Inter with generic system stacks for marketing surfaces when w
 ## Asset locations
 
 - Source of truth: `/branding`
-- Marketing site: `web/public/branding` (+ root favicons / `og.png`)
-- Ops console: slim set in `ops/public/branding` (`logo-dark`, `logo-light`,
-  `favicon.svg`, `favicon-32.png`) plus root favicons / apple-touch icon
+- Marketing + ops console: `web/public/branding` (+ root favicons / `og.png`)

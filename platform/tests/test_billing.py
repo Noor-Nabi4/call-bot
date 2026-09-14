@@ -24,9 +24,9 @@ def _settings(**overrides: Any) -> Settings:
     base = {
         "stripe_secret_key": "sk_test_dummy",
         "stripe_webhook_secret": "whsec_test_dummy",
-        "stripe_checkout_success_url": "http://localhost:3001/settings/billing?checkout=success",
+        "stripe_checkout_success_url": "http://localhost:3002/settings/billing?checkout=success",
         "stripe_checkout_cancel_url": "http://localhost:3002/signup?canceled=1",
-        "stripe_portal_return_url": "http://localhost:3001/settings/billing",
+        "stripe_portal_return_url": "http://localhost:3002/settings/billing",
         "session_secret": "test-session-secret",
     }
     base.update(overrides)

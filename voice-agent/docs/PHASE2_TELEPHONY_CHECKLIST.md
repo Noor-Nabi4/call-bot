@@ -19,8 +19,8 @@ cd platform && uv sync && uv run uvicorn callbot_platform.main:app --port 8000
 # terminal 2 — voice agent
 cd voice-agent && uv run src/agent.py dev
 
-# terminal 3 — ops (phones + voice playground)
-cd ops && npm run dev
+# terminal 3 — web (marketing + ops / phones / playground)
+cd web && npm run dev
 ```
 
 Docs used (verify latest via LiveKit MCP before changing SIP code):

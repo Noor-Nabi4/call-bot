@@ -22,7 +22,7 @@ import {
   fetchPricingCatalog,
   formatPlanPrice,
   type Plan,
-} from "@/lib/api";
+} from "@/lib/marketing-api";
 import { buildFaqJsonLd } from "@/lib/metadata";
 import { faqItems } from "@/lib/seo";
 

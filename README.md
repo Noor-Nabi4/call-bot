@@ -12,7 +12,7 @@ Multi-tenant AI voice platform for service businesses and call centers
 - Phase 4 booking checklist: [`voice-agent/docs/PHASE4_BOOKING_CHECKLIST.md`](./voice-agent/docs/PHASE4_BOOKING_CHECKLIST.md)
 - Phase 5 jobs checklist: [`voice-agent/docs/PHASE5_JOBS_CHECKLIST.md`](./voice-agent/docs/PHASE5_JOBS_CHECKLIST.md)
 - Platform API: [`platform/README.md`](./platform/README.md)
-- Ops app: [`ops/README.md`](./ops/README.md)
+- Web (marketing + ops): [`web/README.md`](./web/README.md)
 
 ## Architecture decisions (Phase 0)
 
@@ -50,11 +50,10 @@ call-bot/
 ├── .github/workflows/       # CI
 ├── platform/                # FastAPI telephony + CRM + scheduling + jobs
 ├── voice-agent/             # LiveKit voice worker (v1) + Dockerfile
-├── web/                     # Marketing landing + embedded voice demo (Next.js)
-└── ops/                     # Dispatch board, playground, technician mobile
+└── web/                     # Marketing + ops console (Next.js)
 ```
 
-## Quick start (landing)
+## Quick start (web)
 
 ```bash
 cd web
@@ -63,19 +62,9 @@ npm install
 npm run dev   # http://localhost:3002
 ```
 
-Embedded marketing voice demo lives on `/#demo` (tenant-less). Tenant-specific voice testing is in Ops → Playground.
+Marketing landing is `/`. Embedded voice demo is `/#demo` (tenant-less). Sign in at `/login`. Tenant-specific voice testing is `/playground`.
 
-## Quick start (ops)
-
-```bash
-cd ops
-cp .env.example .env.local
-npm install
-npm run dev   # http://localhost:3001
-```
-
-Bootstrap the first tenant admin via `POST /auth/bootstrap` (see `ops/README.md`).
-After login, open **Playground** to test your agent profiles in-browser.
+Bootstrap the first tenant admin via `POST /auth/bootstrap` (see `web/README.md`).
 
 ## Quick start (platform telephony API)
 

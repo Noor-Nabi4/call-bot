@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Inter } from "next/font/google";
+import { Providers } from "@/components/providers";
 import { buildJsonLd, buildRootMetadata } from "@/lib/metadata";
 import "./globals.css";
 
@@ -45,7 +46,7 @@ export default function RootLayout({
         <a href="#main-content" className="sr-only">
           Skip to content
         </a>
-        {children}
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

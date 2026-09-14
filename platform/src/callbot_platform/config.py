@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     internal_service_token: str = Field(default="", alias="INTERNAL_SERVICE_TOKEN")
     session_secret: str = Field(default="", alias="SESSION_SECRET")
     ops_cors_origins: str = Field(
-        default="http://localhost:3001",
+        default="http://localhost:3002",
         alias="OPS_CORS_ORIGINS",
     )
     session_cookie_name: str = Field(
@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     stripe_secret_key: str = Field(default="", alias="STRIPE_SECRET_KEY")
     stripe_webhook_secret: str = Field(default="", alias="STRIPE_WEBHOOK_SECRET")
     stripe_checkout_success_url: str = Field(
-        default="http://localhost:3001/settings/billing?checkout=success",
+        default="http://localhost:3002/settings/billing?checkout=success",
         alias="STRIPE_CHECKOUT_SUCCESS_URL",
     )
     stripe_checkout_cancel_url: str = Field(
@@ -60,7 +60,7 @@ class Settings(BaseSettings):
         alias="STRIPE_CHECKOUT_CANCEL_URL",
     )
     stripe_portal_return_url: str = Field(
-        default="http://localhost:3001/settings/billing",
+        default="http://localhost:3002/settings/billing",
         alias="STRIPE_PORTAL_RETURN_URL",
     )
 

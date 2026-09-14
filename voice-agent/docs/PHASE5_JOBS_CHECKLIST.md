@@ -5,13 +5,13 @@
 - [ ] Phase 4 booking working (appointment book auto-creates a job)
 - [ ] Platform migrated: `alembic upgrade head` includes `0004_jobs_auth`
 - [ ] `SESSION_SECRET` set in `platform/.env.local`
-- [ ] Ops app: `cd ops && npm install && npm run dev` (port 3001)
+- [ ] Web app: `cd web && npm install && npm run dev` (port 3002)
 
 ## Bootstrap
 
 - [ ] Create/ensure a tenant exists
 - [ ] `POST /auth/bootstrap` with `X-Internal-Token` for first admin
-- [ ] Sign in at `http://localhost:3001/login` with tenant slug
+- [ ] Sign in at `http://localhost:3002/login` with tenant slug
 
 ## Automated
 

@@ -16,9 +16,6 @@ node_modules/
 # Nested agent / app local env
 voice-agent/.venv/
 voice-agent/.env.local
-ops/.env.local
-ops/node_modules/
-ops/.next/
 web/.env.local
 web/node_modules/
 web/.next/

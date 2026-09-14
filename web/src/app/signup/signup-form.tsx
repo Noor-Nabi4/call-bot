@@ -4,18 +4,15 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { signup as signupApi } from "@/lib/api";
+import { signup as signupApi } from "@/lib/marketing-api";
 import { track } from "@/lib/analytics";
 import { signup as copy } from "@/lib/copy";
 import { safeUserError } from "@/lib/safe-error";
+import { opsLoginUrl } from "@/lib/site-urls";
 import {
   resolveInitialTimezone,
   timezoneOptionsForSelect,
 } from "@/lib/timezones";
-
-const OPS =
-  process.env.NEXT_PUBLIC_OPS_URL?.replace(/\/$/, "") ||
-  "http://localhost:3001";
 
 const PLAN_OPTIONS = [
   { key: "starter", name: "Starter", price: "$99", detail: "250 min / mo" },
@@ -176,7 +173,7 @@ export default function SignupForm() {
             />
           </Link>
           <Link
-            href={`${OPS}/login`}
+            href={opsLoginUrl()}
             className="text-sm font-medium text-muted transition-colors hover:text-ink"
           >
             Sign in
@@ -510,7 +507,7 @@ export default function SignupForm() {
           </form>
 
           <p className="mt-6 m-0 text-sm text-muted">
-            <Link href={`${OPS}/login`} className="font-medium text-teal">
+            <Link href={opsLoginUrl()} className="font-medium text-teal">
               {copy.signIn}
             </Link>
           </p>

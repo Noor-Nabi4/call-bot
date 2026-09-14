@@ -73,7 +73,7 @@ Ops: `/settings/billing` shows usage; `/settings/team` manages invite / role / d
 
 Plans are **not** registered as Stripe Products/Prices. Checkout uses inline `price_data` from `billing/plans.py`. Only `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` are required.
 
-Set `SESSION_SECRET` and `OPS_CORS_ORIGINS` (include ops `http://localhost:3001` and marketing `http://localhost:3002`).
+Set `SESSION_SECRET` and `OPS_CORS_ORIGINS` (include the unified web origin, e.g. `http://localhost:3002`).
 
 Configure Stripe (platform account):
 
@@ -99,5 +99,5 @@ Gated routes require subscription status `trialing` or `active` (legacy tenants 
 - CRM checklist: `../voice-agent/docs/PHASE3_CRM_CHECKLIST.md`
 - Booking checklist: `../voice-agent/docs/PHASE4_BOOKING_CHECKLIST.md`
 - Jobs checklist: `../voice-agent/docs/PHASE5_JOBS_CHECKLIST.md`
-- Ops UI: `../ops/README.md`
+- Web (marketing + ops): `../web/README.md`
 - LiveKit Twilio SIP: https://docs.livekit.io/telephony/start/providers/twilio/

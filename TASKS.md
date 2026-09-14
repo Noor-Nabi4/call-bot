@@ -948,7 +948,7 @@ CLI
 
 * [x] Multi-industry support (industry template registry; no industry branches in voice logic)
 * [x] Multi agent profiles per tenant + phone → profile routing
-* [x] Agent Builder UI (`ops/agents`)
+* [x] Agent Builder UI (`web/agents`)
 * [x] Industry templates (apply + optional KB seed)
 * [x] Phone number management in Ops (inventory, buy/connect, assign, test call)
 * [x] Ops premium redesign (shell sections, dashboard/dispatch/agents/phones polish)

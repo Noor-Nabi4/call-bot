@@ -1,25 +1,22 @@
-/** Resolved public URLs for marketing CTAs and cross-app links. */
+/** Same-origin paths after marketing + ops merged into one Next.js app. */
 
 export function opsUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_OPS_URL?.replace(/\/$/, "") ||
-    "http://localhost:3001"
-  );
+  return "/login";
 }
 
 export function opsLoginUrl(): string {
-  return `${opsUrl()}/login`;
+  return "/login";
 }
 
 export function opsPlaygroundUrl(): string {
-  return `${opsUrl()}/playground`;
+  return "/playground";
 }
 
 export type FooterHrefKind = "playground" | "ops" | "login" | "pricing";
 
 export function resolveFooterHref(kind: FooterHrefKind): string {
   if (kind === "playground") return opsPlaygroundUrl();
-  if (kind === "ops") return opsUrl();
+  if (kind === "ops") return "/login";
   if (kind === "pricing") return "/#pricing";
   return opsLoginUrl();
 }
