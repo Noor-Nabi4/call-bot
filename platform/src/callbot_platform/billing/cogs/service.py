@@ -15,6 +15,7 @@ from callbot_platform.billing.cogs.calculator import (
     estimate_call_cogs,
     micros_to_usd,
 )
+from callbot_platform.billing.cogs.periods import resolve_cogs_period
 from callbot_platform.billing.cogs.rates import CogsRates, rates_from_settings
 from callbot_platform.billing.cogs.scenarios import full_scenario_report
 from callbot_platform.billing.cogs.types import (
@@ -26,9 +27,13 @@ from callbot_platform.billing.cogs.types import (
     CallCogsInput,
 )
 from callbot_platform.billing.plans import plan_by_key
-from callbot_platform.billing.usage import UsageService, calendar_month_bounds
+from callbot_platform.billing.usage import (
+    UsageService,
+    calendar_month_bounds,
+    seconds_to_billable_minutes,
+)
 from callbot_platform.config import Settings, get_settings
-from callbot_platform.db.models import Call, CallCogs, TenantSubscription
+from callbot_platform.db.models import Call, CallCogs, Customer, TenantSubscription
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +60,6 @@ def infer_transfer_kind(metrics: dict[str, Any] | None) -> str:
     if isinstance(raw, str) and raw in {TRANSFER_NONE, TRANSFER_WARM, TRANSFER_COLD}:
         return raw
     if metrics.get("handoff_requested") is True:
-        # Legacy: handoff without mode — treat as cold for reporting.
         return TRANSFER_COLD
     return TRANSFER_NONE
 
@@ -121,9 +125,14 @@ class CogsService:
         self,
         tenant_id: UUID,
         *,
+        period: str = "this_month",
+        start: datetime | None = None,
+        end: datetime | None = None,
         now: datetime | None = None,
     ) -> dict[str, Any]:
-        period_start, period_end = calendar_month_bounds(now)
+        period_start, period_end, period_kind = resolve_cogs_period(
+            period=period, start=start, end=end, now=now
+        )
         usage = self._usage.usage_summary(tenant_id, now=now)
 
         totals = self._session.execute(
@@ -167,10 +176,35 @@ class CogsService:
 
         plan_key = usage.get("plan_key")
         plan = plan_by_key(plan_key) if plan_key else None
-        subscription_cents = int(plan["unit_amount"]) if plan else 0
-        overage_cents = int(usage.get("estimated_overage_cents") or 0)
-        gross_revenue_cents = subscription_cents + overage_cents
-        gross_revenue_usd = gross_revenue_cents / 100.0
+        subscription_cents: int | None = None
+        overage_cents: int | None = None
+        revenue_note = (
+            "Overage cents are estimated in-app; Stripe metered overage is not yet invoiced."
+        )
+        if period_kind in {"this_month", "last_month"} and plan is not None:
+            subscription_cents = int(plan["unit_amount"])
+            if period_kind == "this_month":
+                overage_cents = int(usage.get("estimated_overage_cents") or 0)
+            else:
+                included = usage.get("included_minutes")
+                voice_minutes = seconds_to_billable_minutes(seconds)
+                overage_minutes = (
+                    max(0, voice_minutes - int(included))
+                    if included is not None
+                    else 0
+                )
+                rate = int(plan.get("overage_per_minute_cents") or 0)
+                overage_cents = overage_minutes * rate
+        else:
+            revenue_note = (
+                "Subscription revenue is attributed to calendar months only; "
+                "rolling windows report variable COGS without inventing daily revenue."
+            )
+
+        gross_revenue_cents = (subscription_cents or 0) + (overage_cents or 0)
+        gross_revenue_usd = (
+            gross_revenue_cents / 100.0 if subscription_cents is not None else None
+        )
 
         fixed = {
             "livekit_fixed_monthly_usd": self._rates.livekit_fixed_monthly_usd,
@@ -181,17 +215,25 @@ class CogsService:
                 + self._rates.phone_rental_monthly_usd
                 + self._rates.sms_monthly_usd
             ),
-            "note": "Fixed costs are configured fleet/tenant overlays; not derived from call CDRs.",
+            "note": "Configured monthly estimate — not derived from vendor invoices.",
         }
 
-        # Gross profit uses variable voice COGS only (fixed reported separately).
-        gross_profit_usd = gross_revenue_usd - variable_usd
+        gross_profit_usd = (
+            gross_revenue_usd - variable_usd if gross_revenue_usd is not None else None
+        )
         margin_pct = (
             (gross_profit_usd / gross_revenue_usd) * 100.0
-            if gross_revenue_usd > 0
+            if gross_revenue_usd is not None
+            and gross_profit_usd is not None
+            and gross_revenue_usd > 0
             else None
         )
         cogs_per_minute = variable_usd / vendor_minutes if vendor_minutes > 0 else None
+        revenue_per_minute = (
+            gross_revenue_usd / vendor_minutes
+            if gross_revenue_usd is not None and vendor_minutes > 0
+            else None
+        )
 
         by_channel = self._group_totals(
             tenant_id, period_start, period_end, CallCogs.channel
@@ -199,18 +241,43 @@ class CogsService:
         by_transfer = self._group_totals(
             tenant_id, period_start, period_end, CallCogs.transfer_kind
         )
+        daily = self.daily_series(
+            tenant_id, period_start=period_start, period_end=period_end
+        )
+
+        plan_profitability: list[dict[str, Any]] = []
+        if plan_key:
+            plan_profitability.append(
+                {
+                    "plan_key": plan_key,
+                    "customers": None,
+                    "call_count": call_count,
+                    "vendor_minutes": vendor_minutes,
+                    "revenue_usd": gross_revenue_usd,
+                    "cogs_usd": variable_usd,
+                    "gross_profit_usd": gross_profit_usd,
+                    "gross_margin_pct": margin_pct,
+                    "customers_unavailable": True,
+                }
+            )
 
         return {
             "period_start": period_start.isoformat(),
             "period_end": period_end.isoformat(),
-            "period_kind": "calendar_month_utc",
+            "period_kind": period_kind,
             "plan_key": plan_key,
             "call_count": call_count,
             "billable_seconds": seconds,
             "vendor_minutes": vendor_minutes,
-            "customer_voice_minutes": usage.get("voice_minutes"),
+            "customer_voice_minutes": (
+                usage.get("voice_minutes")
+                if period_kind == "this_month"
+                else seconds_to_billable_minutes(seconds)
+            ),
             "included_minutes": usage.get("included_minutes"),
-            "overage_minutes": usage.get("overage_minutes"),
+            "overage_minutes": (
+                usage.get("overage_minutes") if period_kind == "this_month" else None
+            ),
             "variable_cogs": {
                 "openai_usd": micros_to_usd(openai_m),
                 "livekit_agent_usd": agent_usd,
@@ -226,19 +293,198 @@ class CogsService:
             "gross_revenue": {
                 "subscription_cents": subscription_cents,
                 "estimated_overage_cents": overage_cents,
-                "total_cents": gross_revenue_cents,
+                "total_cents": (
+                    gross_revenue_cents if subscription_cents is not None else None
+                ),
                 "total_usd": gross_revenue_usd,
-                "note": "Overage cents are estimated in-app; Stripe metered overage is not yet invoiced.",
+                "revenue_per_minute_usd": revenue_per_minute,
+                "note": revenue_note,
             },
             "gross_profit_usd": gross_profit_usd,
             "gross_margin_pct": margin_pct,
             "by_channel": by_channel,
             "by_transfer_kind": by_transfer,
+            "daily_series": daily,
+            "plan_profitability": plan_profitability,
             "estimated": True,
         }
 
+    def daily_series(
+        self,
+        tenant_id: UUID,
+        *,
+        period_start: datetime,
+        period_end: datetime,
+    ) -> list[dict[str, Any]]:
+        day_expr = func.date(CallCogs.created_at)
+        rows = self._session.execute(
+            select(
+                day_expr,
+                func.coalesce(func.sum(CallCogs.total_estimated_cogs_micros), 0),
+                func.coalesce(func.sum(CallCogs.billable_seconds), 0),
+                func.count(),
+            )
+            .where(
+                CallCogs.tenant_id == tenant_id,
+                CallCogs.created_at >= period_start,
+                CallCogs.created_at < period_end,
+            )
+            .group_by(day_expr)
+            .order_by(day_expr)
+        ).all()
+        out: list[dict[str, Any]] = []
+        for day, total_m, seconds, count in rows:
+            vendor_minutes = float(seconds or 0) / 60.0
+            out.append(
+                {
+                    "date": str(day),
+                    "call_count": int(count or 0),
+                    "billable_seconds": int(seconds or 0),
+                    "vendor_minutes": vendor_minutes,
+                    "cogs_usd": micros_to_usd(int(total_m or 0)),
+                    "revenue_usd": None,
+                    "gross_profit_usd": None,
+                    "gross_margin_pct": None,
+                    "note": "Daily revenue attribution is unavailable; use period KPIs.",
+                }
+            )
+        return out
+
+    def list_call_cogs(
+        self,
+        tenant_id: UUID,
+        *,
+        period: str = "this_month",
+        start: datetime | None = None,
+        end: datetime | None = None,
+        channel: str | None = None,
+        transfer_kind: str | None = None,
+        call_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        period_start, period_end, period_kind = resolve_cogs_period(
+            period=period, start=start, end=end, now=now
+        )
+        limit = max(1, min(int(limit), 200))
+        offset = max(0, int(offset))
+
+        filters = [
+            CallCogs.tenant_id == tenant_id,
+            CallCogs.created_at >= period_start,
+            CallCogs.created_at < period_end,
+        ]
+        if channel in {CHANNEL_PSTN_SIP, CHANNEL_BROWSER_WEBRTC}:
+            filters.append(CallCogs.channel == channel)
+        if transfer_kind in {TRANSFER_NONE, TRANSFER_WARM, TRANSFER_COLD}:
+            filters.append(CallCogs.transfer_kind == transfer_kind)
+        if call_id:
+            try:
+                filters.append(CallCogs.call_id == UUID(str(call_id).strip()))
+            except ValueError as exc:
+                raise ValueError("invalid call_id") from exc
+
+        total = int(
+            self._session.scalar(
+                select(func.count()).select_from(CallCogs).where(*filters)
+            )
+            or 0
+        )
+        rows = self._session.execute(
+            select(CallCogs, Call, Customer)
+            .join(Call, Call.id == CallCogs.call_id)
+            .outerjoin(Customer, Customer.id == Call.customer_id)
+            .where(*filters)
+            .order_by(CallCogs.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        ).all()
+
+        items = [
+            self._serialize_call_cogs(cogs, call, customer)
+            for cogs, call, customer in rows
+        ]
+        return {
+            "period_start": period_start.isoformat(),
+            "period_end": period_end.isoformat(),
+            "period_kind": period_kind,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "calls": items,
+            "estimated": True,
+            "note": (
+                "Per-call revenue/profit are unavailable; subscription revenue is "
+                "not allocated per call."
+            ),
+        }
+
+    def get_call_cogs(self, tenant_id: UUID, call_id: UUID) -> dict[str, Any] | None:
+        row = self._session.execute(
+            select(CallCogs, Call, Customer)
+            .join(Call, Call.id == CallCogs.call_id)
+            .outerjoin(Customer, Customer.id == Call.customer_id)
+            .where(CallCogs.tenant_id == tenant_id, CallCogs.call_id == call_id)
+        ).first()
+        if row is None:
+            return None
+        cogs, call, customer = row
+        return self._serialize_call_cogs(cogs, call, customer, detail=True)
+
+    def _serialize_call_cogs(
+        self,
+        cogs: CallCogs,
+        call: Call,
+        customer: Customer | None,
+        *,
+        detail: bool = False,
+    ) -> dict[str, Any]:
+        vendor_minutes = (
+            float(cogs.billable_seconds) / 60.0 if cogs.billable_seconds > 0 else 0.0
+        )
+        payload: dict[str, Any] = {
+            "id": str(cogs.call_id),
+            "call_id": str(cogs.call_id),
+            "tenant_id": str(cogs.tenant_id),
+            "customer_id": str(call.customer_id) if call.customer_id else None,
+            "customer_name": customer.name if customer is not None else None,
+            "started_at": call.started_at.isoformat() if call.started_at else None,
+            "ended_at": call.ended_at.isoformat() if call.ended_at else None,
+            "channel": cogs.channel,
+            "transfer_kind": cogs.transfer_kind,
+            "billable_seconds": cogs.billable_seconds,
+            "vendor_minutes": vendor_minutes,
+            "openai_cost_usd": micros_to_usd(cogs.openai_cost_micros),
+            "livekit_agent_cost_usd": micros_to_usd(cogs.livekit_agent_cost_micros),
+            "livekit_sip_cost_usd": micros_to_usd(cogs.livekit_sip_cost_micros),
+            "livekit_bvc_cost_usd": micros_to_usd(cogs.livekit_bvc_cost_micros),
+            "twilio_origination_cost_usd": micros_to_usd(
+                cogs.twilio_origination_cost_micros
+            ),
+            "twilio_termination_cost_usd": micros_to_usd(
+                cogs.twilio_termination_cost_micros
+            ),
+            "total_estimated_cogs_usd": micros_to_usd(cogs.total_estimated_cogs_micros),
+            "openai_cost_source": cogs.openai_cost_source,
+            "revenue_usd": None,
+            "gross_profit_usd": None,
+            "gross_margin_pct": None,
+            "created_at": cogs.created_at.isoformat() if cogs.created_at else None,
+            "estimated": True,
+        }
+        if detail:
+            payload["openai_usage"] = cogs.openai_usage or {}
+            payload["rate_snapshot"] = cogs.rate_snapshot or {}
+            payload["notes"] = cogs.notes or []
+            payload["caller_number"] = call.caller_number
+            payload["called_number"] = call.called_number
+            payload["status"] = call.status
+            payload["room_name"] = call.room_name
+        return payload
+
     def plan_summary(self, *, now: datetime | None = None) -> dict[str, Any]:
-        """Aggregate COGS across tenants grouped by plan_key."""
+        """Fleet rollup — not exposed to tenant admins (cross-tenant leak risk)."""
         period_start, period_end = calendar_month_bounds(now)
         rows = self._session.execute(
             select(
@@ -274,6 +520,10 @@ class CogsService:
                     "cogs_per_minute_usd": (
                         total_usd / vendor_minutes if vendor_minutes > 0 else None
                     ),
+                    "customers": None,
+                    "revenue_usd": None,
+                    "gross_profit_usd": None,
+                    "gross_margin_pct": None,
                 }
             )
         return {
@@ -318,6 +568,11 @@ class CogsService:
                     "billable_seconds": int(seconds or 0),
                     "vendor_minutes": vendor_minutes,
                     "total_estimated_cogs_usd": total_usd,
+                    "cogs_per_minute_usd": (
+                        total_usd / vendor_minutes if vendor_minutes > 0 else None
+                    ),
+                    "revenue_usd": None,
+                    "gross_profit_usd": None,
                 }
             )
         return out

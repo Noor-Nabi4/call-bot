@@ -362,3 +362,53 @@ def test_overage_minutes_in_summary(session: Session, tenant: Tenant) -> None:
     assert summary["gross_revenue"]["estimated_overage_cents"] > 0
     # Included minutes still produced COGS (variable total > 0).
     assert summary["variable_cogs"]["total_usd"] > 0
+
+
+def test_resolve_period_windows() -> None:
+    from callbot_platform.billing.cogs.periods import resolve_cogs_period
+
+    now = datetime(2026, 9, 20, 15, 0, tzinfo=UTC)
+    start, end, kind = resolve_cogs_period(period="today", now=now)
+    assert kind == "today"
+    assert start == datetime(2026, 9, 20, tzinfo=UTC)
+    assert end == datetime(2026, 9, 21, tzinfo=UTC)
+
+    start, end, kind = resolve_cogs_period(period="this_month", now=now)
+    assert kind == "this_month"
+    assert start.month == 9 and end.month == 10
+
+
+def test_list_call_cogs_and_detail(session: Session, tenant: Tenant) -> None:
+    started = CallRepository(session).start(
+        tenant.id,
+        room_name="list-cogs",
+        telephony_provider="twilio",
+        caller_number="+15550005555",
+    )
+    call_id = uuid.UUID(started["id"])
+    row = session.get(Call, call_id)
+    assert row is not None
+    row.started_at = datetime.now(UTC) - timedelta(seconds=90)
+    session.flush()
+    CallRepository(session).end(
+        tenant.id,
+        call_id=call_id,
+        status="closed",
+        metrics={"call_channel": CHANNEL_PSTN_SIP, "transfer_kind": TRANSFER_WARM},
+    )
+
+    svc = CogsService(session, rates=_rates())
+    listed = svc.list_call_cogs(tenant.id, period="this_month")
+    assert listed["total"] >= 1
+    assert listed["calls"][0]["channel"] == CHANNEL_PSTN_SIP
+    assert listed["calls"][0]["revenue_usd"] is None
+
+    detail = svc.get_call_cogs(tenant.id, call_id)
+    assert detail is not None
+    assert detail["transfer_kind"] == TRANSFER_WARM
+    assert "openai_usage" in detail
+
+    summary = svc.tenant_summary(tenant.id, period="30d")
+    assert summary["period_kind"] == "30d"
+    assert "daily_series" in summary
+    assert summary["gross_revenue"]["total_usd"] is None

@@ -71,8 +71,11 @@ Hard entitlement enforcement (SaaS tenants with a plan row): team seats, phone n
 
 Internal COGS (admin only — estimated infrastructure cost, not customer invoices):
 
-- `GET /api/admin/cogs/summary` — per-tenant variable COGS by component, gross revenue/profit/margin for the UTC month
-- `GET /api/admin/cogs/scenarios` — modeled 1,000 / 10,000 / 100,000 minutes, OpenAI $/min sensitivity, Ship vs Scale
+- `GET /api/admin/cogs/summary?period=this_month|last_month|today|7d|30d|custom` — KPIs, daily COGS series, channel/transfer breakdown
+- `GET /api/admin/cogs/scenarios` — modeled 1,000 / 10,000 / 100,000 minutes, OpenAI sensitivity, Ship vs Scale
+- `GET /api/admin/cogs/calls` — paginated per-call COGS (channel / transfer / call_id filters)
+- `GET /api/admin/cogs/calls/{call_id}` — call COGS detail including OpenAI usage snapshot
+- Ops UI: `/settings/cogs` (admin only)
 
 Rates are configured via `COGS_*` env vars (see `.env.example`). OpenAI cost prefers Realtime token usage from the voice-agent when present; otherwise uses `COGS_OPENAI_PER_MINUTE_USD`. Vendor minutes for COGS are fractional (`billable_seconds / 60`); customer billable minutes remain ceil-based and unchanged. Phone rental / SMS / LiveKit fixed monthly fees are reported separately from variable voice-minute COGS.
 
