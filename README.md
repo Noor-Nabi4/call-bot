@@ -41,6 +41,41 @@ cd voice-agent
 uv run pytest tests/test_config.py tests/test_prompt.py tests/test_state.py tests/test_lifecycle.py -v
 ```
 
+## Production hosts
+
+| Service | URL |
+|---|---|
+| Web (marketing + ops) | `https://voxpilot.techverseo.com` |
+| Platform API | `https://api.voxpilot.techverseo.com` |
+| Voice agent | LiveKit Cloud (`lk agent deploy`) |
+
+Copy `.env.production.example` in `web/`, `platform/`, and `voice-agent/` into the host secret store. Do not commit filled files.
+
+DNS / TLS (put a reverse proxy in front of the containers):
+
+| Host | Upstream |
+|---|---|
+| `voxpilot.techverseo.com` | `web:3000` |
+| `api.voxpilot.techverseo.com` | `platform:8000` |
+
+Stripe webhook: `https://api.voxpilot.techverseo.com/billing/webhooks/stripe`.
+Agent `PLATFORM_API_URL` must be `https://api.voxpilot.techverseo.com`. LiveKit Cloud injects `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` — do not set those as agent secrets.
+
+```bash
+# platform + web
+cp platform/.env.production.example platform/.env.production
+cp web/.env.production.example web/.env.production
+# fill secrets, then:
+docker compose -f docker-compose.production.yml up -d --build
+
+# agent (existing LiveKit Cloud agent; do not run `lk agent create` again)
+cd voice-agent
+cp .env.production.example .env.production
+# fill OPENAI_API_KEY, INTERNAL_SERVICE_TOKEN, METADATA_HMAC_SECRET
+lk agent update-secrets --secrets-file .env.production --ignore-empty-secrets --overwrite
+lk agent deploy
+```
+
 ## Repo layout
 
 ```text

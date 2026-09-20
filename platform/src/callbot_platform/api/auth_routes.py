@@ -20,6 +20,7 @@ from callbot_platform.auth.repos import AuthError, AuthRepository
 from callbot_platform.billing.errors import BillingError
 from callbot_platform.billing.service import BillingService
 from callbot_platform.config import Settings
+from callbot_platform.origins import session_cookie_params
 from callbot_platform.security.session import create_session_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -95,11 +96,7 @@ def _set_session_cookie(
     response.set_cookie(
         key=settings.session_cookie_name,
         value=token,
-        httponly=True,
-        samesite="lax",
-        secure=False,
-        max_age=settings.session_ttl_hours * 3600,
-        path="/",
+        **session_cookie_params(settings),
     )
 
 
@@ -154,7 +151,14 @@ def logout(
     response: Response,
     settings: Settings = Depends(settings_dep),
 ) -> dict[str, bool]:
-    response.delete_cookie(settings.session_cookie_name, path="/")
+    params = session_cookie_params(settings)
+    response.delete_cookie(
+        settings.session_cookie_name,
+        path=params["path"],
+        secure=params["secure"],
+        httponly=params["httponly"],
+        samesite=params["samesite"],
+    )
     return {"ok": True}
 
 

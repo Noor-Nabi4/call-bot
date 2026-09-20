@@ -48,17 +48,15 @@ from callbot_platform.api.scheduling_routes import (
     router as scheduling_router,  # noqa: E402
 )
 from callbot_platform.api.v1_routes import router as v1_router  # noqa: E402
-from callbot_platform.config import get_settings  # noqa: E402
+from callbot_platform.config import get_settings, require_production_settings  # noqa: E402
 from callbot_platform.db import init_db  # noqa: E402
+from callbot_platform.origins import (  # noqa: E402
+    PROD_API_HOST,
+    cors_allow_origins,
+)
 
 _settings = get_settings()
-_cors_origins = list(_settings.ops_cors_origin_list)
-for _extra in (
-    "http://localhost:3002",
-    "http://127.0.0.1:3002",
-):
-    if _extra not in _cors_origins:
-        _cors_origins.append(_extra)
+_cors_origins = cors_allow_origins(_settings)
 
 app = FastAPI(title="VoxPilot Platform", version="0.1.0")
 app.add_middleware(
@@ -68,6 +66,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+if _settings.is_production:
+    from starlette.middleware.trustedhost import TrustedHostMiddleware
+
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=[PROD_API_HOST, "localhost", "127.0.0.1", "testserver"],
+    )
 app.include_router(router)
 app.include_router(crm_router)
 app.include_router(internal_tenant_router)
@@ -90,6 +95,8 @@ app.include_router(v1_router)
 
 @app.on_event("startup")
 def on_startup() -> None:
+    if _settings.is_production:
+        return
     # Dev convenience: create tables if missing. Prefer Alembic in production.
     try:
         init_db()
@@ -104,11 +111,14 @@ def main() -> None:
     from callbot_platform.config import get_settings as gs
 
     cfg = gs()
+    require_production_settings(cfg)
     uvicorn.run(
         "callbot_platform.main:app",
         host=cfg.platform_api_host,
         port=cfg.platform_api_port,
         reload=False,
+        proxy_headers=True,
+        forwarded_allow_ips="*",
     )
 
 

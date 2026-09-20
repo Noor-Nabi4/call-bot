@@ -46,6 +46,8 @@ class Settings(BaseSettings):
         default="callbot_ops_session", alias="SESSION_COOKIE_NAME"
     )
     session_ttl_hours: int = Field(default=72, alias="SESSION_TTL_HOURS")
+    environment: str = Field(default="development", alias="ENVIRONMENT")
+    cookie_secure_override: bool | None = Field(default=None, alias="COOKIE_SECURE")
 
     # Platform SaaS Stripe account (subscriptions). Do NOT use Stripe Connect keys here.
     # Plans live in code (billing/plans.py); Checkout uses price_data — no Stripe Products/Prices to register.
@@ -73,11 +75,65 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.ops_cors_origins.split(",") if o.strip()]
 
     @property
+    def is_production(self) -> bool:
+        return self.environment.strip().lower() in {"prod", "production"}
+
+    @property
+    def cookie_secure(self) -> bool:
+        if self.cookie_secure_override is not None:
+            return self.cookie_secure_override
+        if self.is_production:
+            return True
+        return any(
+            origin.startswith("https://") for origin in self.ops_cors_origin_list
+        )
+
+    @property
+    def env_tenant_fallback_allowed(self) -> bool:
+        if self.is_production:
+            return False
+        return self.allow_env_tenant_fallback
+
+    @property
     def livekit_origination_uri(self) -> str:
         host = self.livekit_sip_host.strip()
         if host.startswith("sip:"):
             return f"{host};transport=tcp"
         return f"sip:{host};transport=tcp"
+
+
+PRODUCTION_REQUIRED_FIELDS: tuple[str, ...] = (
+    "session_secret",
+    "credentials_encryption_key",
+    "metadata_hmac_secret",
+    "internal_service_token",
+    "livekit_url",
+    "livekit_api_key",
+    "livekit_api_secret",
+    "stripe_secret_key",
+    "stripe_webhook_secret",
+)
+
+
+def missing_production_settings(settings: Settings) -> list[str]:
+    missing: list[str] = []
+    for field in PRODUCTION_REQUIRED_FIELDS:
+        value = getattr(settings, field)
+        if not str(value).strip():
+            missing.append(field)
+    database_url = settings.database_url.lower()
+    if "localhost" in database_url or "127.0.0.1" in database_url:
+        missing.append("database_url")
+    return missing
+
+
+def require_production_settings(settings: Settings) -> None:
+    if not settings.is_production:
+        return
+    missing = missing_production_settings(settings)
+    if missing:
+        names = ", ".join(sorted(missing))
+        raise RuntimeError(f"production configuration incomplete: {names}")
 
 
 @lru_cache

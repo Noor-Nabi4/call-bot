@@ -1,0 +1,56 @@
+# Production compose for the two public hosts.
+# Terminate TLS in front of these services (Caddy, nginx, or a cloud load balancer):
+#   voxpilot.techverseo.com       -> web:3000
+#   api.voxpilot.techverseo.com   -> platform:8000
+#
+# Copy env examples first:
+#   cp platform/.env.production.example platform/.env.production
+#   cp web/.env.production.example web/.env.production
+# Never commit filled .env.production files.
+
+services:
+  platform:
+    build:
+      context: ./platform
+    image: voxpilot-platform:prod
+    restart: unless-stopped
+    env_file:
+      - ./platform/.env.production
+    environment:
+      ENVIRONMENT: production
+      COOKIE_SECURE: "true"
+      ALLOW_ENV_TENANT_FALLBACK: "false"
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_SITE_URL: https://voxpilot.techverseo.com
+        NEXT_PUBLIC_PLATFORM_API_URL: https://api.voxpilot.techverseo.com
+    image: voxpilot-web:prod
+    restart: unless-stopped
+    env_file:
+      - ./web/.env.production
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_SITE_URL: https://voxpilot.techverseo.com
+      NEXT_PUBLIC_PLATFORM_API_URL: https://api.voxpilot.techverseo.com
+    ports:
+      - "3000:3000"
+    depends_on:
+      platform:
+        condition: service_healthy

@@ -1,0 +1,25 @@
+# dependencies
+node_modules
+npm-debug.log
+.pnpm-debug.log
+
+# next
+.next
+out
+build
+coverage
+
+# env
+.env
+.env.*
+
+# vcs / editor
+.git
+.gitignore
+.github
+.idea
+.vscode
+.DS_Store
+
+# docs
+README.md

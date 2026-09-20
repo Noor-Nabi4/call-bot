@@ -17,8 +17,8 @@ Platform API must be running on `:8000` with `SESSION_SECRET` set and CORS allow
 
 | Variable | Purpose |
 |---|---|
-| `NEXT_PUBLIC_SITE_URL` | Canonical site origin (required in production for sitemap/OG) |
-| `NEXT_PUBLIC_PLATFORM_API_URL` | Platform API for signup, plans, and ops (default `http://localhost:8000`) |
+| `NEXT_PUBLIC_SITE_URL` | Canonical site origin (`https://voxpilot.techverseo.com` in production) |
+| `NEXT_PUBLIC_PLATFORM_API_URL` | Platform API (`https://api.voxpilot.techverseo.com` in production) |
 | `LIVEKIT_URL` | LiveKit WebSocket URL for embedded voice demo |
 | `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` | Token minting for `/api/token` |
 | `AGENT_NAME` | Agent dispatch name (default `voice-agent`) |
