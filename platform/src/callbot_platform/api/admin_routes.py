@@ -136,6 +136,28 @@ def metrics(
     }
 
 
+@router.get("/cogs/summary")
+def cogs_summary(
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    """Internal estimated voice COGS for the current UTC month (not customer billing)."""
+    from callbot_platform.billing.cogs.service import CogsService
+
+    return {"cogs": CogsService(session).tenant_summary(user.tenant_id)}
+
+
+@router.get("/cogs/scenarios")
+def cogs_scenarios(
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    """Modeled 1k/10k/100k + OpenAI sensitivity + Ship vs Scale (config rates only)."""
+    from callbot_platform.billing.cogs.service import CogsService
+
+    return {"scenarios": CogsService(session).scenarios()}
+
+
 @router.get("/supervisor")
 def supervisor(
     user: CurrentUser = Depends(

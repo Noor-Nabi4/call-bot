@@ -12,6 +12,7 @@ from livekit.agents import (
 from livekit.agents.metrics import RealtimeModelMetrics
 
 from observability.logging import get_logger, log_event
+from observability.openai_usage import accumulate_realtime_turn
 from session.lifecycle import CallLifecycle
 
 logger = get_logger("voice-agent.events")
@@ -110,6 +111,8 @@ def attach_realtime_metrics(
         # ttft is -1 when no audio tokens were generated
         if metrics.ttft is not None and metrics.ttft >= 0:
             lifecycle.record_model_latency(metrics.ttft * 1000)
+        # Backup path when session.usage is empty at shutdown.
+        accumulate_realtime_turn(lifecycle.metrics._realtime_token_accumulator, metrics)
         log_event(
             logger,
             "realtime_metrics",
@@ -121,6 +124,8 @@ def attach_realtime_metrics(
             if metrics.ttft is not None and metrics.ttft >= 0
             else None,
             total_tokens=getattr(metrics, "total_tokens", None),
+            input_tokens=getattr(metrics, "input_tokens", None),
+            output_tokens=getattr(metrics, "output_tokens", None),
             first_response_latency_ms=lifecycle.metrics.first_response_latency_ms,
             **lifecycle.correlation_fields(),
         )

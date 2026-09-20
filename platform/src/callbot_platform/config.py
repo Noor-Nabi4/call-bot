@@ -70,6 +70,72 @@ class Settings(BaseSettings):
         default=True, alias="ALLOW_ENV_TENANT_FALLBACK"
     )
 
+    # Internal voice COGS estimates (USD). Not customer billing.
+    cogs_openai_per_minute_usd: float = Field(
+        default=0.0676, alias="COGS_OPENAI_PER_MINUTE_USD"
+    )
+    cogs_openai_sensitivity_low_usd: float = Field(
+        default=0.05, alias="COGS_OPENAI_SENSITIVITY_LOW_USD"
+    )
+    cogs_openai_sensitivity_high_usd: float = Field(
+        default=0.10, alias="COGS_OPENAI_SENSITIVITY_HIGH_USD"
+    )
+    # Token rates per 1M tokens for gpt-realtime-class models (BYOK).
+    cogs_openai_audio_input_per_1m_usd: float = Field(
+        default=32.0, alias="COGS_OPENAI_AUDIO_INPUT_PER_1M_USD"
+    )
+    cogs_openai_audio_cached_input_per_1m_usd: float = Field(
+        default=0.40, alias="COGS_OPENAI_AUDIO_CACHED_INPUT_PER_1M_USD"
+    )
+    cogs_openai_audio_output_per_1m_usd: float = Field(
+        default=64.0, alias="COGS_OPENAI_AUDIO_OUTPUT_PER_1M_USD"
+    )
+    cogs_openai_text_input_per_1m_usd: float = Field(
+        default=4.0, alias="COGS_OPENAI_TEXT_INPUT_PER_1M_USD"
+    )
+    cogs_openai_text_cached_input_per_1m_usd: float = Field(
+        default=0.40, alias="COGS_OPENAI_TEXT_CACHED_INPUT_PER_1M_USD"
+    )
+    cogs_openai_text_output_per_1m_usd: float = Field(
+        default=16.0, alias="COGS_OPENAI_TEXT_OUTPUT_PER_1M_USD"
+    )
+    cogs_livekit_agent_per_minute_usd: float = Field(
+        default=0.01, alias="COGS_LIVEKIT_AGENT_PER_MINUTE_USD"
+    )
+    cogs_livekit_agent_included_minutes_monthly: int = Field(
+        default=0, alias="COGS_LIVEKIT_AGENT_INCLUDED_MINUTES_MONTHLY"
+    )
+    cogs_livekit_plan: str = Field(default="ship", alias="COGS_LIVEKIT_PLAN")
+    cogs_livekit_sip_ship_per_minute_usd: float = Field(
+        default=0.004, alias="COGS_LIVEKIT_SIP_SHIP_PER_MINUTE_USD"
+    )
+    cogs_livekit_sip_scale_per_minute_usd: float = Field(
+        default=0.003, alias="COGS_LIVEKIT_SIP_SCALE_PER_MINUTE_USD"
+    )
+    cogs_livekit_bvc_telephony_per_minute_usd: float = Field(
+        default=0.0012, alias="COGS_LIVEKIT_BVC_TELEPHONY_PER_MINUTE_USD"
+    )
+    cogs_livekit_bvc_per_minute_usd: float = Field(
+        default=0.0, alias="COGS_LIVEKIT_BVC_PER_MINUTE_USD"
+    )
+    cogs_twilio_us_local_origination_per_minute_usd: float = Field(
+        default=0.0034, alias="COGS_TWILIO_US_LOCAL_ORIGINATION_PER_MINUTE_USD"
+    )
+    cogs_twilio_termination_per_minute_usd: float = Field(
+        default=0.01, alias="COGS_TWILIO_TERMINATION_PER_MINUTE_USD"
+    )
+    # None / omit → use call billable_seconds for warm outbound leg estimate.
+    cogs_warm_transfer_termination_seconds: int | None = Field(
+        default=None, alias="COGS_WARM_TRANSFER_TERMINATION_SECONDS"
+    )
+    cogs_livekit_fixed_monthly_usd: float = Field(
+        default=0.0, alias="COGS_LIVEKIT_FIXED_MONTHLY_USD"
+    )
+    cogs_phone_rental_monthly_usd: float = Field(
+        default=0.0, alias="COGS_PHONE_RENTAL_MONTHLY_USD"
+    )
+    cogs_sms_monthly_usd: float = Field(default=0.0, alias="COGS_SMS_MONTHLY_USD")
+
     @property
     def ops_cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.ops_cors_origins.split(",") if o.strip()]

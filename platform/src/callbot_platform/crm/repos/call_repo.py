@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from callbot_platform.billing.cogs.service import CogsService
 from callbot_platform.billing.usage import compute_billable_seconds
 from callbot_platform.crm.errors import CrmError
 from callbot_platform.db.models import Call, Customer
@@ -19,6 +20,7 @@ from callbot_platform.telephony.audit import write_audit
 class CallRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
+        self._cogs = CogsService(session)
 
     def start(
         self,
@@ -107,6 +109,8 @@ class CallRepository:
                 raise CrmError("customer_not_found", "Customer not found for tenant")
             call.customer_id = customer_id
         self._session.flush()
+        # Internal COGS estimate — does not affect customer billable_seconds / Stripe.
+        self._cogs.persist_for_call(call)
         write_audit(
             self._session,
             tenant_id=tenant_id,
