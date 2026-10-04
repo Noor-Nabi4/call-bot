@@ -136,6 +136,111 @@ def metrics(
     }
 
 
+@router.get("/cogs/summary")
+def cogs_summary(
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
+    session: Session = Depends(db_dep),
+    period: str = Query(default="this_month", max_length=32),
+    start: str | None = Query(default=None, max_length=64),
+    end: str | None = Query(default=None, max_length=64),
+) -> dict[str, Any]:
+    """Internal estimated voice COGS (not customer billing)."""
+    from datetime import datetime
+
+    from callbot_platform.billing.cogs.service import CogsService
+
+    start_dt = None
+    end_dt = None
+    try:
+        if start:
+            start_dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
+        if end:
+            end_dt = datetime.fromisoformat(end.replace("Z", "+00:00"))
+        summary = CogsService(session).tenant_summary(
+            user.tenant_id,
+            period=period,
+            start=start_dt,
+            end=end_dt,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400, detail={"code": "invalid_period", "message": str(exc)}
+        ) from exc
+    return {"cogs": summary}
+
+
+@router.get("/cogs/scenarios")
+def cogs_scenarios(
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    """Modeled 1k/10k/100k + OpenAI sensitivity + Ship vs Scale (config rates only)."""
+    from callbot_platform.billing.cogs.service import CogsService
+
+    return {"scenarios": CogsService(session).scenarios()}
+
+
+@router.get("/cogs/calls")
+def cogs_calls(
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
+    session: Session = Depends(db_dep),
+    period: str = Query(default="this_month", max_length=32),
+    start: str | None = Query(default=None, max_length=64),
+    end: str | None = Query(default=None, max_length=64),
+    channel: str | None = Query(default=None, max_length=32),
+    transfer_kind: str | None = Query(default=None, max_length=16),
+    call_id: str | None = Query(default=None, max_length=64),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+) -> dict[str, Any]:
+    """Paginated per-call estimated COGS for the tenant."""
+    from datetime import datetime
+
+    from callbot_platform.billing.cogs.service import CogsService
+
+    start_dt = None
+    end_dt = None
+    try:
+        if start:
+            start_dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
+        if end:
+            end_dt = datetime.fromisoformat(end.replace("Z", "+00:00"))
+        payload = CogsService(session).list_call_cogs(
+            user.tenant_id,
+            period=period,
+            start=start_dt,
+            end=end_dt,
+            channel=channel,
+            transfer_kind=transfer_kind,
+            call_id=call_id,
+            limit=limit,
+            offset=offset,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400, detail={"code": "invalid_query", "message": str(exc)}
+        ) from exc
+    return payload
+
+
+@router.get("/cogs/calls/{call_id}")
+def cogs_call_detail(
+    call_id: UUID,
+    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    """Single-call estimated COGS detail."""
+    from callbot_platform.billing.cogs.service import CogsService
+
+    detail = CogsService(session).get_call_cogs(user.tenant_id, call_id)
+    if detail is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "cogs_not_found", "message": "Call COGS not found"},
+        )
+    return {"call": detail}
+
+
 @router.get("/supervisor")
 def supervisor(
     user: CurrentUser = Depends(

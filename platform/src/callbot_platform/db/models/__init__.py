@@ -12,6 +12,7 @@ from callbot_platform.db.models.automation import AutomationRule
 from callbot_platform.db.models.base import Base, JsonType, _utcnow, _uuid
 from callbot_platform.db.models.billing import StripeWebhookEvent, TenantSubscription
 from callbot_platform.db.models.branding import TenantBranding
+from callbot_platform.db.models.cogs import CallCogs
 from callbot_platform.db.models.crm import (
     Call,
     Customer,
@@ -46,6 +47,7 @@ __all__ = [
     "AutomationRule",
     "Base",
     "Call",
+    "CallCogs",
     "CallQueueItem",
     "Customer",
     "CustomerPhone",

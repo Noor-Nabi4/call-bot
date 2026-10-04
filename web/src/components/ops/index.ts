@@ -38,3 +38,4 @@ export {
   UsageSummaryPanel,
   seatsAtLimit,
 } from "./usage-summary";
+export { CogsDashboard } from "./cogs-dashboard";

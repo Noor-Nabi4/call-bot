@@ -323,6 +323,40 @@ export const billing = {
   featuresNotIncluded: "Not included",
 } as const;
 
+export const cogs = {
+  title: "COGS & Profitability",
+  description:
+    "Monitor AI calling costs, revenue, margins, and vendor usage.",
+  refresh: "Refresh",
+  loadFailed: "Unable to load COGS data.",
+  errorTitle: "Unable to load COGS data.",
+  emptyTitle: "No COGS data available for this period.",
+  emptyHint: "Calls with estimated costs will appear here after they end.",
+  estimatedBanner: "All COGS figures are estimated internal costs",
+  searchPlaceholder: "Search call ID",
+  periodTotalsTitle: "Revenue vs COGS",
+  periodTotalsHint: "Period totals from the summary API (not invented daily revenue).",
+  revenueUnavailable:
+    "Subscription revenue is only attributed to calendar months for this period.",
+  dailyCogsTitle: "Daily variable COGS",
+  dailyCogsHint:
+    "From call_cogs. Daily revenue is not attributed — use period KPIs for revenue.",
+  breakdownTitle: "COGS Breakdown",
+  breakdownTableTitle: "Cost components",
+  fixedTitle: "Fixed monthly costs",
+  fixedHint: "Configured monthly estimate — not vendor invoices.",
+  planTitle: "Plan Profitability",
+  planHint:
+    "Tenant plan only. Customer counts across the fleet are not available here.",
+  channelTitle: "Usage & COGS by Channel",
+  channelHint:
+    "Browser/WebRTC excludes Twilio and LiveKit SIP. Revenue by channel is N/A.",
+  callsTitle: "Call COGS",
+  callsHint:
+    "Estimated per-call vendor cost. Per-call revenue is not allocated.",
+  detailHint: "Estimated internal cost detail",
+} as const;
+
 export const assistantSettings = {
   title: "Voice assistant",
   description:

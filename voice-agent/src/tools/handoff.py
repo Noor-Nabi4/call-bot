@@ -15,6 +15,7 @@ from livekit import api, rtc
 from livekit.agents import RunContext, function_tool, get_job_context
 from livekit.agents.llm import ToolError
 
+from observability.metrics import CallMetrics
 from session.userdata import SessionUserData
 from tools.platform_handoff import PlatformHandoffClient, PlatformHandoffError
 
@@ -83,7 +84,11 @@ async def _cold_transfer(*, room: rtc.Room, phone: str) -> None:
     )
 
 
-def build_handoff_tools(client: PlatformHandoffClient) -> list[Any]:
+def build_handoff_tools(
+    client: PlatformHandoffClient,
+    *,
+    metrics: CallMetrics | None = None,
+) -> list[Any]:
     @function_tool()
     async def request_human_handoff(
         context: RunContext,
@@ -166,6 +171,10 @@ def build_handoff_tools(client: PlatformHandoffClient) -> list[Any]:
             raise ToolError(
                 "The transfer failed. Please offer to take a callback number."
             ) from exc
+
+        if metrics is not None:
+            metrics.record_tool("request_human_handoff", ok=True, handoff=True)
+            metrics.record_transfer(used)
 
         logger.info(
             "handoff_completed",

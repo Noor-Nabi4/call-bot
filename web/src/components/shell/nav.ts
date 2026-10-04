@@ -19,6 +19,7 @@ import {
   Wrench,
   BarChart3,
   Zap,
+  CircleDollarSign,
 } from "lucide-react";
 import type { OpsUser } from "@/lib/api";
 
@@ -64,6 +65,13 @@ const OPS_NAV: NavItem[] = [
     href: "/settings/billing",
     label: "Billing",
     icon: CreditCard,
+    roles: ["admin"],
+    section: "admin",
+  },
+  {
+    href: "/settings/cogs",
+    label: "COGS & Profitability",
+    icon: CircleDollarSign,
     roles: ["admin"],
     section: "admin",
   },

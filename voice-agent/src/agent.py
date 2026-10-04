@@ -29,6 +29,10 @@ from openai.types.beta.realtime.session import TurnDetection
 from config import ConfigurationError, Settings
 from observability.logging import configure_logging, get_logger, log_event
 from observability.metrics import CallMetrics
+from observability.openai_usage import (
+    snapshot_from_session_usage,
+    snapshot_from_turn_accumulator,
+)
 from prompts import (
     bootstrap_instructions,
     build_system_instructions_from_profile,
@@ -287,6 +291,18 @@ async def entrypoint(ctx: JobContext) -> None:
     attach_session_events(lifecycle, session)
 
     async def _on_job_shutdown() -> None:
+        # Prefer cumulative session.usage; fall back to per-turn accumulator.
+        # Docs: https://docs.livekit.io/deploy/observability/data/#session-usage
+        session_usage = snapshot_from_session_usage(session)
+        if session_usage is not None:
+            metrics.set_openai_usage(session_usage, source="session_usage")
+        else:
+            turn_usage = snapshot_from_turn_accumulator(
+                metrics._realtime_token_accumulator
+            )
+            if turn_usage is not None:
+                metrics.set_openai_usage(turn_usage, source="realtime_metrics_sum")
+
         # Persist CRM call end when possible.
         try:
             userdata = session.userdata
@@ -387,6 +403,7 @@ async def entrypoint(ctx: JobContext) -> None:
 
     participant = await ctx.wait_for_participant()
     sip = is_sip_participant(participant)
+    metrics.set_call_channel(is_sip=sip)
 
     called_number = None
     trunk_id = None
@@ -539,7 +556,7 @@ async def entrypoint(ctx: JobContext) -> None:
     if profile.tool_enabled("knowledge"):
         tools.extend(build_knowledge_tools(knowledge_client, metrics=metrics))
     if profile.tool_enabled("handoff"):
-        tools.extend(build_handoff_tools(handoff_client))
+        tools.extend(build_handoff_tools(handoff_client, metrics=metrics))
     await agent.update_tools(tools)
 
     # Overlap CRM call-start HTTP with greeting generation (skip marketing demo).
