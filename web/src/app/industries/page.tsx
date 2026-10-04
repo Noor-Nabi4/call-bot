@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   CtaBand,
   JsonLd,
+  MarketingImage,
   MarketingShell,
   PageHero,
   RelatedLinks,
@@ -9,6 +10,7 @@ import {
   SectionHeader,
 } from "@/components/landing";
 import { industriesHub, industryPages } from "@/lib/marketing/industries";
+import { mediaAssets } from "@/lib/marketing/visuals";
 import {
   buildBreadcrumbJsonLd,
   buildPageMetadata,
@@ -53,6 +55,19 @@ export default function IndustriesHubPage() {
             { label: "Industries" },
           ]}
           secondaryCta={{ href: "/ai-receptionist", label: "AI Receptionist" }}
+          visual={
+            <div className="overflow-hidden rounded-[var(--radius-xl)] border border-white/10 shadow-[var(--shadow-lg)]">
+              <MarketingImage
+                src={mediaAssets.industryHub.src}
+                alt={mediaAssets.industryHub.alt}
+                width={mediaAssets.industryHub.width}
+                height={mediaAssets.industryHub.height}
+                className="aspect-[4/3] h-auto w-full object-cover"
+                sizes="(max-width: 1024px) 100vw, 480px"
+                priority
+              />
+            </div>
+          }
         />
 
         <section

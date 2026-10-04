@@ -75,3 +75,10 @@ Conversion events fire via `track()` (`web/src/lib/analytics.ts`): CustomEvent `
 - `/opengraph-image` and `/twitter-image`
 - JSON-LD: Organization, WebSite, SoftwareApplication, WebPage, FAQPage, BreadcrumbList, Product/Offer, Article
 - Docs: `SEO-AUDIT.md`, `SEO-ROADMAP.md`
+
+## Visuals
+
+- Product mockups / workflow diagrams: `src/components/landing/visuals/*`
+- Visual config: `src/lib/marketing/visuals.ts`
+- Organized photos: `public/images/{hero,product,industries,use-cases}/`
+- Asset notes: `VISUAL-ASSETS.md`

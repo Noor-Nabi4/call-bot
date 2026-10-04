@@ -5,6 +5,7 @@ import {
   JsonLd,
   MarketingShell,
   PageHero,
+  PricingVisual,
   RelatedLinks,
   Reveal,
   SectionHeader,
@@ -119,6 +120,25 @@ export default async function PricingPage() {
           primaryCta={{ href: "/signup", label: "Start Free Trial" }}
           secondaryCta={{ href: "/#demo", label: "Try Voice Demo" }}
         />
+
+        <section
+          className="section-pad border-t border-line bg-bg"
+          aria-labelledby="pricing-capacity-heading"
+        >
+          <div className="content-width grid items-center gap-8 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+            <Reveal>
+              <SectionHeader
+                eyebrow="How plans scale"
+                title="Pay for call capacity, not empty seats"
+                supporting="Minutes, concurrent calls, phone numbers, users, and knowledge limits grow with your operation. Pricing cards below use live catalog data."
+                id="pricing-capacity-heading"
+              />
+            </Reveal>
+            <Reveal variant="right">
+              <PricingVisual />
+            </Reveal>
+          </div>
+        </section>
 
         <section
           className="section-pad border-t border-line bg-surface"

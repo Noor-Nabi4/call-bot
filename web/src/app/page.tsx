@@ -6,12 +6,14 @@ import {
   Footer,
   Hero,
   HowItWorksSection,
+  MarketingImage,
   Navbar,
   PricingSection,
   Reveal,
   SectionHeader,
   VoiceDemoSection,
 } from "@/components/landing";
+import { mediaAssets } from "@/lib/marketing/visuals";
 import { site } from "@/lib/copy";
 import {
   close,
@@ -149,6 +151,39 @@ export default async function LandingPage() {
           supporting={howItWorks.supporting}
           steps={howItWorks.steps}
         />
+
+        <section
+          className="section-pad border-t border-line bg-bg"
+          aria-labelledby="ops-visual-heading"
+        >
+          <div className="content-width grid items-center gap-10 lg:grid-cols-2">
+            <Reveal>
+              <SectionHeader
+                eyebrow="Built for operators"
+                title="See calls, bookings, and handoffs in one place"
+                supporting="Call & Flow is not just a demo voice. It is a multi-tenant ops platform for the teams that own the phones."
+                id="ops-visual-heading"
+              />
+              <div className="mt-6">
+                <Button href="/ai-voice-agents" variant="secondary">
+                  Explore AI voice agents
+                </Button>
+              </div>
+            </Reveal>
+            <Reveal variant="right">
+              <div className="overflow-hidden rounded-[var(--radius-xl)] border border-line shadow-[var(--shadow-md)]">
+                <MarketingImage
+                  src={mediaAssets.voiceOps.src}
+                  alt={mediaAssets.voiceOps.alt}
+                  width={mediaAssets.voiceOps.width}
+                  height={mediaAssets.voiceOps.height}
+                  className="h-auto w-full object-cover"
+                  sizes="(max-width: 1024px) 100vw, 560px"
+                />
+              </div>
+            </Reveal>
+          </div>
+        </section>
 
         <section
           id="industries"

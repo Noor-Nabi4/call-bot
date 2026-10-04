@@ -1,3 +1,4 @@
+export { AlternatingFeatureSection } from "./alternating-feature-section";
 export { AnimatedBackground } from "./animated-background";
 export { BrandLogo } from "./brand-logo";
 export { BenefitCard } from "./benefit-card";
@@ -22,3 +23,16 @@ export { Reveal } from "./reveal";
 export { SectionHeader } from "./section-header";
 export { TestimonialCard } from "./testimonial-card";
 export { VoiceDemoSection } from "./voice-demo";
+export {
+  BlogCover,
+  CallFlowDiagram,
+  HeroVisual,
+  IndustryVisual,
+  MarketingImage,
+  PricingVisual,
+  ProductVisual,
+  SectionFlowVisual,
+  UseCaseVisual,
+  VisualFrame,
+  Waveform,
+} from "./visuals";

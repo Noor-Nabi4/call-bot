@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  BlogCover,
   CtaBand,
   JsonLd,
   MarketingShell,
@@ -65,36 +66,45 @@ export default function BlogIndexPage() {
             <ul className="m-0 grid list-none gap-4 p-0">
               {blogPosts.map((post, index) => (
                 <Reveal key={post.slug} as="li" delay={(index % 3) as 0 | 1 | 2 | 3}>
-                  <article className="card-surface card-surface-hover p-6 sm:p-8">
-                    <p className="m-0 text-xs font-semibold tracking-[0.1em] text-teal uppercase">
-                      {new Date(post.publishedAt).toLocaleDateString("en-US", {
-                        month: "long",
-                        day: "numeric",
-                        year: "numeric",
-                      })}{" "}
-                      · {post.readingMinutes} min read
-                    </p>
-                    <h3 className="mt-3 m-0 text-2xl font-semibold tracking-[-0.03em] text-ink">
-                      <Link
-                        href={`/blog/${post.slug}`}
-                        className="text-inherit no-underline hover:text-teal"
-                      >
-                        {post.title}
-                      </Link>
-                    </h3>
-                    <p className="mt-3 m-0 max-w-3xl text-base leading-relaxed text-muted">
-                      {post.description}
-                    </p>
-                    <ul className="mt-4 m-0 flex list-none flex-wrap gap-2 p-0">
-                      {post.tags.map((tag) => (
-                        <li
-                          key={tag}
-                          className="rounded-full bg-teal-soft px-2.5 py-1 text-xs font-medium text-teal-deep"
+                  <article className="card-surface card-surface-hover overflow-hidden">
+                    <Link href={`/blog/${post.slug}`} className="block no-underline">
+                      <BlogCover
+                        slug={post.slug}
+                        title={post.title}
+                        className="rounded-none border-0 shadow-none"
+                      />
+                    </Link>
+                    <div className="p-6 sm:p-8">
+                      <p className="m-0 text-xs font-semibold tracking-[0.1em] text-teal uppercase">
+                        {new Date(post.publishedAt).toLocaleDateString("en-US", {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        })}{" "}
+                        · {post.readingMinutes} min read
+                      </p>
+                      <h3 className="mt-3 m-0 text-2xl font-semibold tracking-[-0.03em] text-ink">
+                        <Link
+                          href={`/blog/${post.slug}`}
+                          className="text-inherit no-underline hover:text-teal"
                         >
-                          {tag}
-                        </li>
-                      ))}
-                    </ul>
+                          {post.title}
+                        </Link>
+                      </h3>
+                      <p className="mt-3 m-0 max-w-3xl text-base leading-relaxed text-muted">
+                        {post.description}
+                      </p>
+                      <ul className="mt-4 m-0 flex list-none flex-wrap gap-2 p-0">
+                        {post.tags.map((tag) => (
+                          <li
+                            key={tag}
+                            className="rounded-full bg-teal-soft px-2.5 py-1 text-xs font-medium text-teal-deep"
+                          >
+                            {tag}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </article>
                 </Reveal>
               ))}

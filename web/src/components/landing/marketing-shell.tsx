@@ -9,7 +9,7 @@ type MarketingShellProps = {
 
 export function MarketingShell({ children }: MarketingShellProps) {
   return (
-    <main id="main-content">
+    <main id="main-content" className="overflow-x-clip">
       <Navbar brand={site.brand} />
       {children}
       <Footer />

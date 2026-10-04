@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  BlogCover,
   CtaBand,
   JsonLd,
   MarketingShell,
@@ -110,6 +111,9 @@ export default async function BlogPostPage({ params }: PageProps) {
 
         <article className="section-pad border-t border-line bg-surface">
           <div className="content-width max-w-3xl">
+            <div className="mb-10">
+              <BlogCover slug={post.slug} title={post.title} priority />
+            </div>
             {post.sections.map((section) => (
               <section key={section.heading || section.paragraphs[0]} className="mb-10">
                 {section.heading ? (

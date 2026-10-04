@@ -4,10 +4,15 @@ import {
   Faq,
   HowItWorksSection,
   JsonLd,
+  MarketingImage,
   MarketingShell,
   PageHero,
+  ProductVisual,
   RelatedLinks,
+  Reveal,
+  SectionHeader,
 } from "@/components/landing";
+import { mediaAssets } from "@/lib/marketing/visuals";
 import { howItWorks } from "@/lib/copy";
 import { aiVoiceAgentsPage } from "@/lib/marketing/product-pages";
 import {
@@ -54,7 +59,36 @@ export default function AiVoiceAgentsPage() {
             { label: "AI Voice Agents" },
           ]}
           secondaryCta={{ href: "/ai-receptionist", label: "AI Receptionist" }}
+          visual={<ProductVisual variant="voice-agents" />}
         />
+
+        <section
+          className="section-pad border-t border-line bg-surface"
+          aria-labelledby="voice-ops-visual-heading"
+        >
+          <div className="content-width grid items-center gap-10 lg:grid-cols-2">
+            <Reveal>
+              <SectionHeader
+                eyebrow="Operations view"
+                title="Built for teams that run phones, not just demos"
+                supporting="Monitor conversations, outcomes, and handoffs from one console while agents handle the repetitive front line."
+                id="voice-ops-visual-heading"
+              />
+            </Reveal>
+            <Reveal variant="right">
+              <div className="overflow-hidden rounded-[var(--radius-xl)] border border-line shadow-[var(--shadow-md)]">
+                <MarketingImage
+                  src={mediaAssets.platformOps.src}
+                  alt={mediaAssets.platformOps.alt}
+                  width={mediaAssets.platformOps.width}
+                  height={mediaAssets.platformOps.height}
+                  className="h-auto w-full object-cover"
+                  sizes="(max-width: 1024px) 100vw, 560px"
+                />
+              </div>
+            </Reveal>
+          </div>
+        </section>
 
         <ContentGrid
           id="capabilities"
@@ -63,7 +97,6 @@ export default function AiVoiceAgentsPage() {
           supporting="Use one platform for the inbound workflows US businesses actually run — without unsupported claims or fake automation promises."
           items={page.pillars}
           columns={2}
-          tone="surface"
         />
 
         <ContentGrid

@@ -1,16 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  AlternatingFeatureSection,
   ContentGrid,
   CtaBand,
   Faq,
+  IndustryVisual,
   JsonLd,
   MarketingShell,
   PageHero,
   RelatedLinks,
   Reveal,
+  SectionFlowVisual,
   SectionHeader,
 } from "@/components/landing";
+import { getIndustryStory } from "@/lib/marketing/feature-sections";
 import {
   getIndustry,
   getIndustrySlugs,
@@ -23,6 +27,14 @@ import {
   buildPageMetadata,
   buildWebPageJsonLd,
 } from "@/lib/metadata";
+import type { SectionFlowVariant } from "@/components/landing/visuals/section-flow-visual";
+
+const STORY_VISUAL_VARIANTS: readonly SectionFlowVariant[] = [
+  "spotlight",
+  "flow",
+  "stack",
+  "handoff",
+];
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -49,6 +61,7 @@ export default async function IndustryPage({ params }: PageProps) {
   const industry = getIndustry(slug);
   if (!industry) notFound();
 
+  const story = getIndustryStory(industry.slug);
   const path = `/industries/${industry.slug}`;
   const related = industry.relatedSlugs
     .map((relatedSlug) => getIndustry(relatedSlug))
@@ -93,54 +106,105 @@ export default async function IndustryPage({ params }: PageProps) {
             { label: industry.name },
           ]}
           secondaryCta={{ href: "/pricing", label: "See pricing" }}
+          visual={
+            <IndustryVisual slug={industry.slug} industryName={industry.name} />
+          }
         />
 
-        <ContentGrid
-          id="problems"
-          eyebrow="The phone problem"
-          title={`Why ${industry.shortName} miss calls`}
-          items={industry.problems}
-          columns={3}
-          tone="surface"
-        />
+        {story ? (
+          <section
+            className="section-pad border-t border-line bg-surface"
+            aria-labelledby="industry-intro-heading"
+          >
+            <div className="content-width max-w-3xl">
+              <Reveal>
+                <p className="m-0 mb-3 inline-flex rounded-[var(--radius-sm)] bg-teal-soft px-2.5 py-1 text-[11px] font-semibold tracking-[0.12em] text-teal-deep uppercase">
+                  The phone problem
+                </p>
+                <h2
+                  id="industry-intro-heading"
+                  className="font-display m-0 text-[clamp(1.75rem,3.4vw,2.55rem)] font-semibold leading-[1.1] tracking-[-0.04em] text-ink"
+                >
+                  {story.introTitle}
+                </h2>
+                <p className="mt-4 m-0 text-base leading-relaxed text-muted sm:text-lg">
+                  {story.introBody}
+                </p>
+              </Reveal>
+            </div>
+          </section>
+        ) : null}
 
-        <ContentGrid
-          id="scenarios"
-          eyebrow="Call scenarios"
-          title="Real conversations your line already gets"
-          items={industry.scenarios}
-          columns={3}
-        />
+        {story?.sections.map((section, index) => (
+          <AlternatingFeatureSection
+            key={section.id}
+            id={section.id}
+            eyebrow={section.eyebrow}
+            title={section.title}
+            description={section.description}
+            bullets={section.bullets}
+            badge={section.badge}
+            cta={section.cta}
+            tone={
+              index === 3
+                ? "elevated"
+                : index % 2 === 0
+                  ? "bg"
+                  : "surface"
+            }
+            reverse={index % 2 === 1}
+            visual={
+              <SectionFlowVisual
+                title={section.flow.title}
+                alt={section.flow.alt}
+                steps={section.flow.steps}
+                tone={index % 2 === 1 ? "light" : "dark"}
+                variant={STORY_VISUAL_VARIANTS[index % 4]}
+              />
+            }
+          />
+        ))}
 
         <section
-          className="section-pad border-t border-line bg-surface"
-          aria-labelledby="workflows-heading"
+          className="section-pad relative overflow-hidden border-t border-line bg-[#0B1220] text-white"
+          aria-labelledby="how-industry-heading"
         >
-          <div className="content-width">
+          <div
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_60%_at_10%_0%,rgba(20,184,160,0.18),transparent_55%),radial-gradient(70%_50%_at_100%_100%,rgba(14,165,233,0.12),transparent_50%)]"
+            aria-hidden="true"
+          />
+          <div className="relative z-[1] content-width">
             <Reveal>
               <SectionHeader
-                eyebrow="Workflows"
-                title={`How Call & Flow helps ${industry.shortName}`}
-                supporting="Configure the workflows that match your dispatch, intake, or front-desk process."
-                id="workflows-heading"
+                eyebrow="How it works"
+                title={
+                  story?.howTitle ||
+                  `How Call & Flow helps ${industry.shortName}`
+                }
+                supporting={
+                  story?.howSupporting ||
+                  "Configure the workflows that match your dispatch, intake, or front-desk process."
+                }
+                id="how-industry-heading"
+                tone="dark"
               />
             </Reveal>
-            <ol className="mt-10 m-0 grid list-none gap-4 p-0 sm:grid-cols-2">
-              {industry.workflows.map((workflow, index) => (
+            <ol className="mt-10 m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3">
+              {industry.workflows.slice(0, 6).map((workflow, index) => (
                 <Reveal
                   key={workflow.title}
                   as="li"
                   delay={(index % 3) as 0 | 1 | 2 | 3}
                 >
-                  <article className="flex h-full gap-4 rounded-[var(--radius-lg)] border border-line bg-bg p-5">
-                    <span className="font-mono text-sm text-teal">
+                  <article className="card-surface-hover flex h-full gap-4 rounded-[var(--radius-lg)] border border-white/10 bg-white/[0.04] p-5 shadow-[0_18px_40px_-28px_rgba(0,0,0,0.55)]">
+                    <span className="font-mono text-sm text-teal-bright">
                       {String(index + 1).padStart(2, "0")}
                     </span>
                     <div>
-                      <h3 className="m-0 text-lg font-semibold tracking-[-0.02em] text-ink">
+                      <h3 className="m-0 text-lg font-semibold tracking-[-0.02em] text-white">
                         {workflow.title}
                       </h3>
-                      <p className="mt-2 m-0 text-sm leading-relaxed text-muted">
+                      <p className="mt-2 m-0 text-sm leading-relaxed text-hero-muted">
                         {workflow.body}
                       </p>
                     </div>
@@ -150,6 +214,15 @@ export default async function IndustryPage({ params }: PageProps) {
             </ol>
           </div>
         </section>
+
+        <ContentGrid
+          id="scenarios"
+          eyebrow="Call scenarios"
+          title="Real conversations your line already gets"
+          items={industry.scenarios}
+          columns={3}
+          tone="surface"
+        />
 
         <ContentGrid
           id="benefits"

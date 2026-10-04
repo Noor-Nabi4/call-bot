@@ -7,6 +7,7 @@ import {
   JsonLd,
   MarketingShell,
   PageHero,
+  ProductVisual,
   RelatedLinks,
   Reveal,
   SectionHeader,
@@ -56,6 +57,7 @@ export default function AiReceptionistPage() {
             { label: "AI Receptionist" },
           ]}
           secondaryCta={{ href: "/pricing", label: "See pricing" }}
+          visual={<ProductVisual variant="receptionist" />}
         />
 
         <ContentGrid
