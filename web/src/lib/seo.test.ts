@@ -7,6 +7,28 @@ import {
   industryStories,
   useCaseStories,
 } from "./marketing/feature-sections.ts";
+import {
+  getIndustryHumanHero,
+  getIndustryStoryMedia,
+  getUseCaseHumanHero,
+  getUseCaseStoryMedia,
+  humanIndustries,
+  humanUseCases,
+} from "./marketing/human-assets.ts";
+import {
+  getIndustryBusinessVisual,
+  getUseCaseBusinessVisual,
+  industryBusinessVisuals,
+  useCaseBusinessVisuals,
+} from "./marketing/human-business-visuals.ts";
+import {
+  getIndustryHeroAsset,
+  getIndustryStoryAssets,
+  getUseCaseHeroAsset,
+  getUseCaseStoryAssets,
+  threeDIndustries,
+  threeDUseCases,
+} from "./marketing/three-d-assets.ts";
 import { industryVisuals, useCaseVisuals } from "./marketing/visuals.ts";
 import { absoluteUrl, getSiteUrl } from "./seo.ts";
 
@@ -55,4 +77,99 @@ test("every industry and use-case page has alternating story sections", () => {
     assert.ok(story, `missing use-case story for ${useCase.slug}`);
     assert.equal(story.sections.length, 4);
   }
+});
+
+test("every industry and use-case page maps unique 3D story assets", () => {
+  for (const industry of industryPages) {
+    assert.ok(
+      threeDIndustries[industry.slug],
+      `missing industry 3D asset for ${industry.slug}`,
+    );
+    assert.ok(getIndustryHeroAsset(industry.slug).src.includes("/images/3d/"));
+    const storyAssets = getIndustryStoryAssets(industry.slug);
+    assert.equal(storyAssets.length, 4);
+  }
+  for (const useCase of useCasePages) {
+    assert.ok(
+      threeDUseCases[useCase.slug],
+      `missing use-case 3D asset for ${useCase.slug}`,
+    );
+    assert.ok(getUseCaseHeroAsset(useCase.slug).src.includes("/images/3d/"));
+    const storyAssets = getUseCaseStoryAssets(useCase.slug);
+    assert.equal(storyAssets.length, 4);
+  }
+});
+
+test("every industry and use-case page maps human + mixed story media", () => {
+  const compositions = new Set([
+    "human-product",
+    "three-d",
+    "human-3d",
+    "human-handoff",
+  ]);
+  for (const industry of industryPages) {
+    assert.ok(
+      humanIndustries[industry.slug],
+      `missing industry human asset for ${industry.slug}`,
+    );
+    assert.ok(
+      getIndustryHumanHero(industry.slug).src.includes(
+        "/images/human/business/industries/",
+      ),
+    );
+    const media = getIndustryStoryMedia(industry.slug);
+    assert.equal(media.length, 4);
+    assert.equal(media[0].composition, "human-product");
+    assert.equal(media[1].composition, "three-d");
+    assert.ok(media[0].human);
+    assert.ok(media[1].threeD);
+    for (const item of media) {
+      assert.ok(compositions.has(item.composition));
+    }
+  }
+  for (const useCase of useCasePages) {
+    assert.ok(
+      humanUseCases[useCase.slug],
+      `missing use-case human asset for ${useCase.slug}`,
+    );
+    assert.ok(
+      getUseCaseHumanHero(useCase.slug).src.includes(
+        "/images/human/business/use-cases/",
+      ),
+    );
+    const media = getUseCaseStoryMedia(useCase.slug);
+    assert.equal(media.length, 4);
+    assert.equal(media[0].composition, "human-product");
+    assert.ok(media.some((item) => item.composition === "three-d"));
+  }
+});
+
+test("every industry and use-case page has a unique human-business campaign visual", () => {
+  const industrySources = new Set<string>();
+  const useCaseSources = new Set<string>();
+
+  for (const industry of industryPages) {
+    const visual = getIndustryBusinessVisual(industry.slug);
+    assert.ok(visual, `missing industry business visual for ${industry.slug}`);
+    assert.ok(industryBusinessVisuals[industry.slug]);
+    assert.ok(visual.image.src.includes("/images/human/business/industries/"));
+    assert.ok(visual.personRole.length > 0);
+    assert.ok(visual.environment.length > 0);
+    assert.ok(visual.workflow.length >= 3);
+    assert.ok(visual.overlayCards.length >= 3);
+    assert.ok(visual.threeDAsset?.src.includes("/images/3d/"));
+    industrySources.add(visual.image.src);
+  }
+  assert.equal(industrySources.size, industryPages.length);
+
+  for (const useCase of useCasePages) {
+    const visual = getUseCaseBusinessVisual(useCase.slug);
+    assert.ok(visual, `missing use-case business visual for ${useCase.slug}`);
+    assert.ok(useCaseBusinessVisuals[useCase.slug]);
+    assert.ok(visual.image.src.includes("/images/human/business/use-cases/"));
+    assert.ok(visual.workflow.length >= 3);
+    assert.ok(visual.overlayCards.length >= 3);
+    useCaseSources.add(visual.image.src);
+  }
+  assert.equal(useCaseSources.size, useCasePages.length);
 });

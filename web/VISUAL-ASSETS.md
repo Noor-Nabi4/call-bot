@@ -2,81 +2,94 @@
 
 ## Approach
 
-Prefer product UI mockups and workflow diagrams over lifestyle photography.
+Prefer **human-centric campaign storytelling** over gadget-only or illustration-only pages.
 
-- **Primary visuals**: React/SVG product frames (`HeroVisual`, `ProductVisual`, `IndustryVisual`, `UseCaseVisual`, `CallFlowDiagram`)
-- **Secondary photos**: curated desk/ops imagery already in `public/images/` (no smiling stock-people heroes)
-- **Delivery**: `next/image` for photos (auto WebP/AVIF when supported); CSS/SVG for diagrams (zero extra bytes)
+Story spine:
+
+`REAL PERSON → REAL BUSINESS ENVIRONMENT → CUSTOMER CALL → AI VOICE AGENT → BUSINESS ACTION`
+
+- **Primary**: Human business campaign scenes (`HumanBusinessVisual`)
+- **Secondary**: React/CSS product frames (`CallFlowDiagram`, `VisualFrame`, glass overlays)
+- **Depth**: Existing 22-asset 3D library (`Marketing3DVisual`) remains intact as supporting product intelligence
+- **Delivery**: `next/image` for photography/3D; CSS/SVG for diagrams and glass UI
 
 ## Asset inventory
 
 ```text
 public/images/
+├── human/
+│   ├── business/
+│   │   ├── industries/       # 12 unique campaign scenes (HUMAN → AI → ACTION)
+│   │   └── use-cases/        # 5 unique campaign scenes
+│   └── core/                 # owner, receptionist, caller, handoff, sales, support
+├── 3d/                       # kept intact (core + industries + use-cases)
 ├── hero/
-│   └── ai-voice-ops.jpg                 # waveform laptop + phone desk
 ├── product/
-│   └── voice-ops-dashboard.jpg          # dual-monitor ops / CRM desk
-├── industries/
-│   └── industry-hub.jpg                 # multi-industry brochure desk
-├── use-cases/
-│   └── appointment-calendar.jpg         # calendar workspace
-├── blog/                                # reserved for future article photos
-├── ui/                                  # reserved for UI export frames
-├── hero-voice-ops.jpg                   # legacy source (kept)
-├── section-*.jpg                        # legacy sources (kept; not all used)
+└── …
 ```
-
-Unused on purpose (people-forward stock):
-
-- `section-answer.jpg`
-- `section-handoff.jpg`
 
 ## Component map
 
 | Component | Use |
 |---|---|
-| `HeroVisual` | Homepage hero product preview + call flow |
-| `ProductVisual` | `/ai-receptionist`, `/ai-voice-agents` |
-| `IndustryVisual` | `/industries/[slug]` unique scenario mockups |
-| `UseCaseVisual` | `/use-cases/[slug]` workflow mockups |
-| `PricingVisual` | Subtle capacity meters on `/pricing` |
-| `BlogCover` | Featured covers for `/blog` |
-| `MarketingImage` | Optimized photo wrapper |
+| `HumanBusinessVisual` | Campaign visual: human + environment + AI + outcome UI |
+| `HumanProductVisual` | Supporting human scene ± floating 3D chip |
+| `Marketing3DVisual` | Optimized 3D still (library preserved) |
+| `IndustryVisual` | Hero: campaign business visual + product flow |
+| `UseCaseVisual` | Hero: campaign business visual + product flow |
+| `SectionFlowVisual` | Story sections via `media` + optional `businessVisual` |
 | `CallFlowDiagram` | Shared step/branch diagram |
+| `VisualFrame` | Product chrome |
 
-Config lives in `src/lib/marketing/visuals.ts`.
+Config:
 
-## Where visuals appear
+- `src/lib/marketing/human-business-visuals.ts` — campaign registry (industries + use cases)
+- `src/lib/marketing/human-assets.ts` — supporting human registry + story media rhythm
+- `src/lib/marketing/three-d-assets.ts` — 3D registry (kept intact)
+- `src/lib/marketing/visuals.ts` — flow/step mockup data
+- `src/lib/marketing/feature-sections.ts` — alternating story copy
 
-| Page | Visual |
+## Campaign visual formula
+
+Every major industry/use-case visual communicates:
+
+1. Correct environment
+2. Correct human role
+3. Correct customer/business context
+4. Correct AI workflow
+5. Correct business action
+
+Hierarchy:
+
+- **HUMAN** = context
+- **AI** = intelligence
+- **UI** = outcome
+
+Campaign photographs may include baked glass storytelling. The component also supports HTML/CSS overlays (`overlayMode: "html"`) for clean bases and responsive reduction of floating cards on mobile.
+
+## Story visual rhythm
+
+Each industry/use-case page maps **four media compositions**:
+
+1. **human-product** — campaign `HumanBusinessVisual` (+ optional product chrome)
+2. **three-d** — workflow 3D + `CallFlowDiagram`
+3. **human-3d** — ops/booking human + CRM/calendar 3D
+4. **human-handoff** — human receiving handoff + handoff 3D
+
+Only assets for the current page are referenced.
+
+## Priority by page type
+
+| Page type | Priority order |
 |---|---|
-| `/` | `HeroVisual` (LCP-critical product mock) |
-| `/ai-receptionist` | Receptionist flow diagram |
-| `/ai-voice-agents` | Platform branch diagram + ops photo |
-| `/industries` | Industry hub photo |
-| `/industries/*` | Unique industry scenario mockups |
-| `/use-cases/*` | Unique workflow mockups (+ booking photo on appointment page) |
-| `/pricing` | Minimal capacity visual |
-| `/blog`, `/blog/*` | Featured covers (photo or generated product cover) |
-| FAQ / CTA | No large images |
+| Industry / use-case | Human campaign → Product UI → 3D |
+| Core product pages | Product UI → 3D → Human |
 
 ## Image rules
 
-- Meaningful visuals: descriptive `aria-label` / `alt`
-- Decorative chrome: `aria-hidden`
-- Hero product mock is CSS (no heavy LCP photo on homepage)
-- Below-fold photos use `loading="lazy"` via `next/image`
-- Filenames describe content; no `image1.png`
-
-## Future assets (optional)
-
-If commissioning custom renders later:
-
-| Filename | Page | Concept | Size | Priority |
-|---|---|---|---|---|
-| `product/ai-receptionist-3d.webp` | `/ai-receptionist` | Abstract phone + agent node | 1600×1066 | P2 |
-| `product/ai-voice-agent-graph.webp` | `/ai-voice-agents` | Node graph of tools | 1600×1066 | P2 |
-| `industries/hvac-dispatch.webp` | `/industries/hvac` | HVAC dispatch board UI | 1600×900 | P3 |
-| `blog/ai-receptionist-cover.webp` | blog article | Phone UI abstract | 1600×900 | P2 |
-
-Keep one cohesive dark UI chrome, teal accents, and soft depth — matching the existing brand tokens.
+- Meaningful visuals: descriptive `alt`
+- Decorative bands inside labeled frames: `decorative`
+- Below-fold images: lazy via `next/image`
+- No fake logos, fake revenue, fake conversion stats, or fake testimonials
+- Art direction: cinematic lighting, shallow DOF, natural professionals, restrained SaaS blue/teal accents
+- Avoid cartoon, anime, cyberpunk neon, generic stock, or sci-fi robot aesthetics

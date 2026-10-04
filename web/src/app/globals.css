@@ -454,12 +454,15 @@ body {
   .flow-connector,
   .flow-pulse,
   .flow-status-dot,
-  .flow-diagram .flow-node {
+  .flow-diagram .flow-node,
+  .marketing-3d-float {
     animation: none !important;
   }
 
   .product-visual-frame:hover,
-  .story-feature-item:hover {
+  .story-feature-item:hover,
+  .product-visual-frame:hover .marketing-3d img,
+  .product-visual-frame:hover .human-3d-chip {
     transform: none;
   }
 
@@ -549,6 +552,310 @@ body {
 
 .product-visual-frame:hover {
   transform: translateY(-2px);
+}
+
+.marketing-3d-surface,
+.human-product-surface,
+.human-business-surface {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 18px 40px -28px rgba(0, 0, 0, 0.55);
+}
+
+.human-product-visual,
+.human-business-visual {
+  isolation: isolate;
+  background: #0b1220;
+}
+
+.human-3d-chip {
+  transition:
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 320ms ease;
+}
+
+.product-visual-frame:hover .human-3d-chip {
+  transform: translateY(-2px);
+}
+
+/* Human-centric campaign visual (HUMAN → AI → BUSINESS ACTION) */
+.hbv-overlays {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.hbv-glass {
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow:
+    0 18px 36px -22px rgba(11, 18, 32, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: #0b1220;
+}
+
+.hbv-kicker {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5b6b7c;
+}
+
+.hbv-title {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: #0b1220;
+}
+
+.hbv-meta {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #5b6b7c;
+}
+
+.hbv-call-card,
+.hbv-outcome-card,
+.hbv-ai-cluster {
+  position: absolute;
+  max-width: min(46%, 14.5rem);
+}
+
+.hbv-call-card {
+  border-radius: 14px;
+  padding: 0.55rem 0.65rem;
+}
+
+.hbv-call-card__row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.hbv-call-avatar {
+  flex: 0 0 auto;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 999px;
+  background:
+    linear-gradient(145deg, #d7e7f5, #8aa4bc);
+}
+
+.hbv-call-accept {
+  flex: 0 0 auto;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-left: auto;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+
+.hbv-ai-cluster {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  max-width: min(42%, 11rem);
+}
+
+.hbv-ai-orb {
+  display: grid;
+  place-items: center;
+  width: 4.6rem;
+  height: 4.6rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.55), transparent 42%),
+    radial-gradient(circle at 50% 55%, #3aa8ff 0%, #1c6fd6 58%, #0b4ea8 100%);
+  box-shadow:
+    0 0 0 1px rgba(120, 190, 255, 0.35),
+    0 16px 34px -14px rgba(28, 111, 214, 0.7);
+  animation: hbv-orb-pulse 4.8s ease-in-out infinite;
+}
+
+.hbv-ai-orb__wave {
+  width: 68%;
+  height: 1.6rem !important;
+  opacity: 0.95;
+}
+
+.hbv-ai-orb__wave span {
+  width: 2px !important;
+}
+
+.hbv-ai-label {
+  border-radius: 12px;
+  padding: 0.45rem 0.65rem;
+  text-align: center;
+}
+
+.hbv-outcome-card {
+  border-radius: 16px;
+  padding: 0.75rem 0.8rem;
+  max-width: min(52%, 15.5rem);
+}
+
+.hbv-outcome-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.hbv-outcome-icon {
+  flex: 0 0 auto;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 8px;
+  background:
+    linear-gradient(145deg, #5db4ff, #1c6fd6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.hbv-outcome-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 650;
+  color: #15803d;
+}
+
+.hbv-check {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 50% 45%, #fff 0 28%, transparent 29%),
+    #22c55e;
+}
+
+.hbv-card--top-left {
+  top: 0.7rem;
+  left: 0.7rem;
+}
+
+.hbv-card--top-center {
+  top: 0.7rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.hbv-card--top-right {
+  top: 0.7rem;
+  right: 0.7rem;
+}
+
+.hbv-card--center {
+  top: 46%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.hbv-card--bottom-left {
+  bottom: 0.75rem;
+  left: 0.7rem;
+}
+
+.hbv-card--bottom-right {
+  bottom: 0.75rem;
+  right: 0.7rem;
+}
+
+.hbv-card--right {
+  top: 50%;
+  right: 0.7rem;
+  transform: translateY(-50%);
+}
+
+.hbv-3d-chip {
+  position: absolute;
+  z-index: 3;
+  right: 0.7rem;
+  bottom: 0.7rem;
+  width: 42%;
+  max-width: 11.5rem;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.65);
+  display: none;
+}
+
+@keyframes hbv-orb-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.03);
+    filter: brightness(1.05);
+  }
+}
+
+@media (min-width: 640px) {
+  .hbv-3d-chip {
+    display: block;
+  }
+}
+
+/* Mobile: keep the human as the anchor; reduce floating UI. */
+@media (max-width: 639px) {
+  .hbv-overlays .hbv-call-card,
+  .hbv-overlays .hbv-outcome-card {
+    display: none;
+  }
+
+  .hbv-ai-cluster {
+    max-width: 7.5rem;
+  }
+
+  .hbv-ai-orb {
+    width: 3.4rem;
+    height: 3.4rem;
+  }
+
+  .hbv-ai-label {
+    padding: 0.35rem 0.5rem;
+  }
+
+  .hbv-ai-label .hbv-title {
+    display: none;
+  }
+}
+
+.marketing-3d {
+  isolation: isolate;
+  background: #0b1220;
+}
+
+.marketing-3d img {
+  transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.marketing-3d-float {
+  animation: marketing-3d-float 7.5s ease-in-out infinite;
+}
+
+@keyframes marketing-3d-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.product-visual-frame:hover .marketing-3d img {
+  transform: scale(1.015);
 }
 
 .story-visual-slot .product-visual-frame {

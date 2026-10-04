@@ -1,16 +1,24 @@
 import { CallFlowDiagram } from "@/components/landing/visuals/call-flow-diagram";
+import { HumanBusinessVisual } from "@/components/landing/visuals/human-business-visual";
 import { VisualFrame } from "@/components/landing/visuals/visual-frame";
 import { Waveform } from "@/components/landing/visuals/waveform";
+import { getIndustryBusinessVisual } from "@/lib/marketing/human-business-visuals";
 import { industryVisuals } from "@/lib/marketing/visuals";
 
 type IndustryVisualProps = {
   slug: string;
   industryName: string;
+  priority?: boolean;
 };
 
-export function IndustryVisual({ slug, industryName }: IndustryVisualProps) {
+export function IndustryVisual({
+  slug,
+  industryName,
+  priority = true,
+}: IndustryVisualProps) {
   const visual = industryVisuals[slug];
-  if (!visual) return null;
+  const business = getIndustryBusinessVisual(slug);
+  if (!visual || !business) return null;
 
   return (
     <div className="relative">
@@ -19,6 +27,16 @@ export function IndustryVisual({ slug, industryName }: IndustryVisualProps) {
         chrome={`${industryName} · Live line`}
         status="AI Agent active"
       >
+        <div className="border-b border-white/10 p-3 sm:p-4">
+          <HumanBusinessVisual
+            config={business}
+            industry={slug}
+            priority={priority}
+            className="human-business-surface aspect-[16/10] sm:aspect-[16/9]"
+            sizes="(max-width: 1024px) 100vw, 560px"
+          />
+        </div>
+
         <div className="p-5 sm:p-6">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>

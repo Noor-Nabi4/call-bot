@@ -28,6 +28,8 @@ import {
   buildWebPageJsonLd,
 } from "@/lib/metadata";
 import type { SectionFlowVariant } from "@/components/landing/visuals/section-flow-visual";
+import { getIndustryStoryMedia } from "@/lib/marketing/human-assets";
+import { getIndustryBusinessVisual } from "@/lib/marketing/human-business-visuals";
 
 const STORY_VISUAL_VARIANTS: readonly SectionFlowVariant[] = [
   "spotlight",
@@ -62,6 +64,8 @@ export default async function IndustryPage({ params }: PageProps) {
   if (!industry) notFound();
 
   const story = getIndustryStory(industry.slug);
+  const storyMedia = getIndustryStoryMedia(industry.slug);
+  const businessVisual = getIndustryBusinessVisual(industry.slug);
   const path = `/industries/${industry.slug}`;
   const related = industry.relatedSlugs
     .map((relatedSlug) => getIndustry(relatedSlug))
@@ -160,6 +164,10 @@ export default async function IndustryPage({ params }: PageProps) {
                 steps={section.flow.steps}
                 tone={index % 2 === 1 ? "light" : "dark"}
                 variant={STORY_VISUAL_VARIANTS[index % 4]}
+                media={storyMedia[index % 4]}
+                businessVisual={
+                  index % 4 === 0 ? businessVisual : null
+                }
               />
             }
           />

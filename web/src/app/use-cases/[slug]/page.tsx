@@ -28,6 +28,8 @@ import {
   buildWebPageJsonLd,
 } from "@/lib/metadata";
 import type { SectionFlowVariant } from "@/components/landing/visuals/section-flow-visual";
+import { getUseCaseStoryMedia } from "@/lib/marketing/human-assets";
+import { getUseCaseBusinessVisual } from "@/lib/marketing/human-business-visuals";
 
 const STORY_VISUAL_VARIANTS: readonly SectionFlowVariant[] = [
   "spotlight",
@@ -62,6 +64,8 @@ export default async function UseCasePage({ params }: PageProps) {
   if (!useCase) notFound();
 
   const story = getUseCaseStory(useCase.slug);
+  const storyMedia = getUseCaseStoryMedia(useCase.slug);
+  const businessVisual = getUseCaseBusinessVisual(useCase.slug);
   const path = `/use-cases/${useCase.slug}`;
   const relatedIndustries = useCase.relatedIndustries
     .map((industrySlug) => getIndustry(industrySlug))
@@ -150,6 +154,10 @@ export default async function UseCasePage({ params }: PageProps) {
                 steps={section.flow.steps}
                 tone={index % 2 === 1 ? "light" : "dark"}
                 variant={STORY_VISUAL_VARIANTS[index % 4]}
+                media={storyMedia[index % 4]}
+                businessVisual={
+                  index % 4 === 0 ? businessVisual : null
+                }
               />
             }
           />

@@ -1,10 +1,13 @@
 export { BlogCover } from "./blog-cover";
 export { CallFlowDiagram } from "./call-flow-diagram";
 export { HeroVisual } from "./hero-visual";
+export { HumanBusinessVisual } from "./human-business-visual";
 export { IndustryVisual } from "./industry-visual";
 export { MarketingImage } from "./marketing-image";
 export { PricingVisual } from "./pricing-visual";
 export { ProductVisual } from "./product-visual";
+export { HumanProductVisual } from "./human-product-visual";
+export { Marketing3DVisual } from "./marketing-3d-visual";
 export { SectionFlowVisual } from "./section-flow-visual";
 export type { SectionFlowVariant } from "./section-flow-visual";
 export { UseCaseVisual } from "./use-case-visual";

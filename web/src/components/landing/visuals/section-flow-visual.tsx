@@ -1,7 +1,13 @@
 import { CallFlowDiagram } from "@/components/landing/visuals/call-flow-diagram";
+import { HumanBusinessVisual } from "@/components/landing/visuals/human-business-visual";
+import { HumanProductVisual } from "@/components/landing/visuals/human-product-visual";
+import { Marketing3DVisual } from "@/components/landing/visuals/marketing-3d-visual";
 import { VisualFrame } from "@/components/landing/visuals/visual-frame";
 import { Waveform } from "@/components/landing/visuals/waveform";
 import { cn } from "@/lib/cn";
+import type { StoryMedia } from "@/lib/marketing/human-assets";
+import type { HumanBusinessVisualConfig } from "@/lib/marketing/human-business-visuals";
+import type { ThreeDAsset } from "@/lib/marketing/three-d-assets";
 import type { FlowStep } from "@/lib/marketing/visuals";
 
 export type SectionFlowVariant = "flow" | "spotlight" | "stack" | "handoff";
@@ -12,6 +18,11 @@ type SectionFlowVisualProps = {
   steps: readonly FlowStep[];
   tone?: "dark" | "light";
   variant?: SectionFlowVariant;
+  /** @deprecated Prefer `media` for human + 3D storytelling. */
+  image?: ThreeDAsset;
+  media?: StoryMedia;
+  /** Optional campaign visual for human-product story bands. */
+  businessVisual?: HumanBusinessVisualConfig | null;
 };
 
 function deriveStatus(steps: readonly FlowStep[]): string {
@@ -331,6 +342,165 @@ function HandoffLayout({
   );
 }
 
+function CompactStepStrip({
+  steps,
+  dark,
+}: {
+  steps: readonly FlowStep[];
+  dark: boolean;
+}) {
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {steps.slice(0, 4).map((step, index) => (
+        <div
+          key={step.label}
+          className={cn(
+            "rounded-[12px] border px-2.5 py-2",
+            step.tone === "accent"
+              ? dark
+                ? "border-teal/35 bg-teal/12"
+                : "border-teal/25 bg-teal-soft"
+              : dark
+                ? "border-white/10 bg-white/[0.04]"
+                : "border-line bg-bg",
+          )}
+        >
+          <p
+            className={cn(
+              "m-0 text-[10px] font-semibold tracking-[0.1em] uppercase",
+              dark ? "text-hero-muted" : "text-muted",
+            )}
+          >
+            {String(index + 1).padStart(2, "0")}
+          </p>
+          <p
+            className={cn(
+              "mt-1 m-0 text-xs font-semibold leading-snug",
+              dark ? "text-white" : "text-ink",
+            )}
+          >
+            {step.label}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MediaBand({
+  media,
+  image,
+  variant,
+  dark,
+  businessVisual,
+}: {
+  media?: StoryMedia;
+  image?: ThreeDAsset;
+  variant: SectionFlowVariant;
+  dark: boolean;
+  businessVisual?: HumanBusinessVisualConfig | null;
+}) {
+  const composition = media?.composition;
+  const human = media?.human;
+  const threeD = media?.threeD || image;
+  const large =
+    variant === "spotlight" ||
+    composition === "human-product" ||
+    composition === "human-handoff";
+
+  if (composition === "human-product" && businessVisual) {
+    return (
+      <div
+        className={cn(
+          "border-b p-3 sm:p-4",
+          dark ? "border-white/10" : "border-line",
+        )}
+      >
+        <HumanBusinessVisual
+          config={businessVisual}
+          variant="spotlight"
+          decorative
+          className={cn(
+            "human-business-surface w-full",
+            large
+              ? "aspect-[16/10] sm:aspect-[16/9]"
+              : "h-40 sm:h-48",
+          )}
+          sizes="(max-width: 768px) 100vw, 520px"
+        />
+      </div>
+    );
+  }
+
+  if (
+    (composition === "human-product" ||
+      composition === "human-3d" ||
+      composition === "human-handoff") &&
+    human
+  ) {
+    return (
+      <div
+        className={cn(
+          "border-b p-3 sm:p-4",
+          dark ? "border-white/10" : "border-line",
+        )}
+      >
+        <HumanProductVisual
+          human={human}
+          threeD={
+            composition === "human-product" || composition === "human-3d"
+              ? threeD
+              : composition === "human-handoff"
+                ? threeD
+                : undefined
+          }
+          variant={
+            composition === "human-handoff"
+              ? "handoff"
+              : composition === "human-3d"
+                ? "overlay"
+                : "overlay"
+          }
+          decorative
+          className={cn(
+            "human-product-surface w-full",
+            large
+              ? "aspect-[16/10] sm:aspect-[16/9]"
+              : "h-40 sm:h-48",
+          )}
+          sizes="(max-width: 768px) 100vw, 520px"
+        />
+      </div>
+    );
+  }
+
+  if (threeD) {
+    return (
+      <div
+        className={cn(
+          "border-b p-3 sm:p-4",
+          dark ? "border-white/10" : "border-line",
+        )}
+      >
+        <Marketing3DVisual
+          asset={threeD}
+          float={variant === "spotlight"}
+          decorative
+          className={cn(
+            "marketing-3d-surface w-full",
+            large
+              ? "aspect-[16/10] sm:aspect-[16/9]"
+              : "h-40 sm:h-48",
+          )}
+          sizes="(max-width: 768px) 100vw, 520px"
+        />
+      </div>
+    );
+  }
+
+  return null;
+}
+
 /** Compact product-flow visual for alternating storytelling sections. */
 export function SectionFlowVisual({
   title,
@@ -338,10 +508,20 @@ export function SectionFlowVisual({
   steps,
   tone = "dark",
   variant = "flow",
+  image,
+  media,
+  businessVisual,
 }: SectionFlowVisualProps) {
   const dark = tone === "dark";
   const status = deriveStatus(steps);
   const meta = deriveMeta(steps);
+  const hasMediaBand = Boolean(
+    media?.human || media?.threeD || image || businessVisual,
+  );
+  const humanLed =
+    media?.composition === "human-product" ||
+    media?.composition === "human-3d" ||
+    media?.composition === "human-handoff";
 
   return (
     <div className="relative">
@@ -352,6 +532,14 @@ export function SectionFlowVisual({
         status={status}
         className="min-h-[20rem] sm:min-h-[24rem]"
       >
+        <MediaBand
+          media={media}
+          image={image}
+          variant={variant}
+          dark={dark}
+          businessVisual={businessVisual}
+        />
+
         <div className="p-4 sm:p-6">
           <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
             <p
@@ -375,10 +563,18 @@ export function SectionFlowVisual({
           </div>
 
           {variant === "spotlight" ? (
-            <SpotlightLayout steps={steps} dark={dark} />
+            hasMediaBand || humanLed ? (
+              <CompactStepStrip steps={steps} dark={dark} />
+            ) : (
+              <SpotlightLayout steps={steps} dark={dark} />
+            )
           ) : null}
           {variant === "stack" ? (
-            <StackLayout steps={steps} dark={dark} />
+            hasMediaBand || humanLed ? (
+              <CompactStepStrip steps={steps} dark={dark} />
+            ) : (
+              <StackLayout steps={steps} dark={dark} />
+            )
           ) : null}
           {variant === "handoff" ? (
             <HandoffLayout steps={steps} dark={dark} />
