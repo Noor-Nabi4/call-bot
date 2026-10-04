@@ -454,8 +454,21 @@ REDIS_PASSWORD=${REDIS_PASSWORD}
 #   ${REDIS_URL}
 EOF
 
+  # Docker bridge → host Postgres/Redis (UFW often drops this by default)
+  if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -qi "Status: active"; then
+    info "Allowing Docker bridge CIDRs to Postgres/Redis via ufw..."
+    ufw allow from 172.16.0.0/12 to any port "${PG_PORT}" proto tcp comment "callandflow-docker-pg" || true
+    ufw allow from 192.168.0.0/16 to any port "${PG_PORT}" proto tcp comment "callandflow-docker-pg" || true
+    ufw allow from 10.0.0.0/8 to any port "${PG_PORT}" proto tcp comment "callandflow-docker-pg" || true
+    ufw allow from 172.16.0.0/12 to any port "${REDIS_PORT}" proto tcp comment "callandflow-docker-redis" || true
+    ufw allow from 192.168.0.0/16 to any port "${REDIS_PORT}" proto tcp comment "callandflow-docker-redis" || true
+    ufw allow from 10.0.0.0/8 to any port "${REDIS_PORT}" proto tcp comment "callandflow-docker-redis" || true
+    # Prefer route through docker0 rather than public WAN
+    ufw reload || true
+  fi
+
   ok "Host PostgreSQL + Redis configured"
-  warn "Do not expose ports ${PG_PORT}/${REDIS_PORT} on the public firewall."
+  warn "Do not expose ports ${PG_PORT}/${REDIS_PORT} on the public internet (only Docker private ranges)."
 }
 
 write_env_files() {
@@ -719,6 +732,9 @@ EOF
 Example (ufw):
   ufw allow 80/tcp
   ufw allow 443/tcp
+  # Docker containers → host Postgres/Redis (required)
+  ufw allow from 172.16.0.0/12 to any port ${PG_PORT:-5432} proto tcp
+  ufw allow from 172.16.0.0/12 to any port ${REDIS_PORT:-6379} proto tcp
 EOF
   if [[ "${LIVEKIT_MODE}" == "selfhost" ]]; then
     cat <<EOF

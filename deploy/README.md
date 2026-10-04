@@ -52,6 +52,14 @@ Installer will:
 
 **Do not open publicly:** `5432` (Postgres), `6379` (Redis)
 
+**Required for host DB/Redis:** allow Docker private ranges → host ports (UFW often blocks this and causes `connection timeout expired` in the platform container):
+
+```bash
+ufw allow from 172.16.0.0/12 to any port 5432 proto tcp
+ufw allow from 172.16.0.0/12 to any port 6379 proto tcp
+ufw reload
+```
+
 ## What it asks
 
 | Prompt | Purpose |
