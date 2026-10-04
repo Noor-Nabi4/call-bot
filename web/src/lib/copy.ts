@@ -278,10 +278,10 @@ export const footer = {
       title: "Solutions",
       links: [
         { label: "Industries", href: "/industries" },
+        { label: "Use Cases", href: "/use-cases" },
         { label: "Home Services", href: "/industries/home-services" },
         { label: "Appointment Booking", href: "/use-cases/appointment-booking" },
-        { label: "Lead Qualification", href: "/use-cases/lead-qualification" },
-        { label: "Customer Support", href: "/use-cases/customer-support" },
+        { label: "Call Answering", href: "/use-cases/call-answering" },
       ],
     },
     {

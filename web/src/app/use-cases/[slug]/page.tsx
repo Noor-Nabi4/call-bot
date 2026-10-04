@@ -86,6 +86,7 @@ export default async function UseCasePage({ params }: PageProps) {
       <JsonLd
         data={buildBreadcrumbJsonLd([
           { name: "Home", path: "/" },
+          { name: "Use Cases", path: "/use-cases" },
           { name: useCase.name, path },
         ])}
       />
@@ -98,7 +99,7 @@ export default async function UseCasePage({ params }: PageProps) {
           supporting={useCase.supporting}
           breadcrumbs={[
             { label: "Home", href: "/" },
-            { label: "Use cases" },
+            { label: "Use cases", href: "/use-cases" },
             { label: useCase.name },
           ]}
           secondaryCta={{ href: "/ai-voice-agents", label: "AI Voice Agents" }}

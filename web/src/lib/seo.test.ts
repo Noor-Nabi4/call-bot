@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { blogPosts } from "./marketing/blog.ts";
 import { industryPages } from "./marketing/industries.ts";
+import {
+  aiReceptionistPage,
+  aiVoiceAgentsPage,
+} from "./marketing/product-pages.ts";
 import { PUBLIC_MARKETING_ROUTES, ROBOTS_DISALLOW } from "./marketing/routes.ts";
-import { useCasePages } from "./marketing/use-cases.ts";
+import { useCasePages, useCasesHub } from "./marketing/use-cases.ts";
 import {
   industryStories,
   useCaseStories,
@@ -32,6 +37,15 @@ import {
 import { industryVisuals, useCaseVisuals } from "./marketing/visuals.ts";
 import { absoluteUrl, getSiteUrl } from "./seo.ts";
 
+function assertUniqueStrings(values: string[], label: string) {
+  const seen = new Set<string>();
+  for (const value of values) {
+    assert.ok(value.trim().length > 0, `${label} must be non-empty`);
+    assert.ok(!seen.has(value), `duplicate ${label}: ${value}`);
+    seen.add(value);
+  }
+}
+
 test("getSiteUrl and absoluteUrl normalize the canonical origin", () => {
   process.env.NEXT_PUBLIC_SITE_URL = "https://callandflow.com/";
   assert.equal(getSiteUrl(), "https://callandflow.com");
@@ -41,14 +55,155 @@ test("getSiteUrl and absoluteUrl normalize the canonical origin", () => {
 
 test("marketing route registries cover commercial SEO pages", () => {
   const paths = PUBLIC_MARKETING_ROUTES.map((route) => route.path);
+  assert.ok(paths.includes("/"));
   assert.ok(paths.includes("/ai-receptionist"));
   assert.ok(paths.includes("/ai-voice-agents"));
   assert.ok(paths.includes("/pricing"));
   assert.ok(paths.includes("/industries"));
+  assert.ok(paths.includes("/use-cases"));
+  assert.ok(paths.includes("/blog"));
   assert.equal(industryPages.length, 12);
   assert.equal(useCasePages.length, 5);
+  assert.ok(blogPosts.length >= 7);
   assert.ok(ROBOTS_DISALLOW.includes("/dashboard"));
   assert.ok(ROBOTS_DISALLOW.includes("/api/"));
+});
+
+test("robots disallow does not block public marketing paths", () => {
+  const publicPaths = [
+    "/",
+    "/ai-receptionist",
+    "/ai-voice-agents",
+    "/pricing",
+    "/industries",
+    "/industries/hvac",
+    "/use-cases",
+    "/use-cases/call-answering",
+    "/blog",
+    "/blog/what-is-an-ai-receptionist",
+    "/signup",
+  ];
+  for (const path of publicPaths) {
+    for (const rule of ROBOTS_DISALLOW) {
+      assert.ok(
+        path !== rule && !path.startsWith(rule.replace(/\/$/, "")),
+        `robots disallow ${rule} must not block ${path}`,
+      );
+    }
+  }
+});
+
+test("sitemap sources include hubs, landers, pricing, blog, and posts", () => {
+  const paths = new Set(PUBLIC_MARKETING_ROUTES.map((route) => route.path));
+  for (const required of [
+    "/",
+    "/ai-receptionist",
+    "/ai-voice-agents",
+    "/pricing",
+    "/industries",
+    "/use-cases",
+    "/blog",
+  ]) {
+    assert.ok(paths.has(required), `missing sitemap static route ${required}`);
+  }
+  assert.equal(industryPages.length, 12);
+  assert.equal(useCasePages.length, 5);
+  assert.ok(blogPosts.every((post) => post.slug.length > 0));
+});
+
+test("industry and use-case pages have unique titles, descriptions, and H1s", () => {
+  assertUniqueStrings(
+    industryPages.map((page) => page.title),
+    "industry title",
+  );
+  assertUniqueStrings(
+    industryPages.map((page) => page.description),
+    "industry description",
+  );
+  assertUniqueStrings(
+    industryPages.map((page) => page.h1),
+    "industry h1",
+  );
+  assertUniqueStrings(
+    useCasePages.map((page) => page.title),
+    "use-case title",
+  );
+  assertUniqueStrings(
+    useCasePages.map((page) => page.description),
+    "use-case description",
+  );
+  assertUniqueStrings(
+    useCasePages.map((page) => page.h1),
+    "use-case h1",
+  );
+});
+
+test("product, industry, use-case, and blog entries have required SEO fields", () => {
+  for (const page of [aiReceptionistPage, aiVoiceAgentsPage]) {
+    assert.ok(page.path.startsWith("/"));
+    assert.ok(page.title.length > 20);
+    assert.ok(page.description.length > 40);
+    assert.ok(page.h1.length > 10);
+    assert.ok(page.keywords.length >= 3);
+  }
+
+  assert.ok(useCasesHub.title.length > 10);
+  assert.ok(useCasesHub.description.length > 40);
+  assert.ok(useCasesHub.h1.length > 5);
+
+  for (const page of industryPages) {
+    assert.ok(page.slug.length > 0);
+    assert.ok(page.title.length > 10);
+    assert.ok(page.description.length > 40);
+    assert.ok(page.h1.length > 10);
+    assert.ok(page.keywords.length >= 2);
+    assert.ok(page.faqs.length >= 2);
+    assert.ok(page.relatedSlugs.length >= 1);
+    assert.ok(page.useCaseHrefs.length >= 1);
+    for (const href of page.useCaseHrefs) {
+      assert.ok(href.startsWith("/use-cases/"));
+    }
+  }
+
+  for (const page of useCasePages) {
+    assert.ok(page.slug.length > 0);
+    assert.ok(page.title.length > 10);
+    assert.ok(page.description.length > 40);
+    assert.ok(page.h1.length > 10);
+    assert.ok(page.keywords.length >= 2);
+    assert.ok(page.faqs.length >= 2);
+    assert.ok(page.relatedIndustries.length >= 1);
+    assert.ok(page.relatedUseCases.length >= 1);
+  }
+
+  assertUniqueStrings(
+    blogPosts.map((post) => post.slug),
+    "blog slug",
+  );
+  assertUniqueStrings(
+    blogPosts.map((post) => post.title),
+    "blog title",
+  );
+  for (const post of blogPosts) {
+    assert.ok(post.description.length > 40);
+    assert.ok(post.sections.length >= 3);
+    assert.ok(post.publishedAt.length > 0);
+    assert.ok(post.updatedAt.length > 0);
+    assert.ok((post.relatedLinks?.length ?? 0) >= 1);
+    for (const link of post.relatedLinks ?? []) {
+      assert.ok(link.href.startsWith("/"));
+      assert.ok(!link.href.startsWith("//"));
+    }
+  }
+});
+
+test("pillar and use-case intents stay differentiated", () => {
+  assert.notEqual(aiReceptionistPage.title, useCasePages.find((p) => p.slug === "call-answering")?.title);
+  assert.notEqual(aiReceptionistPage.h1, useCasePages.find((p) => p.slug === "call-answering")?.h1);
+  assert.notEqual(aiVoiceAgentsPage.title, useCasePages.find((p) => p.slug === "sales-calls")?.title);
+  assert.notEqual(aiVoiceAgentsPage.h1, useCasePages.find((p) => p.slug === "sales-calls")?.h1);
+  assert.notEqual(useCasesHub.title, useCasePages[0]?.title);
+  assert.ok(useCasesHub.h1.toLowerCase().includes("use case"));
 });
 
 test("every industry and use-case page has a unique visual config", () => {

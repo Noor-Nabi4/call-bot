@@ -40,53 +40,53 @@ function threeD(src: string, alt: string): StoryMediaAsset {
 const d3 = {
   aiVoiceAgent: threeD(
     "/images/3d/core/ai-voice-agent.jpg",
-    "Premium 3D illustration of an AI voice agent interface",
+    "AI voice agent interface with a teal waveform and glass microphone",
   ),
   incomingCall: threeD(
     "/images/3d/core/incoming-call.jpg",
-    "Premium 3D illustration of an incoming business phone call",
+    "Incoming business phone call with a soft connection waveform",
   ),
   aiReceptionist: threeD(
     "/images/3d/core/ai-receptionist.jpg",
-    "Premium 3D illustration of an AI receptionist console",
+    "AI receptionist console with phone, calendar, and voice waveform",
   ),
   appointmentBooking: threeD(
     "/images/3d/core/appointment-booking.jpg",
-    "Premium 3D illustration of appointment booking",
+    "Appointment booking with a calendar, clock, and voice waveform",
   ),
   leadQualification: threeD(
     "/images/3d/core/lead-qualification.jpg",
-    "Premium 3D illustration of lead qualification",
+    "Lead qualification stages flowing into a CRM-style contact card",
   ),
   customerSupport: threeD(
     "/images/3d/core/customer-support.jpg",
-    "Premium 3D illustration of AI customer support",
+    "AI customer support with knowledge layers and a voice interface",
   ),
   salesCalls: threeD(
     "/images/3d/core/sales-calls.jpg",
-    "Premium 3D illustration of inbound sales calls",
+    "Inbound sales calls connected to a CRM-style pipeline",
   ),
   humanHandoff: threeD(
     "/images/3d/core/human-handoff.jpg",
-    "Premium 3D illustration of AI-to-human call handoff",
+    "AI voice node transferring a call to a human operator console",
   ),
   crmIntegration: threeD(
     "/images/3d/core/crm-integration.jpg",
-    "Premium 3D illustration of CRM integration",
+    "AI voice interaction connected to a CRM contact record",
   ),
   knowledgeBase: threeD(
     "/images/3d/core/knowledge-base.jpg",
-    "Premium 3D illustration of knowledge flowing into voice AI",
+    "Knowledge documents flowing into an AI voice agent",
   ),
   industry: (slug: string) =>
     threeD(
       `/images/3d/industries/${slug}.jpg`,
-      `Premium 3D illustration for ${slug.replace(/-/g, " ")} workflows`,
+      `${slug.replace(/-/g, " ")} workflow with call and business-action context`,
     ),
   useCase: (slug: string) =>
     threeD(
       `/images/3d/use-cases/${slug}.jpg`,
-      `Premium 3D illustration for ${slug.replace(/-/g, " ")}`,
+      `${slug.replace(/-/g, " ")} workflow with call and outcome context`,
     ),
 } as const;
 

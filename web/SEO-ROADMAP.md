@@ -33,6 +33,20 @@ Prioritize commercial intent. Publish only pages that map to real Call & Flow ca
 | AI sales calls | inbound sales voice AI | `/use-cases/sales-calls` | commercial | use case | lead qualification |
 | what is an AI receptionist | AI receptionist vs answering service | `/blog/what-is-an-ai-receptionist` | informational | article | receptionist, pricing |
 | AI voice agents vs chatbots | phone vs chatbot for service businesses | `/blog/ai-voice-agents-vs-chatbots` | informational | article | voice agents, call answering |
+| AI voice agent use cases | business phone use cases | `/use-cases` | commercial | hub | five use-case landers, receptionist, voice agents |
+| AI receptionist vs traditional answering service | virtual vs live answering | `/blog/ai-receptionist-vs-traditional-answering-service` | commercial/info | article | receptionist, call answering, pricing |
+| how much does an AI receptionist cost | AI receptionist pricing guide | `/blog/how-much-does-an-ai-receptionist-cost` | commercial | article | pricing, receptionist |
+| AI answering service for HVAC | HVAC phone answering AI | `/blog/ai-answering-service-for-hvac-companies` | commercial/info | article | HVAC lander, receptionist, call answering |
+| AI receptionist for dental offices | dental front desk phone AI | `/blog/ai-receptionist-for-dental-offices` | commercial/info | article | dental lander, booking, receptionist |
+| how AI appointment booking works | phone scheduling AI | `/blog/how-ai-appointment-booking-works` | informational | article | appointment booking, dental, HVAC |
+
+## Linking & schema notes (post-refinement)
+
+- Hub pattern: `/industries` and `/use-cases` share the same landing architecture (metadata, breadcrumbs, cards, RelatedLinks/CTA, WebPage schema).
+- Industry/use-case landers remain conversion pages; blog posts support them with outbound commercial links via `relatedLinks`.
+- FAQ schema only where FAQ content is visible on the page.
+- No Review / AggregateRating schema until legitimate reviews exist.
+- Sitemap coverage comes from `PUBLIC_MARKETING_ROUTES` + industry/use-case/blog registries only.
 
 ## Next keyword targets (P1)
 
@@ -40,14 +54,12 @@ Prioritize commercial intent. Publish only pages that map to real Call & Flow ca
 |---|---|---|---|---|---|---|
 | after hours answering service AI | 24/7 AI receptionist | `/use-cases/call-answering` (expand section) or `/blog/after-hours-ai-answering` | commercial | article/use case | P1 | home services, restaurants |
 | AI phone answering for small business | small business virtual receptionist | `/ai-receptionist` (expand) | commercial | product | P1 | pricing, home services |
-| AI answering service vs live answering service | virtual vs traditional | `/blog/ai-vs-traditional-answering-service` | commercial/info | article | P1 | receptionist, pricing |
 | emergency call answering AI | after hours emergency intake | `/blog/emergency-call-intake-ai` | commercial | article | P1 | HVAC, plumbing |
 | AI receptionist for med spas | beauty clinic phone AI | `/industries/med-spas` (new if product fit) | commercial | industry | P1 | healthcare, booking |
 | AI receptionist for veterinary clinics | vet clinic phone AI | `/industries/veterinary` | commercial | industry | P1 | healthcare, booking |
 | AI receptionist for auto repair | shop phone answering | `/industries/auto-repair` | commercial | industry | P1 | home services pattern |
 | AI voice agent for property management | resident phone line AI | `/industries/property-management` | commercial | industry | P1 | real estate, support |
 | Google Business Profile missed calls AI | GBP call answering | `/blog/capture-google-business-calls` | commercial | article | P1 | call answering, pricing |
-| how much does an AI receptionist cost | AI receptionist cost breakdown | `/pricing` + `/blog/ai-receptionist-cost` | commercial | article | P1 | pricing FAQ |
 | AI appointment scheduling software phone | voice scheduling | `/use-cases/appointment-booking` | commercial | use case | P1 | dental, clinics |
 | AI demo booking phone agent | book demos by phone | `/use-cases/sales-calls` | commercial | use case | P1 | voice agents |
 | human handoff voice AI | warm transfer AI phone | `/blog/human-handoff-for-voice-ai` | informational | article | P1 | receptionist, support |

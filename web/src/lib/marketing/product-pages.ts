@@ -140,7 +140,7 @@ export const aiVoiceAgentsPage = {
   h1: "AI Voice Agents for Business Phone Automation",
   eyebrow: "AI voice agents",
   supporting:
-    "Deploy AI phone agents that answer, qualify, book, support, and escalate — on one multi-tenant platform built for service businesses and call centers.",
+    "Deploy AI phone agents that answer, qualify, book, support, and escalate — on one multi-tenant platform built for service businesses and call centers. Start from industry templates, then specialize into receptionist, support, or inbound sales workflows.",
   keywords: [
     "AI voice agents",
     "AI voice agent platform",

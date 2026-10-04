@@ -56,6 +56,7 @@ const navGroups: readonly NavGroup[] = [
       { href: "/use-cases/customer-support", label: "Customer Support" },
       { href: "/use-cases/call-answering", label: "Call Answering" },
       { href: "/use-cases/sales-calls", label: "Sales Calls" },
+      { href: "/use-cases", label: "All use cases" },
     ],
   },
   { label: "Pricing", href: "/pricing" },

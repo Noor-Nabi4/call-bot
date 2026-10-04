@@ -315,12 +315,35 @@ export const blogCovers: Record<
 > = {
   "what-is-an-ai-receptionist": {
     theme: "receptionist",
-    alt: "Abstract product visual representing an AI receptionist answering a business phone call",
+    alt: "Product frame showing an AI receptionist call flow from incoming call to booking or transfer",
   },
   "ai-voice-agents-vs-chatbots": {
     src: "/images/hero/ai-voice-ops.jpg",
     theme: "waveform",
     alt: "Laptop displaying a teal voice waveform beside a business phone and headset in a modern office",
+  },
+  "ai-receptionist-vs-traditional-answering-service": {
+    theme: "receptionist",
+    alt: "Product frame comparing an AI receptionist workflow with call steps for greeting, booking, and handoff",
+  },
+  "how-much-does-an-ai-receptionist-cost": {
+    theme: "platform",
+    alt: "Product frame illustrating plan metering concepts for voice minutes and concurrent calls",
+  },
+  "ai-answering-service-for-hvac-companies": {
+    src: "/images/human/business/industries/hvac.jpg",
+    theme: "waveform",
+    alt: "HVAC dispatcher handling an inbound service call with AI receptionist and technician scheduling overlays",
+  },
+  "ai-receptionist-for-dental-offices": {
+    src: "/images/human/business/industries/dental.jpg",
+    theme: "receptionist",
+    alt: "Dental receptionist answering a patient call with AI receptionist and appointment confirmation overlays",
+  },
+  "how-ai-appointment-booking-works": {
+    src: "/images/use-cases/appointment-calendar.jpg",
+    theme: "platform",
+    alt: "Workspace with a digital calendar on a laptop for appointment scheduling",
   },
 };
 
@@ -347,7 +370,7 @@ export const mediaAssets = {
     src: "/images/industries/industry-hub.jpg",
     width: 1600,
     height: 1066,
-    alt: "Professional operations workspace representing industry-ready AI phone workflows",
+    alt: "Modern operations desk with monitors and a business phone used for industry phone workflows",
   },
 } as const;
 

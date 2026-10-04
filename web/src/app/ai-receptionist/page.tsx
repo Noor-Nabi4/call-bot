@@ -31,11 +31,26 @@ export const metadata = buildPageMetadata({
   keywords: page.keywords,
 });
 
+const FEATURED_INDUSTRY_SLUGS = [
+  "hvac",
+  "plumbing",
+  "dental",
+  "healthcare",
+  "legal",
+  "real-estate",
+  "home-services",
+  "restaurants",
+  "insurance",
+] as const;
+
 export default function AiReceptionistPage() {
   const crumbs = [
     { name: "Home", path: "/" },
     { name: "AI Receptionist", path: page.path },
   ];
+  const featuredIndustries = FEATURED_INDUSTRY_SLUGS.map((slug) =>
+    industryPages.find((industry) => industry.slug === slug),
+  ).filter((item): item is (typeof industryPages)[number] => Boolean(item));
 
   return (
     <>
@@ -118,7 +133,7 @@ export default function AiReceptionistPage() {
               />
             </Reveal>
             <ul className="mt-8 m-0 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
-              {industryPages.slice(0, 6).map((industry) => (
+              {featuredIndustries.map((industry) => (
                 <li key={industry.slug}>
                   <Link
                     href={`/industries/${industry.slug}`}
@@ -176,12 +191,27 @@ export default function AiReceptionistPage() {
             {
               href: "/use-cases/call-answering",
               label: "AI call answering",
-              description: "Always-on coverage for busy business lines.",
+              description: "Always-on coverage when lines overflow.",
             },
             {
               href: "/use-cases/appointment-booking",
               label: "Appointment booking",
               description: "Book visits while the caller is still on the line.",
+            },
+            {
+              href: "/use-cases/lead-qualification",
+              label: "Lead qualification",
+              description: "Capture discovery answers before sales follows up.",
+            },
+            {
+              href: "/use-cases/customer-support",
+              label: "Customer support",
+              description: "Grounded FAQ answers with human escalation.",
+            },
+            {
+              href: "/use-cases",
+              label: "All use cases",
+              description: "Browse booking, support, sales, and answering workflows.",
             },
             {
               href: "/pricing",

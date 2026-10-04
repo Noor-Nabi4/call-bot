@@ -100,7 +100,7 @@ export const industryBusinessVisuals: Record<string, HumanBusinessVisualConfig> 
       ],
       threeDAsset: threeD(
         "/images/3d/industries/hvac.jpg",
-        "3D HVAC service scheduling depth visual",
+        "Illustration of HVAC service equipment with an incoming call and scheduling card",
       ),
       overlayCards: [
         {
@@ -147,7 +147,7 @@ export const industryBusinessVisuals: Record<string, HumanBusinessVisualConfig> 
       ],
       threeDAsset: threeD(
         "/images/3d/industries/plumbing.jpg",
-        "3D plumbing dispatch depth visual",
+        "Illustration of a plumbing emergency call with dispatch scheduling context",
       ),
       overlayCards: [
         {
@@ -194,7 +194,7 @@ export const industryBusinessVisuals: Record<string, HumanBusinessVisualConfig> 
       ],
       threeDAsset: threeD(
         "/images/3d/industries/roofing.jpg",
-        "3D roofing estimate lead depth visual",
+        "Illustration of a roofing estimate request with an inbound call and lead card",
       ),
       overlayCards: [
         {
@@ -241,7 +241,7 @@ export const industryBusinessVisuals: Record<string, HumanBusinessVisualConfig> 
       ],
       threeDAsset: threeD(
         "/images/3d/industries/electricians.jpg",
-        "3D electrician scheduling depth visual",
+        "Illustration of an electrical service request with call and appointment booking",
       ),
       overlayCards: [
         {
@@ -288,7 +288,7 @@ export const industryBusinessVisuals: Record<string, HumanBusinessVisualConfig> 
       ],
       threeDAsset: threeD(
         "/images/3d/industries/healthcare.jpg",
-        "3D healthcare booking depth visual",
+        "Illustration of a healthcare clinic booking workflow with a call and calendar card",
       ),
       overlayCards: [
         {
@@ -335,7 +335,7 @@ export const industryBusinessVisuals: Record<string, HumanBusinessVisualConfig> 
       ],
       threeDAsset: threeD(
         "/images/3d/industries/dental.jpg",
-        "3D dental appointment depth visual",
+        "Illustration of a dental appointment booking workflow with a call and calendar card",
       ),
       overlayCards: [
         {
@@ -382,7 +382,7 @@ export const industryBusinessVisuals: Record<string, HumanBusinessVisualConfig> 
       ],
       threeDAsset: threeD(
         "/images/3d/industries/legal.jpg",
-        "3D legal intake depth visual",
+        "Illustration of a legal intake workflow with an inbound call and qualification card",
       ),
       overlayCards: [
         {
@@ -429,7 +429,7 @@ export const industryBusinessVisuals: Record<string, HumanBusinessVisualConfig> 
       ],
       threeDAsset: threeD(
         "/images/3d/industries/real-estate.jpg",
-        "3D real estate lead depth visual",
+        "Illustration of a real estate inquiry with a call and property lead card",
       ),
       overlayCards: [
         {
@@ -476,7 +476,7 @@ export const industryBusinessVisuals: Record<string, HumanBusinessVisualConfig> 
       ],
       threeDAsset: threeD(
         "/images/3d/industries/restaurants.jpg",
-        "3D restaurant reservation depth visual",
+        "Illustration of a restaurant reservation call with table availability context",
       ),
       overlayCards: [
         {
@@ -523,7 +523,7 @@ export const industryBusinessVisuals: Record<string, HumanBusinessVisualConfig> 
       ],
       threeDAsset: threeD(
         "/images/3d/industries/insurance.jpg",
-        "3D insurance intake depth visual",
+        "Illustration of an insurance inquiry with a call and intake card",
       ),
       overlayCards: [
         {
@@ -570,7 +570,7 @@ export const industryBusinessVisuals: Record<string, HumanBusinessVisualConfig> 
       ],
       threeDAsset: threeD(
         "/images/3d/industries/home-services.jpg",
-        "3D home services dispatch depth visual",
+        "Illustration of a home-services request with a call and technician scheduling card",
       ),
       overlayCards: [
         {
@@ -618,7 +618,7 @@ export const industryBusinessVisuals: Record<string, HumanBusinessVisualConfig> 
       ],
       threeDAsset: threeD(
         "/images/3d/industries/call-centers.jpg",
-        "3D call center routing depth visual",
+        "Illustration of call-center routing with AI voice handling and human escalation",
       ),
       overlayCards: [
         {
@@ -669,7 +669,7 @@ export const useCaseBusinessVisuals: Record<string, HumanBusinessVisualConfig> =
       ],
       threeDAsset: threeD(
         "/images/3d/use-cases/appointment-booking.jpg",
-        "3D appointment booking depth visual",
+        "Illustration of appointment booking with a calendar, clock, and voice waveform",
       ),
       overlayCards: [
         {
@@ -717,7 +717,7 @@ export const useCaseBusinessVisuals: Record<string, HumanBusinessVisualConfig> =
       ],
       threeDAsset: threeD(
         "/images/3d/use-cases/lead-qualification.jpg",
-        "3D lead qualification depth visual",
+        "Illustration of lead qualification stages flowing into a contact card",
       ),
       overlayCards: [
         {
@@ -765,7 +765,7 @@ export const useCaseBusinessVisuals: Record<string, HumanBusinessVisualConfig> =
       ],
       threeDAsset: threeD(
         "/images/3d/use-cases/customer-support.jpg",
-        "3D customer support depth visual",
+        "Illustration of AI customer support with knowledge layers and a voice interface",
       ),
       overlayCards: [
         {
@@ -812,7 +812,7 @@ export const useCaseBusinessVisuals: Record<string, HumanBusinessVisualConfig> =
       ],
       threeDAsset: threeD(
         "/images/3d/use-cases/call-answering.jpg",
-        "3D call answering depth visual",
+        "Illustration of an incoming business phone call with a soft connection waveform",
       ),
       overlayCards: [
         {
@@ -859,7 +859,7 @@ export const useCaseBusinessVisuals: Record<string, HumanBusinessVisualConfig> =
       ],
       threeDAsset: threeD(
         "/images/3d/use-cases/sales-calls.jpg",
-        "3D sales calls depth visual",
+        "Illustration of inbound sales calls connected to a CRM-style pipeline",
       ),
       overlayCards: [
         {

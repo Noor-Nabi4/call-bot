@@ -18,15 +18,24 @@ export type UseCasePage = {
   keywords: readonly string[];
 };
 
+export const useCasesHub = {
+  title: "AI Voice Agent Use Cases for Business Phone Calls",
+  description:
+    "Explore Call & Flow AI voice-agent use cases: appointment booking, lead qualification, customer support, call answering, and inbound sales calls.",
+  h1: "AI Voice Agent Use Cases",
+  supporting:
+    "Different calls need different outcomes. Start from the workflow your business cares about most — booking, qualification, support, always-on answering, or inbound sales — then connect it to your industry template and handoff rules.",
+} as const;
+
 export const useCasePages: readonly UseCasePage[] = [
   {
     slug: "appointment-booking",
     name: "Appointment Booking",
     navLabel: "Appointment Booking",
-    title: "AI Appointment Booking for Business Phone Calls",
+    title: "AI Appointment Booking by Phone",
     description:
-      "AI appointment booking that offers real availability, confirms caller details, and schedules visits during inbound business phone calls.",
-    h1: "AI Appointment Booking on Every Call",
+      "AI appointment booking by phone that offers real availability, confirms caller details, and schedules visits during inbound business calls.",
+    h1: "AI Appointment Booking by Phone",
     eyebrow: "Use case",
     supporting:
       "Stop promising callbacks for scheduling. Call & Flow checks availability, confirms the details that matter, and books appointments your team can trust.",
@@ -105,10 +114,10 @@ export const useCasePages: readonly UseCasePage[] = [
     slug: "lead-qualification",
     name: "Lead Qualification",
     navLabel: "Lead Qualification",
-    title: "AI Lead Qualification for Inbound Phone Calls",
+    title: "AI Lead Qualification by Phone",
     description:
-      "AI lead qualification that asks discovery questions, captures contact details, and routes sales-ready callers to your team.",
-    h1: "AI Lead Qualification While Interest Is High",
+      "AI lead qualification by phone that asks discovery questions, captures contact details, and routes sales-ready callers to your team while interest is high.",
+    h1: "AI Lead Qualification by Phone",
     eyebrow: "Use case",
     supporting:
       "Every inbound marketing dollar depends on speed-to-lead. Call & Flow asks your discovery questions, scores fit based on your rules, and books the next conversation.",
@@ -187,10 +196,10 @@ export const useCasePages: readonly UseCasePage[] = [
     slug: "customer-support",
     name: "Customer Support",
     navLabel: "Customer Support",
-    title: "AI Customer Support Voice Agents",
+    title: "AI Customer Support Voice Agent",
     description:
-      "AI customer support agents that answer FAQs from your knowledge base, open follow-ups, and escalate account issues to humans.",
-    h1: "AI Customer Support That Stays Grounded",
+      "AI customer support voice agent that answers FAQs from your knowledge base, opens follow-ups, and escalates account issues to humans with context.",
+    h1: "AI Customer Support Voice Agent",
     eyebrow: "Use case",
     supporting:
       "Support queues fill with questions you have already documented. Call & Flow answers from your knowledge base, creates follow-ups when needed, and escalates account issues cleanly.",
@@ -260,9 +269,9 @@ export const useCasePages: readonly UseCasePage[] = [
     relatedIndustries: ["call-centers", "insurance", "healthcare", "home-services"],
     relatedUseCases: ["call-answering", "appointment-booking", "sales-calls"],
     keywords: [
-      "AI customer support agent",
-      "AI customer service phone",
-      "knowledge base voice AI",
+      "AI customer support voice agent",
+      "AI voice customer service",
+      "AI phone customer support",
     ],
   },
   {
@@ -271,11 +280,11 @@ export const useCasePages: readonly UseCasePage[] = [
     navLabel: "Call Answering",
     title: "AI Call Answering Service for Businesses",
     description:
-      "AI call answering that greets callers in your brand voice, captures intent, books next steps, and covers after-hours business phone lines.",
-    h1: "AI Call Answering for Busy Business Phones",
+      "AI call answering service that covers overflow and after-hours rings, greets callers in your brand voice, captures intent, and routes the next business action.",
+    h1: "AI Call Answering When Your Team Cannot Pick Up",
     eyebrow: "Use case",
     supporting:
-      "Missed calls are missed revenue. Call & Flow answers every ring with an on-brand AI receptionist that can book, qualify, and escalate — including nights and weekends.",
+      "This workflow is about never missing the ring — lunch rushes, campaign spikes, and nights when nobody is free. Call & Flow answers, captures why they called, and completes the next step or queues a human follow-up.",
     problems: [
       {
         title: "Voicemail is a conversion dead end",
@@ -355,13 +364,13 @@ export const useCasePages: readonly UseCasePage[] = [
     slug: "sales-calls",
     name: "Sales Calls",
     navLabel: "Sales Calls",
-    title: "AI Sales Phone Agents for Inbound Opportunities",
+    title: "AI Sales Voice Agent for Inbound Phone Opportunities",
     description:
-      "AI sales phone agents that greet inbound opportunities, qualify interest, book demos or estimates, and hand off hot leads to closers.",
-    h1: "AI Sales Agents for Inbound Phone Opportunities",
+      "AI sales voice agent that greets inbound opportunities, runs discovery, books demos or estimates, and hands hot leads to closers with context.",
+    h1: "AI Sales Voice Agent for Inbound Opportunities",
     eyebrow: "Use case",
     supporting:
-      "Inbound interest is perishable. Call & Flow sales agents capture details, ask discovery questions, and book demos or estimates before the caller moves on.",
+      "Unlike a general voice-agent platform overview, this use case focuses on inbound sales moments: capture interest, ask the discovery questions your reps need, and book the next conversation before the caller moves on.",
     problems: [
       {
         title: "Inbound calls hit when reps are busy",
@@ -432,9 +441,10 @@ export const useCasePages: readonly UseCasePage[] = [
       "call-answering",
     ],
     keywords: [
-      "AI sales agent phone",
+      "AI sales voice agent",
       "AI sales calls",
       "inbound sales voice AI",
+      "AI phone sales automation",
     ],
   },
 ] as const;

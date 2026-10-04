@@ -152,10 +152,10 @@ export const industryPages: readonly IndustryPage[] = [
     name: "Plumbing",
     shortName: "plumbing companies",
     navLabel: "Plumbing",
-    title: "AI Receptionist for Plumbing Companies",
+    title: "AI Receptionist for Plumbers",
     description:
       "AI receptionist for plumbers that answers leak and clog calls, books service, qualifies emergencies, and covers the phones after hours.",
-    h1: "AI Receptionist for Plumbing Companies",
+    h1: "AI Receptionist for Plumbers",
     eyebrow: "Plumbing & drain",
     supporting:
       "Water does not wait for business hours. Call & Flow answers leak, clog, and water-heater calls, captures the address, and gets the right urgency in front of your team.",
@@ -479,10 +479,10 @@ export const industryPages: readonly IndustryPage[] = [
     name: "Healthcare",
     shortName: "healthcare clinics",
     navLabel: "Healthcare",
-    title: "AI Receptionist for Healthcare Clinics",
+    title: "AI Receptionist for Healthcare",
     description:
-      "AI receptionist for healthcare clinics that covers front-desk calls, helps with scheduling, answers non-clinical FAQs, and escalates urgent patient needs.",
-    h1: "AI Receptionist for Healthcare Clinics",
+      "AI receptionist for healthcare clinics that covers front-desk calls, helps with scheduling, answers non-clinical FAQs, and escalates urgent patient needs — without giving medical advice.",
+    h1: "AI Receptionist for Healthcare",
     eyebrow: "Healthcare & clinics",
     supporting:
       "Front desks are overloaded with scheduling, insurance questions, and routine FAQs. Call & Flow covers the phones for hours and booking — without inventing clinical advice.",
@@ -588,10 +588,10 @@ export const industryPages: readonly IndustryPage[] = [
     name: "Dental",
     shortName: "dental practices",
     navLabel: "Dental",
-    title: "AI Receptionist for Dental Practices",
+    title: "AI Receptionist for Dental Offices",
     description:
       "AI receptionist for dental offices that books cleanings and consults, answers insurance FAQs you approve, and reduces front-desk phone load.",
-    h1: "AI Receptionist for Dental Practices",
+    h1: "AI Receptionist for Dental Offices",
     eyebrow: "Dental practices",
     supporting:
       "Your front desk should greet patients in the lobby — not live on hold. Call & Flow books hygiene visits, captures new-patient details, and answers the questions you publish.",
@@ -687,9 +687,9 @@ export const industryPages: readonly IndustryPage[] = [
       "/use-cases/customer-support",
     ],
     keywords: [
-      "AI receptionist for dental",
-      "dental office answering service",
-      "AI phone agent dentist",
+      "AI receptionist for dental offices",
+      "AI dental receptionist",
+      "dental appointment booking AI",
     ],
   },
   {
@@ -915,10 +915,10 @@ export const industryPages: readonly IndustryPage[] = [
     name: "Restaurants",
     shortName: "restaurants",
     navLabel: "Restaurants",
-    title: "AI Receptionist for Restaurants",
+    title: "AI Phone Answering for Restaurants",
     description:
-      "AI receptionist for restaurants that answers hours and reservation questions, captures takeout details you allow, and keeps hosts focused on guests in the dining room.",
-    h1: "AI Receptionist for Restaurants",
+      "AI phone answering for restaurants that handles hours, reservation requests, and peak-time calls so hosts stay focused on guests in the dining room.",
+    h1: "AI Phone Answering for Restaurants",
     eyebrow: "Restaurants & hospitality",
     supporting:
       "During service, nobody should abandon a table to answer “are you open on Sundays?” Call & Flow handles hours, directions, and reservation requests so the floor stays calm.",
@@ -1014,9 +1014,9 @@ export const industryPages: readonly IndustryPage[] = [
       "/use-cases/customer-support",
     ],
     keywords: [
+      "AI phone answering for restaurants",
       "AI receptionist for restaurants",
-      "restaurant phone answering AI",
-      "AI reservation phone agent",
+      "restaurant reservation phone answering",
     ],
   },
   {
@@ -1136,7 +1136,7 @@ export const industryPages: readonly IndustryPage[] = [
     title: "AI Receptionist for Home Services",
     description:
       "AI receptionist for home service businesses that answers calls, books jobs, qualifies leads, and covers after-hours demand across trades.",
-    h1: "AI Receptionist for Home Service Businesses",
+    h1: "AI Receptionist for Home Services",
     eyebrow: "Home & field services",
     supporting:
       "Whether you run one trade or a multi-service brand, missed calls are missed jobs. Call & Flow answers, books, and qualifies so your field teams keep rolling.",

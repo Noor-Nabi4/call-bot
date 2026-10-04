@@ -131,9 +131,19 @@ export default function AiVoiceAgentsPage() {
               description: "See how different businesses configure voice agents.",
             },
             {
+              href: "/use-cases",
+              label: "Use cases",
+              description: "Booking, qualification, support, answering, and sales workflows.",
+            },
+            {
               href: "/use-cases/lead-qualification",
               label: "Lead qualification",
               description: "Capture and qualify inbound opportunities.",
+            },
+            {
+              href: "/blog",
+              label: "Resources",
+              description: "Guides on AI receptionists and voice agents.",
             },
             {
               href: "/pricing",

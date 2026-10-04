@@ -152,9 +152,16 @@ export default async function BlogPostPage({ params }: PageProps) {
           </div>
         </article>
 
+        {post.relatedLinks && post.relatedLinks.length > 0 ? (
+          <RelatedLinks
+            title="Related pages"
+            links={[...post.relatedLinks]}
+          />
+        ) : null}
+
         <RelatedLinks
           title="More resources"
-          links={otherPosts.map((item) => ({
+          links={otherPosts.slice(0, 4).map((item) => ({
             href: `/blog/${item.slug}`,
             label: item.title,
             description: item.description,
