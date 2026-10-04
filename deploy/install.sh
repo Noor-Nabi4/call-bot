@@ -134,12 +134,16 @@ banner() {
   cat <<'EOF'
 
 ╔══════════════════════════════════════════════════╗
-║     VoxPilot production installer                ║
-║     web + platform API + voice agent             ║
-║     (+ optional self-hosted LiveKit)             ║
+║     Call & Flow production installer             ║
+║     web + API + agent (+ optional LiveKit SFU)   ║
+║     Postgres + Redis: on HOST (not Docker)       ║
 ╚══════════════════════════════════════════════════╝
 
 EOF
+}
+
+urlencode() {
+  python3 -c 'import sys,urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$1"
 }
 
 load_answers_if_any() {
@@ -164,12 +168,19 @@ save_answers() {
 # Non-secret installer answers — safe-ish to keep on the server.
 # Secrets stay in platform|web|voice-agent/.env.production only.
 LIVEKIT_MODE=${LIVEKIT_MODE}
+LIVEKIT_MODE_CHOICE=${LIVEKIT_MODE_CHOICE:-}
 WEB_DOMAIN=${WEB_DOMAIN}
 API_DOMAIN=${API_DOMAIN}
 LIVEKIT_DOMAIN=${LIVEKIT_DOMAIN}
 LIVEKIT_URL=${LIVEKIT_URL}
 LIVEKIT_SIP_HOST=${LIVEKIT_SIP_HOST}
 AGENT_NAME=${AGENT_NAME}
+PG_DB=${PG_DB}
+PG_USER=${PG_USER}
+PG_PORT=${PG_PORT}
+REDIS_PORT=${REDIS_PORT}
+REDIS_HOST_FOR_CONTAINERS=${REDIS_HOST_FOR_CONTAINERS}
+SETUP_HOST_SERVICES=${SETUP_HOST_SERVICES}
 INSTALL_NGINX=${INSTALL_NGINX}
 INSTALL_CERTBOT=${INSTALL_CERTBOT}
 START_STACK=${START_STACK}
@@ -200,7 +211,7 @@ collect_inputs() {
   info ""
   info "=== LiveKit mode ==="
   log "  1) LiveKit Cloud  (agent can also run on this server)"
-  log "  2) Self-host LiveKit SFU on this server (redis + livekit container)"
+  log "  2) Self-host LiveKit SFU container (uses HOST Redis)"
   prompt LIVEKIT_MODE_CHOICE "Choose 1 or 2" "${LIVEKIT_MODE_CHOICE:-2}"
   case "${LIVEKIT_MODE_CHOICE}" in
     1) LIVEKIT_MODE="cloud" ;;
@@ -240,15 +251,24 @@ collect_inputs() {
   require_nonempty LIVEKIT_API_SECRET "${LIVEKIT_API_SECRET}"
 
   info ""
-  info "=== Database ==="
-  prompt DATABASE_URL "DATABASE_URL (postgresql+psycopg://user:pass@host:5432/db)" "${DATABASE_URL:-}"
-  require_nonempty DATABASE_URL "${DATABASE_URL}"
-  if [[ "${DATABASE_URL}" == *"localhost"* || "${DATABASE_URL}" == *"127.0.0.1"* ]]; then
-    warn "DATABASE_URL uses localhost — platform production check may reject it inside Docker."
-    warn "Use a reachable host (Docker network name, private IP, or managed DB)."
-    prompt_yn CONTINUE_LOCAL_DB "Continue anyway?" "n"
-    [[ "${CONTINUE_LOCAL_DB}" == "y" ]] || exit 1
-  fi
+  info "=== Postgres + Redis on HOST (not Docker) ==="
+  log "  App containers use host.docker.internal → this machine."
+  prompt_yn SETUP_HOST_SERVICES "Install/configure PostgreSQL + Redis on this host now?" "${SETUP_HOST_SERVICES:-y}"
+  prompt PG_DB "Postgres database name" "${PG_DB:-call_bot}"
+  prompt PG_USER "Postgres user" "${PG_USER:-callbot}"
+  prompt PG_PORT "Postgres port" "${PG_PORT:-5432}"
+  prompt_secret PG_PASSWORD "Postgres password (empty = auto)" auto
+  prompt REDIS_PORT "Redis port" "${REDIS_PORT:-6379}"
+  prompt_secret REDIS_PASSWORD "Redis password (empty = auto)" auto
+  REDIS_HOST_FOR_CONTAINERS="${REDIS_HOST_FOR_CONTAINERS:-host.docker.internal}"
+
+  HOST_GATEWAY_NAME="${REDIS_HOST_FOR_CONTAINERS}"
+  PG_PASSWORD_ENC="$(urlencode "${PG_PASSWORD}")"
+  REDIS_PASSWORD_ENC="$(urlencode "${REDIS_PASSWORD}")"
+  DATABASE_URL="postgresql+psycopg://${PG_USER}:${PG_PASSWORD_ENC}@${HOST_GATEWAY_NAME}:${PG_PORT}/${PG_DB}"
+  REDIS_URL="redis://:${REDIS_PASSWORD_ENC}@${HOST_GATEWAY_NAME}:${REDIS_PORT}/0"
+  ok "  DATABASE_URL → ${HOST_GATEWAY_NAME}:${PG_PORT}/${PG_DB}"
+  ok "  REDIS_URL → ${HOST_GATEWAY_NAME}:${REDIS_PORT}"
 
   info ""
   info "=== Shared secrets (empty = auto-generate) ==="
@@ -291,6 +311,7 @@ export_template_vars() {
   export WEB_DOMAIN API_DOMAIN LIVEKIT_DOMAIN LIVEKIT_MODE
   export LIVEKIT_URL LIVEKIT_API_KEY LIVEKIT_API_SECRET LIVEKIT_SIP_HOST
   export AGENT_NAME
+  export REDIS_HOST_FOR_CONTAINERS REDIS_PORT
 
   if [[ "${LIVEKIT_MODE}" == "selfhost" ]]; then
     LIVEKIT_SERVICE_BLOCK="$(cat <<EOF
@@ -300,12 +321,12 @@ export_template_vars() {
     command: ["--config", "/etc/livekit.yaml"]
     volumes:
       - ./deploy/generated/livekit/livekit.yaml:/etc/livekit.yaml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "7880:7880"
       - "7881:7881"
       - "50000-50100:50000-50100/udp"
-    depends_on:
-      - redis
     networks:
       - voxpilot
 EOF
@@ -319,6 +340,122 @@ EOF
     AGENT_LIVEKIT_DEPENDS=""
   fi
   export LIVEKIT_SERVICE_BLOCK AGENT_LIVEKIT_DEPENDS
+}
+
+setup_host_postgres_redis() {
+  [[ "${SETUP_HOST_SERVICES}" == "y" ]] || {
+    warn "Skipping host Postgres/Redis install — ensure they already listen for Docker clients."
+    return 0
+  }
+  if [[ "$(id -u)" -ne 0 ]]; then
+    err "Host Postgres/Redis setup needs root (sudo)."
+    exit 1
+  fi
+  if ! command -v apt-get >/dev/null 2>&1; then
+    err "apt-get required for automatic Postgres/Redis install"
+    exit 1
+  fi
+
+  if [[ ! "${PG_USER}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ || ! "${PG_DB}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+    err "PG_USER / PG_DB must be simple identifiers (letters, numbers, underscore)"
+    exit 1
+  fi
+
+  info "Installing PostgreSQL + Redis on host..."
+  apt-get update -qq
+  DEBIAN_FRONTEND=noninteractive apt-get install -y postgresql postgresql-contrib redis-server
+
+  systemctl enable --now postgresql redis-server
+
+  # Postgres: listen on all interfaces (firewall should not expose 5432 publicly)
+  local pg_conf
+  pg_conf="$(sudo -u postgres psql -tA -c "SHOW config_file;" | tr -d '[:space:]')"
+  if [[ -n "${pg_conf}" && -f "${pg_conf}" ]]; then
+    if grep -qE "^[# ]*listen_addresses" "${pg_conf}"; then
+      sed -i "s/^[# ]*listen_addresses.*/listen_addresses = '*'/" "${pg_conf}"
+    else
+      echo "listen_addresses = '*'" >> "${pg_conf}"
+    fi
+  fi
+
+  local hba
+  hba="$(sudo -u postgres psql -tA -c "SHOW hba_file;" | tr -d '[:space:]')"
+  if [[ -n "${hba}" && -f "${hba}" ]]; then
+    if ! grep -q "callandflow-docker" "${hba}"; then
+      cat >> "${hba}" <<EOF
+
+# callandflow-docker — allow Docker bridge / private ranges
+host    ${PG_DB}    ${PG_USER}    172.16.0.0/12    scram-sha-256
+host    ${PG_DB}    ${PG_USER}    192.168.0.0/16   scram-sha-256
+host    ${PG_DB}    ${PG_USER}    10.0.0.0/8       scram-sha-256
+EOF
+    fi
+  fi
+
+  local pg_pass_sql
+  pg_pass_sql="$(python3 -c 'import sys; print(sys.argv[1].replace("'"'"'", "''"))' "${PG_PASSWORD}")"
+  sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
+DO \$\$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${PG_USER}') THEN
+    CREATE ROLE ${PG_USER} LOGIN PASSWORD '${pg_pass_sql}';
+  ELSE
+    ALTER ROLE ${PG_USER} WITH LOGIN PASSWORD '${pg_pass_sql}';
+  END IF;
+END
+\$\$;
+SQL
+  if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='${PG_DB}'" | grep -q 1; then
+    sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${PG_DB} OWNER ${PG_USER}"
+  fi
+  sudo -u postgres psql -v ON_ERROR_STOP=1 -c "GRANT ALL PRIVILEGES ON DATABASE ${PG_DB} TO ${PG_USER}"
+
+  systemctl restart postgresql
+
+  # Redis: listen broadly but password-protected — do NOT open 6379 on public firewall
+  local redis_conf="/etc/redis/redis.conf"
+  if [[ ! -f "${redis_conf}" ]]; then
+    redis_conf="/etc/redis.conf"
+  fi
+  if [[ -f "${redis_conf}" ]]; then
+    if grep -qE "^bind " "${redis_conf}"; then
+      sed -i 's/^bind .*/bind 0.0.0.0 ::/' "${redis_conf}"
+    else
+      echo "bind 0.0.0.0 ::" >> "${redis_conf}"
+    fi
+    python3 - "${redis_conf}" "${REDIS_PASSWORD}" <<'PY'
+import pathlib, re, sys
+path, password = pathlib.Path(sys.argv[1]), sys.argv[2]
+text = path.read_text(encoding="utf-8")
+line = f"requirepass {password}"
+if re.search(r"^#?\s*requirepass\s+.*$", text, flags=re.M):
+    text = re.sub(r"^#?\s*requirepass\s+.*$", line, text, count=1, flags=re.M)
+else:
+    text += "\n" + line + "\n"
+path.write_text(text, encoding="utf-8")
+PY
+    sed -i 's/^supervised no/supervised systemd/' "${redis_conf}" || true
+  fi
+  systemctl restart redis-server
+
+  # Persist host credentials for ops (chmod 600) — not the container URLs
+  write_file "${OUT_DIR}/host-data.env" 600 <<EOF
+# Host Postgres / Redis (generated by deploy/install.sh)
+PG_HOST=127.0.0.1
+PG_PORT=${PG_PORT}
+PG_DB=${PG_DB}
+PG_USER=${PG_USER}
+PG_PASSWORD=${PG_PASSWORD}
+REDIS_HOST=127.0.0.1
+REDIS_PORT=${REDIS_PORT}
+REDIS_PASSWORD=${REDIS_PASSWORD}
+# From Docker containers use:
+#   ${DATABASE_URL}
+#   ${REDIS_URL}
+EOF
+
+  ok "Host PostgreSQL + Redis configured"
+  warn "Do not expose ports ${PG_PORT}/${REDIS_PORT} on the public firewall."
 }
 
 write_env_files() {
@@ -397,7 +534,7 @@ INACTIVITY_CHECK_INTERVAL_SEC=10
 MAX_SPOKEN_SENTENCES=2
 AGENT_PROFILE_TIMEOUT_SEC=5
 AGENT_PROFILE_CACHE_TTL_SEC=60
-REDIS_URL=redis://redis:6379/0
+REDIS_URL=${REDIS_URL}
 EOF
 
   ok "  platform/.env.production"
@@ -554,7 +691,6 @@ start_stack() {
   info "Building and starting stack (docker compose)..."
   cd "${REPO_ROOT}"
   export COMPOSE_BAKE=false
-  docker compose -f docker-compose.selfhost.yml pull redis || true
   if [[ "${LIVEKIT_MODE}" == "selfhost" ]]; then
     docker compose -f docker-compose.selfhost.yml pull livekit || true
   fi
@@ -602,6 +738,12 @@ Domains
   API:     https://${API_DOMAIN}
   LiveKit: ${LIVEKIT_URL}  (${LIVEKIT_MODE})
 
+Host data (not Docker)
+  Postgres: 127.0.0.1:${PG_PORT}/${PG_DB} (user ${PG_USER})
+  Redis:    127.0.0.1:${REDIS_PORT}
+  From containers: host.docker.internal
+  Creds file: deploy/generated/host-data.env
+
 Files
   platform/.env.production
   web/.env.production
@@ -638,6 +780,7 @@ main() {
   write_env_files
   write_nginx_and_compose
   save_answers
+  setup_host_postgres_redis
   install_nginx_sites
   issue_certs
   start_stack
