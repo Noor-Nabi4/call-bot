@@ -96,6 +96,17 @@ export default async function LandingPage() {
                 id="product-links-heading"
                 align="center"
               />
+              <p className="mx-auto mt-4 m-0 max-w-2xl text-center text-base leading-relaxed text-muted">
+                From booking and lead qualification to customer support and call
+                answering,{" "}
+                <Link
+                  href="/use-cases"
+                  className="font-medium text-teal underline-offset-4 hover:underline"
+                >
+                  explore AI voice-agent use cases
+                </Link>{" "}
+                businesses use to automate phone work.
+              </p>
             </Reveal>
             <ul className="mt-10 m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-4">
               {[
