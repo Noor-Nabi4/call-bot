@@ -13,8 +13,8 @@ RUN npm ci
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-ARG NEXT_PUBLIC_SITE_URL=https://voxpilot.techverseo.com
-ARG NEXT_PUBLIC_PLATFORM_API_URL=https://api.voxpilot.techverseo.com
+ARG NEXT_PUBLIC_SITE_URL=https://callandflow.com
+ARG NEXT_PUBLIC_PLATFORM_API_URL=https://api.callandflow.com
 ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
 ENV NEXT_PUBLIC_PLATFORM_API_URL=${NEXT_PUBLIC_PLATFORM_API_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -34,8 +34,8 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
-ENV NEXT_PUBLIC_SITE_URL=https://voxpilot.techverseo.com
-ENV NEXT_PUBLIC_PLATFORM_API_URL=https://api.voxpilot.techverseo.com
+ENV NEXT_PUBLIC_SITE_URL=https://callandflow.com
+ENV NEXT_PUBLIC_PLATFORM_API_URL=https://api.callandflow.com
 
 WORKDIR /app
 COPY --from=build --chown=appuser:appuser /app/public ./public

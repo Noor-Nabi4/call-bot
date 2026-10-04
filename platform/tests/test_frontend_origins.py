@@ -1,4 +1,4 @@
-"""Canonical public origins for VoxPilot production."""
+"""Canonical public origins for Call & Flow production."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from callbot_platform.config import Settings, missing_production_settings
 from callbot_platform.origins import (
     PROD_API_ORIGIN,
     PROD_WEB_ORIGIN,
+    PROD_WEB_WWW_ORIGIN,
     cors_allow_origins,
     session_cookie_params,
 )
@@ -35,8 +36,9 @@ def test_unified_frontend_url_defaults() -> None:
 
 
 def test_production_origins() -> None:
-    assert PROD_WEB_ORIGIN == "https://voxpilot.techverseo.com"
-    assert PROD_API_ORIGIN == "https://api.voxpilot.techverseo.com"
+    assert PROD_WEB_ORIGIN == "https://callandflow.com"
+    assert PROD_WEB_WWW_ORIGIN == "https://www.callandflow.com"
+    assert PROD_API_ORIGIN == "https://api.callandflow.com"
 
 
 def test_cookie_secure_in_production() -> None:
@@ -70,7 +72,8 @@ def test_production_cors_excludes_localhost() -> None:
         session_secret="test-session-secret",
     )
     origins = cors_allow_origins(settings)
-    assert origins == [PROD_WEB_ORIGIN]
+    assert PROD_WEB_ORIGIN in origins
+    assert PROD_WEB_WWW_ORIGIN in origins
     assert "http://localhost:3002" not in origins
     assert "http://127.0.0.1:3002" not in origins
 
@@ -78,15 +81,17 @@ def test_production_cors_excludes_localhost() -> None:
 def test_production_cors_strips_localhost_even_if_configured() -> None:
     settings = _settings(
         environment="production",
-        ops_cors_origins="http://localhost:3002,https://voxpilot.techverseo.com",
+        ops_cors_origins="http://localhost:3002,https://callandflow.com",
         session_secret="test-session-secret",
     )
     origins = cors_allow_origins(settings)
-    assert origins == [PROD_WEB_ORIGIN]
+    assert PROD_WEB_ORIGIN in origins
+    assert PROD_WEB_WWW_ORIGIN in origins
+    assert "http://localhost:3002" not in origins
 
 
 def test_production_cors_keeps_extra_https_origins() -> None:
-    extra = "https://preview.voxpilot.techverseo.com"
+    extra = "https://preview.callandflow.com"
     settings = _settings(
         environment="production",
         ops_cors_origins=f"{PROD_WEB_ORIGIN},{extra}",
@@ -94,6 +99,7 @@ def test_production_cors_keeps_extra_https_origins() -> None:
     )
     origins = cors_allow_origins(settings)
     assert PROD_WEB_ORIGIN in origins
+    assert PROD_WEB_WWW_ORIGIN in origins
     assert extra in origins
     assert all(origin.startswith("https://") for origin in origins)
 
@@ -143,3 +149,4 @@ def test_development_cors_includes_local_and_prod_web() -> None:
     assert "http://localhost:3002" in origins
     assert "http://127.0.0.1:3002" in origins
     assert PROD_WEB_ORIGIN in origins
+    assert PROD_WEB_WWW_ORIGIN in origins

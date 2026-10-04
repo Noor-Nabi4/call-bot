@@ -1,4 +1,4 @@
-"""Canonical public origins for VoxPilot production."""
+"""Canonical public origins for Call & Flow production."""
 
 from __future__ import annotations
 
@@ -8,9 +8,12 @@ from urllib.parse import urlparse
 if TYPE_CHECKING:
     from callbot_platform.config import Settings
 
-PROD_WEB_ORIGIN = "https://voxpilot.techverseo.com"
-PROD_API_ORIGIN = "https://api.voxpilot.techverseo.com"
-PROD_API_HOST = "api.voxpilot.techverseo.com"
+PROD_WEB_ORIGIN = "https://callandflow.com"
+PROD_WEB_WWW_ORIGIN = "https://www.callandflow.com"
+PROD_API_ORIGIN = "https://api.callandflow.com"
+PROD_API_HOST = "api.callandflow.com"
+
+_PROD_WEB_ORIGINS = (PROD_WEB_ORIGIN, PROD_WEB_WWW_ORIGIN)
 
 _LOCAL_WEB_ORIGINS = (
     "http://localhost:3002",
@@ -51,7 +54,8 @@ def cors_allow_origins(settings: Settings) -> list[str]:
 
     for origin in settings.ops_cors_origin_list:
         add(origin)
-    add(PROD_WEB_ORIGIN)
+    for origin in _PROD_WEB_ORIGINS:
+        add(origin)
     if not settings.is_production:
         for origin in _LOCAL_WEB_ORIGINS:
             add(origin)
@@ -62,8 +66,9 @@ def cors_allow_origins(settings: Settings) -> list[str]:
         for origin in origins
         if origin.startswith("https://") and not _is_loopback_origin(origin)
     ]
-    if PROD_WEB_ORIGIN not in https_only:
-        https_only.insert(0, PROD_WEB_ORIGIN)
+    for origin in reversed(_PROD_WEB_ORIGINS):
+        if origin not in https_only:
+            https_only.insert(0, origin)
     return https_only
 
 
