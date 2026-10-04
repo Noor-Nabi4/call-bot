@@ -83,12 +83,12 @@ Ops: `/settings/billing` shows usage; `/settings/team` manages invite / role / d
 
 Plans are **not** registered as Stripe Products/Prices. Checkout uses inline `price_data` from `billing/plans.py`. Only `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` are required.
 
-Set `SESSION_SECRET` and `OPS_CORS_ORIGINS` (local `http://localhost:3002`; production `https://voxpilot.techverseo.com`).
+Set `SESSION_SECRET` and `OPS_CORS_ORIGINS` (local `http://localhost:3002`; production `https://callandflow.com,https://www.callandflow.com`).
 
 Configure Stripe (platform account):
 
 1. Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` (platform Stripe account)
-2. Webhook endpoint → `https://api.voxpilot.techverseo.com/billing/webhooks/stripe` (production) or `/billing/webhooks/stripe` on the API host for `checkout.session.completed`, `customer.subscription.*`, `invoice.paid`, `invoice.payment_failed`
+2. Webhook endpoint → `https://api.callandflow.com/billing/webhooks/stripe` (production) or `/billing/webhooks/stripe` on the API host for `checkout.session.completed`, `customer.subscription.*`, `invoice.paid`, `invoice.payment_failed`
 3. Customer Portal: payment method update + cancellation (plan switching in Portal needs registered Prices — not used; upgrades go through new Checkout with `price_data`)
 
 Do **not** reuse Stripe Connect keys here. Tenant merchant payments (Phase 6) are separate.

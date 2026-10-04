@@ -45,36 +45,33 @@ uv run pytest tests/test_config.py tests/test_prompt.py tests/test_state.py test
 
 | Service | URL |
 |---|---|
-| Web (marketing + ops) | `https://voxpilot.techverseo.com` |
-| Platform API | `https://api.voxpilot.techverseo.com` |
-| Voice agent | LiveKit Cloud (`lk agent deploy`) |
+| Web (marketing + ops) | `https://callandflow.com` (`www` redirects) |
+| Platform API | `https://api.callandflow.com` |
+| Voice agent | Self-host worker **or** LiveKit Cloud |
+| LiveKit media | Cloud **or** self-host SFU |
 
-Copy `.env.production.example` in `web/`, `platform/`, and `voice-agent/` into the host secret store. Do not commit filled files.
+### Easy install (recommended)
 
-DNS / TLS (put a reverse proxy in front of the containers):
-
-| Host | Upstream |
-|---|---|
-| `voxpilot.techverseo.com` | `web:3000` |
-| `api.voxpilot.techverseo.com` | `platform:8000` |
-
-Stripe webhook: `https://api.voxpilot.techverseo.com/billing/webhooks/stripe`.
-Agent `PLATFORM_API_URL` must be `https://api.voxpilot.techverseo.com`. LiveKit Cloud injects `LIVEKIT_URL` / `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` — do not set those as agent secrets.
+Interactive wizard: domains, secrets, nginx, certbot, docker compose (web + API + agent + optional self-hosted LiveKit).
 
 ```bash
-# platform + web
-cp platform/.env.production.example platform/.env.production
-cp web/.env.production.example web/.env.production
-# fill secrets, then:
-docker compose -f docker-compose.production.yml up -d --build
-
-# agent (existing LiveKit Cloud agent; do not run `lk agent create` again)
-cd voice-agent
-cp .env.production.example .env.production
-# fill OPENAI_API_KEY, INTERNAL_SERVICE_TOKEN, METADATA_HMAC_SECRET
-lk agent update-secrets --secrets-file .env.production --ignore-empty-secrets --overwrite
-lk agent deploy
+# On the server — DNS A records first
+sudo bash deploy/install.sh
 ```
+
+Details: [`deploy/README.md`](./deploy/README.md).
+
+### Manual install
+
+Copy `.env.production.example` in `web/`, `platform/`, and `voice-agent/`. Do not commit filled files.
+
+```bash
+docker compose -f docker-compose.production.yml up -d --build
+# or after the installer:
+docker compose -f docker-compose.selfhost.yml up -d --build
+```
+
+Stripe webhook: `https://api.callandflow.com/billing/webhooks/stripe`.
 
 ## Repo layout
 

@@ -1,11 +1,9 @@
-# Production compose for the two public hosts.
-# Terminate TLS in front of these services (Caddy, nginx, or a cloud load balancer):
-#   voxpilot.techverseo.com       -> web:3000
-#   api.voxpilot.techverseo.com   -> platform:8000
+# Production compose for Call & Flow public hosts.
+# Terminate TLS in front of these services (nginx via deploy/install.sh):
+#   callandflow.com / www.callandflow.com -> web:3000
+#   api.callandflow.com                   -> platform:8000
 #
-# Copy env examples first:
-#   cp platform/.env.production.example platform/.env.production
-#   cp web/.env.production.example web/.env.production
+# Prefer: sudo bash deploy/install.sh
 # Never commit filled .env.production files.
 
 services:
@@ -39,16 +37,16 @@ services:
     build:
       context: ./web
       args:
-        NEXT_PUBLIC_SITE_URL: https://voxpilot.techverseo.com
-        NEXT_PUBLIC_PLATFORM_API_URL: https://api.voxpilot.techverseo.com
+        NEXT_PUBLIC_SITE_URL: https://callandflow.com
+        NEXT_PUBLIC_PLATFORM_API_URL: https://api.callandflow.com
     image: voxpilot-web:prod
     restart: unless-stopped
     env_file:
       - ./web/.env.production
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_SITE_URL: https://voxpilot.techverseo.com
-      NEXT_PUBLIC_PLATFORM_API_URL: https://api.voxpilot.techverseo.com
+      NEXT_PUBLIC_SITE_URL: https://callandflow.com
+      NEXT_PUBLIC_PLATFORM_API_URL: https://api.callandflow.com
     ports:
       - "3000:3000"
     depends_on:

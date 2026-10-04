@@ -25,3 +25,8 @@ platform/.env.local
 .tmp-techverseo/
 .tmp-raffle/
 *.tsbuildinfo
+
+# Deploy installer outputs (secrets / host-specific)
+deploy/generated/
+deploy/answers.env
+docker-compose.selfhost.yml
