@@ -1,4 +1,4 @@
-# VoxPilot web
+# Call & Flow web
 
 Single Next.js app: public marketing site plus the authenticated operations console.
 
@@ -58,7 +58,7 @@ Then sign in at `/login` with the tenant slug.
 
 ## Analytics
 
-Conversion events fire via `track()` (`web/src/lib/analytics.ts`): CustomEvent `voxpilot:analytics` (and legacy `callbot:analytics`), optional `window.dataLayer`, and optional `window.voxpilotTrack` / `window.callbotTrack`.
+Conversion events fire via `track()` (`web/src/lib/analytics.ts`): CustomEvent `callandflow:analytics` (legacy `voxpilot:analytics` / `callbot:analytics`), optional `window.dataLayer`, and optional `window.callandflowTrack` / `window.voxpilotTrack` / `window.callbotTrack`.
 
 ## SEO surfaces
 

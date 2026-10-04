@@ -82,7 +82,111 @@ curl -s https://api.callandflow.com/health
 
 Host credentials (for debugging on the server): `deploy/generated/host-data.env`
 
+### LiveKit Redis `NOAUTH`
+
+Self-host LiveKit needs the Redis password in `deploy/generated/livekit/livekit.yaml` (not only in `REDIS_URL`). `NOAUTH` means LiveKit sent no password; `WRONGPASS` means a mismatch with Redis `requirepass`.
+
+```bash
+cd /opt/callandflow/call-bot
+set -a && source deploy/generated/host-data.env && set +a
+
+# 1) Confirm host Redis accepts this password
+redis-cli -h 127.0.0.1 -p "${REDIS_PORT:-6379}" -a "${REDIS_PASSWORD}" ping
+
+# 2) Rewrite the redis: block (address + password)
+python3 - <<'PY'
+import os, pathlib, re
+p = pathlib.Path("deploy/generated/livekit/livekit.yaml")
+text = p.read_text(encoding="utf-8")
+pw = os.environ["REDIS_PASSWORD"]
+port = os.environ.get("REDIS_PORT", "6379")
+host = os.environ.get("REDIS_HOST_FOR_CONTAINERS", "host.docker.internal")
+if not pw:
+    raise SystemExit("REDIS_PASSWORD empty in host-data.env")
+# YAML double-quoted scalar
+esc = pw.replace("\\", "\\\\").replace('"', '\\"')
+block = (
+    "redis:\n"
+    f"  address: {host}:{port}\n"
+    f'  password: "{esc}"\n'
+)
+if re.search(r"(?m)^redis:\s*$", text):
+    text = re.sub(
+        r"(?m)^redis:\s*\n(?:[ \t]+.*\n)*",
+        block,
+        text,
+        count=1,
+    )
+else:
+    text = block + "\n" + text
+p.write_text(text, encoding="utf-8")
+# Show structure without leaking the secret
+for line in p.read_text(encoding="utf-8").splitlines():
+    if "password:" in line:
+        print(re.sub(r'password:\s*".*"', f'password: "***{len(pw)} chars***"', line))
+    elif line.strip().startswith("redis:") or "address:" in line:
+        print(line)
+print("host-data REDIS_PASSWORD length:", len(pw))
+PY
+chmod 600 deploy/generated/livekit/livekit.yaml
+
+# 3) Confirm the container mount sees the same file
+docker compose -f docker-compose.selfhost.yml run --rm --no-deps --entrypoint cat livekit /etc/livekit.yaml | sed -E 's/(password: ).*/\1***redacted***/'
+
+# 4) Recreate (bind-mount change + clean process)
+docker compose -f docker-compose.selfhost.yml up -d --force-recreate livekit
+sleep 3
+docker compose -f docker-compose.selfhost.yml logs livekit --since 2m
+docker compose -f docker-compose.selfhost.yml ps livekit
+```
+
 Stripe webhook: `https://api.callandflow.com/billing/webhooks/stripe`
+
+### Agent cannot connect to `livekit.*.com:443`
+
+SFU on `:7880` can be healthy while the agent still fails if nginx + Let's Encrypt for the LiveKit domain are missing. Agent uses `LIVEKIT_URL=wss://livekit...` (port 443), not `:7880` directly.
+
+```bash
+# DNS + local SFU
+getent hosts livekit.callandflow.com
+curl -sS http://127.0.0.1:7880
+
+# nginx site + cert
+ls -la /etc/nginx/sites-enabled/ | grep -i livekit || true
+ls -la /etc/letsencrypt/live/livekit.callandflow.com/ 2>/dev/null || true
+ss -lntp | grep -E ':80|:443'
+
+# Install/enable LiveKit nginx + cert (domain must already resolve here)
+DOMAIN=livekit.callandflow.com
+EMAIL=admin@callandflow.com   # change if needed
+mkdir -p /var/www/certbot
+cp "deploy/generated/nginx/${DOMAIN}.conf" "/etc/nginx/sites-available/${DOMAIN}.conf" 2>/dev/null || true
+# HTTP-only bootstrap if full TLS config would fail without certs yet:
+if [[ ! -f /etc/letsencrypt/live/${DOMAIN}/fullchain.pem ]]; then
+  cat > "/etc/nginx/sites-available/${DOMAIN}.conf" <<EOF
+server {
+  listen 80;
+  listen [::]:80;
+  server_name ${DOMAIN};
+  location /.well-known/acme-challenge/ { root /var/www/certbot; }
+  location / { return 200 'livekit-acme-ok'; add_header Content-Type text/plain; }
+}
+EOF
+fi
+ln -sfn "/etc/nginx/sites-available/${DOMAIN}.conf" "/etc/nginx/sites-enabled/${DOMAIN}.conf"
+nginx -t && systemctl reload nginx
+certbot certonly --webroot -w /var/www/certbot -d "${DOMAIN}" --email "${EMAIL}" --agree-tos --non-interactive
+cp "deploy/generated/nginx/${DOMAIN}.conf" "/etc/nginx/sites-available/${DOMAIN}.conf"
+ln -sfn "/etc/nginx/sites-available/${DOMAIN}.conf" "/etc/nginx/sites-enabled/${DOMAIN}.conf"
+nginx -t && systemctl reload nginx
+
+# Verify WSS path, then restart agent
+curl -sSI https://${DOMAIN}/ | head -n 20
+ufw allow 80/tcp; ufw allow 443/tcp
+ufw allow 7881/tcp; ufw allow 50000:50100/udp
+docker compose -f docker-compose.selfhost.yml up -d --force-recreate voice-agent
+docker compose -f docker-compose.selfhost.yml logs voice-agent --tail 30
+```
 
 ## Re-run
 

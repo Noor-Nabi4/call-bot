@@ -58,7 +58,7 @@ from callbot_platform.origins import (  # noqa: E402
 _settings = get_settings()
 _cors_origins = cors_allow_origins(_settings)
 
-app = FastAPI(title="VoxPilot Platform", version="0.1.0")
+app = FastAPI(title="Call & Flow Platform", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,

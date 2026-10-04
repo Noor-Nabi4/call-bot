@@ -1,4 +1,4 @@
-/** SEO configuration for the VoxPilot marketing site. */
+/** SEO configuration for the Call & Flow marketing site. */
 
 export function getSiteUrl(): string {
   const raw =
@@ -11,11 +11,11 @@ export function getSiteUrl(): string {
 }
 
 export const seo = {
-  brand: "VoxPilot",
-  title: "VoxPilot | AI Voice Platform for Service Businesses & Call Centers",
-  titleTemplate: "%s | VoxPilot",
+  brand: "Call & Flow",
+  title: "Call & Flow | AI Voice Platform for Service Businesses & Call Centers",
+  titleTemplate: "%s | Call & Flow",
   description:
-    "VoxPilot is an AI voice platform for service businesses and call centers. Deploy AI receptionists, support agents, and sales agents that book appointments, answer from your knowledge base, and hand off to humans.",
+    "Call & Flow is an AI voice platform for service businesses and call centers. Deploy AI receptionists, support agents, and sales agents that book appointments, answer from your knowledge base, and hand off to humans.",
   keywords: [
     "AI voice platform",
     "AI phone receptionist",
@@ -26,24 +26,25 @@ export const seo = {
     "human handoff voice AI",
     "multi-tenant voice platform",
     "service business phone AI",
-    "VoxPilot",
+    "Call & Flow",
+    "Call and Flow",
   ],
   locale: "en_US",
   ogImageAlt:
-    "VoxPilot — AI voice platform for service businesses and call centers",
+    "Call & Flow — AI voice platform for service businesses and call centers",
   twitterHandle: "",
 } as const;
 
 export const faqItems = [
   {
-    question: "What is VoxPilot?",
+    question: "What is Call & Flow?",
     answer:
-      "VoxPilot is an AI voice platform for service businesses and call centers. It answers inbound calls, books appointments, responds from your knowledge base, and hands off to humans when needed.",
+      "Call & Flow is an AI voice platform for service businesses and call centers. It answers inbound calls, books appointments, responds from your knowledge base, and hands off to humans when needed.",
   },
   {
-    question: "Who is VoxPilot for?",
+    question: "Who is Call & Flow for?",
     answer:
-      "VoxPilot fits home and field services, healthcare, legal, insurance, real estate, restaurants, call centers, and other teams that cannot afford to miss the phone.",
+      "Call & Flow fits home and field services, healthcare, legal, insurance, real estate, restaurants, call centers, and other teams that cannot afford to miss the phone.",
   },
   {
     question: "Can I try it before signing up?",
@@ -63,10 +64,10 @@ export const faqItems = [
   {
     question: "What happens when a caller needs a person?",
     answer:
-      "VoxPilot supports human handoff. When transfer is available, the call moves to your team with context. If not, VoxPilot can take a callback request and queue follow-up.",
+      "Call & Flow supports human handoff. When transfer is available, the call moves to your team with context. If not, Call & Flow can take a callback request and queue follow-up.",
   },
   {
-    question: "Is VoxPilot multi-tenant?",
+    question: "Is Call & Flow multi-tenant?",
     answer:
       "Yes. Each business keeps isolated numbers, agents, customers, appointments, and knowledge so data never mixes across companies.",
   },

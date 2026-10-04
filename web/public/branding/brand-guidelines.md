@@ -1,7 +1,7 @@
-# VoxPilot Brand Guidelines
+# Call & Flow Brand Guidelines
 
-**Product:** VoxPilot  
-**Short name:** VoxPilot  
+**Product:** Call & Flow  
+**Short name:** Call & Flow  
 **Description:** AI Voice Platform for Service Businesses & Call Centers  
 
 **Primary tagline:** Build AI Voice Agents for Any Business.  
@@ -15,7 +15,7 @@ Avoid playful, cartoonish, or generic “AI startup” aesthetics.
 
 ## Logo
 
-The mark combines a forward chevron (pilot trajectory / connection) with a center node and three voice arcs (conversation / sound). It is original to VoxPilot and must not be redrawn to resemble competitor marks.
+The mark combines a forward chevron (connection / call routing) with a center node and three voice arcs (conversation / sound). It is original to Call & Flow and must not be redrawn to resemble competitor marks.
 
 ### Variants
 
@@ -42,7 +42,7 @@ Keep empty margin around the mark equal to **at least half the icon height** on 
 |---------|---------|
 | Icon only (digital) | 16×16 px |
 | Favicon | 16×16 px |
-| Horizontal logo | 88 px wide |
+| Horizontal logo | 110 px wide |
 | Print | 12 mm wide (icon) |
 
 ### Do
@@ -101,7 +101,7 @@ Do not substitute Inter with generic system stacks for marketing surfaces when w
 
 ## Icon usage
 
-- Prefer the VoxPilot mark for product identity; Lucide (or equivalent) for functional UI icons
+- Prefer the Call & Flow mark for product identity; Lucide (or equivalent) for functional UI icons
 - Functional icons: 1.5–2 px stroke, rounded caps, aligned to 24 px grid
 - Never replace the brand mark with a generic mic or bot icon
 
@@ -109,15 +109,16 @@ Do not substitute Inter with generic system stacks for marketing surfaces when w
 
 ## Voice & naming
 
-- Product name is always **VoxPilot** (one word, capital V and P)
-- Do not abbreviate to “VP” in customer-facing UI
-- Package / code namespaces may remain historical (`callbot_platform`, repo folder names) — do not rename those without a migration plan
+- Product name is always **Call & Flow** (ampersand, capital C and F)
+- In plain-ASCII contexts (emails, headers), **Call and Flow** is acceptable
+- Do not abbreviate to “C&F” in customer-facing UI
+- Package / code namespaces may remain historical (`callbot_platform`, Docker image tags) — do not rename those without a migration plan
 
 ---
 
 ## Accessibility checklist
 
-- [ ] Logo has meaningful `alt` text (“VoxPilot”)
+- [ ] Logo has meaningful `alt` text (“Call & Flow”)
 - [ ] Icons that are decorative use `aria-hidden`
 - [ ] Theme supports light and dark surfaces with appropriate lockups
 - [ ] Favicons and PWA icons provided at multiple densities

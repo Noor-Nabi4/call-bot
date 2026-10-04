@@ -113,7 +113,7 @@ export default function BrandingPage() {
                 onChange={(e) =>
                   setForm({ ...form, product_name: e.target.value })
                 }
-                placeholder="VoxPilot"
+                placeholder="Call & Flow"
               />
             </Field>
             <Field label={copy.logoUrl}>

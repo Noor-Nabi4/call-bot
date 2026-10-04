@@ -1,4 +1,4 @@
-# VoxPilot Platform API
+# Call & Flow Platform API
 
 Telephony platform API — multi-tenant Twilio + LiveKit SIP + CRM + Scheduling.
 Python package namespace remains `callbot_platform` for compatibility.

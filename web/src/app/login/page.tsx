@@ -124,7 +124,7 @@ export default function LoginPage() {
         </Button>
         <p className="mt-4 m-0 text-center text-sm text-text-secondary">
           <Link href="/" className="font-medium text-brand hover:text-brand-hover">
-            Back to VoxPilot
+            Back to Call & Flow
           </Link>
           {" · "}
           <Link href="/signup" className="font-medium text-brand hover:text-brand-hover">

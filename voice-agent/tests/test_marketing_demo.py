@@ -15,7 +15,7 @@ from tenant.resolve import sign_metadata
 def test_marketing_demo_profile_has_no_tools() -> None:
     profile = marketing_demo_profile()
     assert profile.tenant_id == MARKETING_TENANT_ID
-    assert profile.business_name == "VoxPilot"
+    assert profile.business_name == "Call & Flow"
     assert profile.enabled_tools == ()
     assert not profile.tool_enabled("crm")
     assert profile.greeting

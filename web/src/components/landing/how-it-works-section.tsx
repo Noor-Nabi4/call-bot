@@ -89,7 +89,7 @@ export function HowItWorksSection({
           <div
             className="rounded-[24px] border border-line bg-surface p-2 shadow-[var(--shadow-sm)]"
             role="tablist"
-            aria-label="How VoxPilot works"
+            aria-label="How Call & Flow works"
           >
             <div className="flex flex-col gap-2 lg:flex-row lg:items-stretch">
               {steps.map((step, index) => {

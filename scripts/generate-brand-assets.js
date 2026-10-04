@@ -17,7 +17,7 @@ async function main() {
   const mark = await sharp(faviconSvg).resize(160, 160).png().toBuffer();
   const caption = Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="200">
-      <text x="0" y="70" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="700">VoxPilot</text>
+      <text x="0" y="70" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700">Call &amp; Flow</text>
       <text x="0" y="130" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="26">AI Voice Platform for Service Businesses and Call Centers</text>
       <text x="0" y="175" fill="#14B8A6" font-family="Arial, Helvetica, sans-serif" font-size="22">Build AI Voice Agents for Any Business.</text>
     </svg>`,

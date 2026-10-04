@@ -27,8 +27,8 @@ export function BrandLogo({
     // eslint-disable-next-line @next/next/no-img-element -- SVG brand lockups
     <img
       src={src}
-      alt="VoxPilot"
-      width={148}
+      alt="Call & Flow"
+      width={178}
       height={32}
       className={`h-7 w-auto sm:h-8 ${className}`}
       decoding="async"
@@ -42,7 +42,7 @@ export function BrandLogo({
     <Link
       href={href}
       className="inline-flex items-center no-underline"
-      aria-label="VoxPilot home"
+      aria-label="Call & Flow home"
     >
       {image}
     </Link>

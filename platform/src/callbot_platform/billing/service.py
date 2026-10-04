@@ -247,7 +247,7 @@ class BillingService:
             raise BillingError("invalid_plan", "Plan pricing is not available")
         currency = str(catalog_plan.get("currency") or "usd")
         interval = str(catalog_plan.get("interval") or "month")
-        product_name = f"VoxPilot {catalog_plan['name']}"
+        product_name = f"Call & Flow {catalog_plan['name']}"
         try:
             # Inline price_data — do not require Products/Prices registered in Stripe.
             session = stripe.checkout.Session.create(

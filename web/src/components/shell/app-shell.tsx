@@ -78,7 +78,7 @@ export function AppShell({
   );
   const [branding, setBranding] = useState<Branding | null>(null);
   const isTech = user.role === "technician";
-  const productName = branding?.product_name?.trim() || "VoxPilot";
+  const productName = branding?.product_name?.trim() || "Call & Flow";
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

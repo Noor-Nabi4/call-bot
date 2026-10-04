@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Sign in — VoxPilot",
-  description: "Sign in to your VoxPilot operations console.",
+  title: "Sign in — Call & Flow",
+  description: "Sign in to your Call & Flow operations console.",
   robots: { index: false, follow: false },
 };
 

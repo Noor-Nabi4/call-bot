@@ -213,7 +213,7 @@ async def _prepare_tenant_profile(
     livekit_inbound_trunk_id: str | None,
     is_sip: bool,
 ) -> tuple[TenantResolution, AgentProfile]:
-    # Public landing demo: talk-only VoxPilot persona — no tenant, CRM, or tools.
+    # Public landing demo: talk-only Call & Flow persona — no tenant, CRM, or tools.
     if is_marketing_demo_metadata(job_metadata, is_sip=is_sip):
         return marketing_demo_resolution(), marketing_demo_profile()
 

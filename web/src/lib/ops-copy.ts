@@ -1,16 +1,16 @@
 /** Customer-facing copy for the operations console. Keep localization-ready. */
 
 export const site = {
-  title: "VoxPilot — Operations",
+  title: "Call & Flow — Operations",
   description:
     "Manage calls, appointments, and field jobs for your service business.",
-  brand: "VoxPilot",
+  brand: "Call & Flow",
   product: "Operations",
   tagline: "Operations",
 } as const;
 
 export const login = {
-  brand: "VoxPilot",
+  brand: "Call & Flow",
   heading: "Sign in",
   supporting: "Access your business dashboard and field operations.",
   businessId: "Business ID",

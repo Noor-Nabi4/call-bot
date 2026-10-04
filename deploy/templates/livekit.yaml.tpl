@@ -13,6 +13,8 @@ rtc:
 
 redis:
   address: ${REDIS_HOST_FOR_CONTAINERS}:${REDIS_PORT}
+  # LiveKit config-sample.yaml: redis.password (required when Redis has requirepass)
+  password: "${REDIS_PASSWORD}"
 
 keys:
   ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}

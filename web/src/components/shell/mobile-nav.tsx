@@ -34,8 +34,8 @@ export function MobileNavDrawer({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/branding/logo-dark.svg"
-            alt="VoxPilot"
-            width={120}
+            alt="Call & Flow"
+            width={148}
             height={26}
             className="h-6 w-auto"
           />

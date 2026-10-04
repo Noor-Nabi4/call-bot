@@ -1,4 +1,4 @@
-# VoxPilot platform API — ${API_DOMAIN} -> 127.0.0.1:8000
+# Call & Flow platform API — ${API_DOMAIN} -> 127.0.0.1:8000
 # Managed by deploy/install.sh — do not hand-edit unless you know why.
 
 upstream voxpilot_api {
