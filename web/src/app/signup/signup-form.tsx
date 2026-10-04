@@ -393,7 +393,7 @@ export default function SignupForm() {
                 </div>
                 <p className="mt-3 m-0 text-sm text-muted">
                   Selected: {selectedPlan.name}.{" "}
-                  <Link href="/#pricing" className="font-medium text-teal">
+                  <Link href="/pricing" className="font-medium text-teal">
                     {copy.comparePlans}
                   </Link>
                 </p>

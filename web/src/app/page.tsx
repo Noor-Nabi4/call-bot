@@ -1,9 +1,11 @@
+import Link from "next/link";
 import {
   Button,
   Faq,
   FeatureShowcase,
   Footer,
   Hero,
+  HowItWorksSection,
   Navbar,
   PricingSection,
   Reveal,
@@ -15,6 +17,7 @@ import {
   close,
   faq,
   features,
+  howItWorks,
   industries,
   pricingPreview,
 } from "@/lib/copy";
@@ -23,8 +26,20 @@ import {
   formatPlanPrice,
   type Plan,
 } from "@/lib/marketing-api";
-import { buildFaqJsonLd } from "@/lib/metadata";
-import { faqItems } from "@/lib/seo";
+import {
+  buildFaqJsonLd,
+  buildHomePageJsonLd,
+  buildPageMetadata,
+} from "@/lib/metadata";
+import { faqItems, seo } from "@/lib/seo";
+
+export const metadata = buildPageMetadata({
+  title: seo.title,
+  description: seo.description,
+  path: "/",
+  absoluteTitle: true,
+  keywords: seo.keywords,
+});
 
 async function loadPlans(): Promise<Plan[]> {
   try {
@@ -41,10 +56,15 @@ async function loadPlans(): Promise<Plan[]> {
 
 export default async function LandingPage() {
   const faqJsonLd = buildFaqJsonLd(faqItems);
+  const homeJsonLd = buildHomePageJsonLd();
   const plans = await loadPlans();
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(homeJsonLd) }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
@@ -59,6 +79,75 @@ export default async function LandingPage() {
           title={features.title}
           supporting={features.supporting}
           items={features.items}
+        />
+
+        <section
+          className="section-pad border-t border-line bg-bg"
+          aria-labelledby="product-links-heading"
+        >
+          <div className="content-width">
+            <Reveal>
+              <SectionHeader
+                eyebrow="Explore the product"
+                title="AI voice agents built for real phone work"
+                supporting="Start with the page that matches how you search — then see pricing and industry workflows."
+                id="product-links-heading"
+                align="center"
+              />
+            </Reveal>
+            <ul className="mt-10 m-0 grid list-none gap-4 p-0 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  href: "/ai-voice-agents",
+                  title: "AI Voice Agents",
+                  body: "Platform overview for inbound automation, booking, support, and handoff.",
+                },
+                {
+                  href: "/ai-receptionist",
+                  title: "AI Receptionist",
+                  body: "Virtual front desk that answers, books, qualifies, and transfers.",
+                },
+                {
+                  href: "/industries",
+                  title: "Industries",
+                  body: "HVAC, plumbing, healthcare, legal, real estate, restaurants, and more.",
+                },
+                {
+                  href: "/pricing",
+                  title: "Pricing",
+                  body: "Plans based on minutes, concurrency, numbers, users, and knowledge.",
+                },
+              ].map((item, index) => (
+                <Reveal
+                  key={item.href}
+                  as="li"
+                  delay={(index % 3) as 0 | 1 | 2 | 3}
+                  variant="scale"
+                >
+                  <Link
+                    href={item.href}
+                    className="card-surface card-surface-hover block h-full p-5 no-underline sm:p-6"
+                  >
+                    <h3 className="m-0 text-lg font-semibold tracking-[-0.02em] text-ink">
+                      {item.title}
+                    </h3>
+                    <p className="mt-2 m-0 text-sm leading-relaxed text-muted">
+                      {item.body}
+                    </p>
+                    <span className="mt-4 inline-block text-sm font-semibold text-teal">
+                      Learn more →
+                    </span>
+                  </Link>
+                </Reveal>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <HowItWorksSection
+          title={howItWorks.title}
+          supporting={howItWorks.supporting}
+          steps={howItWorks.steps}
         />
 
         <section
@@ -84,24 +173,35 @@ export default async function LandingPage() {
                   delay={(index % 3) as 0 | 1 | 2 | 3}
                   variant="scale"
                 >
-                  <article className="card-surface card-surface-hover h-full p-5 sm:p-6">
+                  <Link
+                    href={item.href}
+                    className="card-surface card-surface-hover block h-full p-5 no-underline sm:p-6"
+                  >
                     <h3 className="m-0 text-lg font-semibold tracking-[-0.02em] text-ink">
                       {item.name}
                     </h3>
                     <p className="mt-2 m-0 text-sm leading-relaxed text-muted sm:text-base">
                       {item.body}
                     </p>
-                  </article>
+                  </Link>
                 </Reveal>
               ))}
             </ul>
+            <div className="mt-8 text-center">
+              <Link
+                href="/industries"
+                className="text-sm font-semibold text-teal transition-colors hover:text-teal-deep"
+              >
+                Browse all industries →
+              </Link>
+            </div>
           </div>
         </section>
 
         <PricingSection
           title={pricingPreview.title}
           supporting={pricingPreview.supporting}
-          compareHref="/signup"
+          compareHref="/pricing"
           compareLabel={pricingPreview.cta}
           emptyNote={pricingPreview.note}
           plans={plans.map((plan) => ({

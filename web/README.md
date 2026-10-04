@@ -24,20 +24,27 @@ Platform API must be running on `:8000` with `SESSION_SECRET` set and CORS allow
 | `AGENT_NAME` | Agent dispatch name (default `voice-agent`) |
 | `METADATA_HMAC_SECRET` | Optional; must match voice-agent if set (signs `source=marketing`) |
 
-## Public routes
+## Public marketing routes
 
 | Path | Purpose |
 |---|---|
-| `/` | Landing: Hero → Voice demo → Features → Industries → Pricing → FAQ → CTA |
+| `/` | Homepage: hero, demo, features, industries, pricing preview, FAQ |
+| `/ai-voice-agents` | AI voice agents product page |
+| `/ai-receptionist` | AI receptionist product page |
+| `/pricing` | Full plans, trial, numbers, add-ons (live catalog) |
+| `/industries` | Industry hub |
+| `/industries/[slug]` | Industry landers (HVAC, plumbing, healthcare, …) |
+| `/use-cases/[slug]` | Use-case landers (booking, qualification, support, …) |
+| `/blog`, `/blog/[slug]` | Resources / articles |
 | `/signup` | Multi-step onboarding → Stripe Checkout |
-| `/login` | Tenant ops sign-in |
+| `/login` | Tenant ops sign-in (`noindex`) |
 | `/api/token` | Rate-limited LiveKit token for the embedded browser voice demo |
 
 ## Ops routes (session cookie)
 
-Dashboard, dispatch, live calls, playground, phones, agents, billing, technician mobile (`/tech`), and the rest of the operations console.
+Dashboard, dispatch, live calls, playground, phones, agents, billing, technician mobile (`/tech`), and the rest of the operations console. These are disallowed in `robots.txt`.
 
-Signup flow: `/#demo` or `/#pricing` → `/signup` → Stripe Checkout → `/settings/billing`. Subscription activation requires Stripe webhooks on the platform API.
+Signup flow: `/pricing` or `/#demo` → `/signup` → Stripe Checkout → `/settings/billing`. Subscription activation requires Stripe webhooks on the platform API.
 
 The embedded voice demo is tenant-less (`source=marketing`). Tenant-specific testing is **Playground** (`/playground`).
 
@@ -60,11 +67,11 @@ Then sign in at `/login` with the tenant slug.
 
 Conversion events fire via `track()` (`web/src/lib/analytics.ts`): CustomEvent `callandflow:analytics` (legacy `voxpilot:analytics` / `callbot:analytics`), optional `window.dataLayer`, and optional `window.callandflowTrack` / `window.voxpilotTrack` / `window.callbotTrack`.
 
-## SEO surfaces
+## SEO
 
-- `/` — semantic landing + FAQ
-- `/sitemap.xml`
-- `/robots.txt`
-- `/manifest.webmanifest`
+- Metadata helper: `src/lib/metadata.ts` (`buildPageMetadata`)
+- Content registries: `src/lib/marketing/*`
+- `/sitemap.xml`, `/robots.txt`, `/manifest.webmanifest`
 - `/opengraph-image` and `/twitter-image`
-- JSON-LD: Organization, WebSite, SoftwareApplication, WebPage, FAQPage
+- JSON-LD: Organization, WebSite, SoftwareApplication, WebPage, FAQPage, BreadcrumbList, Product/Offer, Article
+- Docs: `SEO-AUDIT.md`, `SEO-ROADMAP.md`

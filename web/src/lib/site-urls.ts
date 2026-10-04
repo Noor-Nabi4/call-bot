@@ -17,6 +17,6 @@ export type FooterHrefKind = "playground" | "ops" | "login" | "pricing";
 export function resolveFooterHref(kind: FooterHrefKind): string {
   if (kind === "playground") return opsPlaygroundUrl();
   if (kind === "ops") return "/login";
-  if (kind === "pricing") return "/#pricing";
+  if (kind === "pricing") return "/pricing";
   return opsLoginUrl();
 }

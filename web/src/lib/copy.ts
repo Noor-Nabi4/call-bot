@@ -2,21 +2,21 @@
 
 export const site = {
   brand: "Call & Flow",
-  title: "Call & Flow | AI Voice Platform for Service Businesses & Call Centers",
+  title: "AI Voice Agents & AI Receptionist for Businesses | Call & Flow",
   description:
-    "Call & Flow is an AI voice platform for service businesses and call centers. Deploy AI receptionists, support agents, and sales agents that book appointments, answer from your knowledge base, and hand off to humans.",
+    "AI voice agents that answer calls, book appointments, qualify leads, answer questions, and connect callers with your team. Automate business calls with Call & Flow.",
 } as const;
 
 export const hero = {
   brand: "Call & Flow",
-  eyebrow: "AI Voice Platform",
-  headline: "Build AI Voice Agents for Any Business.",
+  eyebrow: "AI Voice Agents",
+  headline: "AI Voice Agents for Your Business",
   supporting:
-    "Answer every call, automate conversations, and help your team focus on what matters.",
+    "Answer every call, book appointments, qualify leads, and connect callers with your team — without missing the moments that grow revenue.",
   primaryCta: "Start Free Trial",
   secondaryCta: "Try Voice Demo",
   trustItems: [
-    "Service businesses & call centers",
+    "AI receptionist & phone agents",
     "Industry templates included",
     "Human handoff built in",
   ],
@@ -126,26 +126,32 @@ export const industries = {
     {
       name: "Home & field services",
       body: "Intake, emergency language, service-area checks, and estimate booking for trades and on-site teams.",
+      href: "/industries/home-services",
     },
     {
       name: "Healthcare & clinics",
       body: "Front-desk coverage for hours, routing, and scheduling — without inventing clinical advice.",
+      href: "/industries/healthcare",
     },
     {
       name: "Legal & insurance",
       body: "Matter and claims intake, document requests, and clean escalation to the right desk.",
+      href: "/industries/legal",
     },
     {
       name: "Real estate & hospitality",
       body: "Qualify inquiries, book showings or reservations, and capture details on the first call.",
+      href: "/industries/real-estate",
     },
     {
       name: "Call centers",
       body: "Automate high-volume FAQs and overflow while supervisors keep full visibility.",
+      href: "/industries/call-centers",
     },
     {
       name: "Restaurants & local retail",
       body: "Handle hours, location, and reservation questions when your team is mid-service.",
+      href: "/industries/restaurants",
     },
   ],
 } as const;
@@ -157,14 +163,20 @@ export const howItWorks = {
     {
       title: "Create your workspace",
       body: "Open a Call & Flow account and invite the teammates who run the phones.",
+      previewLabel: "Workspace",
+      previewLines: ["Account created", "Team invited", "Ready to configure"],
     },
     {
       title: "Pick a template and configure",
       body: "Choose an industry template, then set greeting, knowledge, booking, and handoff rules.",
+      previewLabel: "Agent setup",
+      previewLines: ["Template selected", "Knowledge uploaded", "Booking rules set"],
     },
     {
       title: "Connect a number and go live",
       body: "Point a business line at Call & Flow and monitor outcomes from one operations console.",
+      previewLabel: "Go live",
+      previewLines: ["Number connected", "Calls answered", "Handoffs tracked"],
     },
   ],
 } as const;
@@ -173,13 +185,13 @@ export const pricingPreview = {
   title: "Flexible pricing",
   supporting:
     "Pick the plan that matches your call volume — start with a trial, then scale minutes and numbers as you grow.",
-  cta: "Start Free Trial",
+  cta: "Compare plans",
   note: "Plans activate after checkout confirms. Minutes, concurrent calls, and numbers are included per plan.",
 } as const;
 
 export const faq = {
   title: "Frequently asked questions",
-  supporting: "Straight answers about Call & Flow for service businesses and call centers.",
+  supporting: "Straight answers about AI voice agents and AI receptionists for US businesses.",
 } as const;
 
 export const close = {
@@ -191,9 +203,9 @@ export const close = {
 
 export const pricing = {
   brand: "Call & Flow",
-  title: "Voice minutes. Real ops. Clear limits.",
+  title: "AI Voice Agent Pricing That Scales With Call Volume",
   supporting:
-    "Pick the plan that matches your call volume and crew — not a seat count.",
+    "Transparent plans based on included voice minutes, concurrent calls, phone numbers, users, and knowledge — not vague seat math.",
   comparisonTitle: "At a glance",
   trialTitle: "Try before you connect a number",
   numbersTitle: "Phone numbers",
@@ -245,35 +257,40 @@ export const signup = {
   failedMessage: "Check your details and try again.",
   canceled: "Checkout was canceled. Pick a plan and try again when you’re ready.",
   signIn: "Already have an account? Sign in",
-  comparePlans: "See plan details on the homepage",
+  comparePlans: "See full pricing details",
 } as const;
 
 export const footer = {
-  tagline: "AI Voice Platform for Service Businesses & Call Centers",
+  tagline: "AI voice agents and AI receptionist software for US businesses",
   note: "Reception, support, sales, booking, and handoff — one multi-tenant platform.",
   columns: [
     {
       title: "Product",
       links: [
-        { label: "Voice demo", href: "/#demo" },
+        { label: "AI Voice Agents", href: "/ai-voice-agents" },
+        { label: "AI Receptionist", href: "/ai-receptionist" },
         { label: "Features", href: "/#features" },
-        { label: "Industries", href: "/#industries" },
-        { label: "Pricing", href: "/#pricing" },
+        { label: "Pricing", href: "/pricing" },
+        { label: "Voice demo", href: "/#demo" },
       ],
     },
     {
-      title: "Get started",
+      title: "Solutions",
       links: [
-        { label: "Start free trial", href: "/signup" },
-        { label: "Sign in", hrefEnv: "login" as const },
-        { label: "Ops console", hrefEnv: "ops" as const },
+        { label: "Industries", href: "/industries" },
+        { label: "Home Services", href: "/industries/home-services" },
+        { label: "Appointment Booking", href: "/use-cases/appointment-booking" },
+        { label: "Lead Qualification", href: "/use-cases/lead-qualification" },
+        { label: "Customer Support", href: "/use-cases/customer-support" },
       ],
     },
     {
       title: "Company",
       links: [
+        { label: "Resources", href: "/blog" },
         { label: "FAQ", href: "/#faq" },
-        { label: "Ops playground", hrefEnv: "playground" as const },
+        { label: "Start free trial", href: "/signup" },
+        { label: "Sign in", hrefEnv: "login" as const },
       ],
     },
   ],

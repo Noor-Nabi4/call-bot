@@ -10,70 +10,76 @@ export function getSiteUrl(): string {
   return withProtocol.replace(/\/$/, "");
 }
 
+export function absoluteUrl(path = "/"): string {
+  const base = getSiteUrl();
+  if (!path || path === "/") return base;
+  return `${base}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
 export const seo = {
   brand: "Call & Flow",
-  title: "Call & Flow | AI Voice Platform for Service Businesses & Call Centers",
+  title: "AI Voice Agents & AI Receptionist for Businesses | Call & Flow",
   titleTemplate: "%s | Call & Flow",
   description:
-    "Call & Flow is an AI voice platform for service businesses and call centers. Deploy AI receptionists, support agents, and sales agents that book appointments, answer from your knowledge base, and hand off to humans.",
+    "AI voice agents that answer calls, book appointments, qualify leads, answer questions, and connect callers with your team. Automate business calls with Call & Flow.",
   keywords: [
-    "AI voice platform",
-    "AI phone receptionist",
-    "AI customer support agent",
-    "AI sales agent",
-    "call center automation",
-    "appointment booking AI",
-    "human handoff voice AI",
-    "multi-tenant voice platform",
-    "service business phone AI",
+    "AI voice agents",
+    "AI voice agent",
+    "AI phone agent",
+    "AI receptionist",
+    "AI answering service",
+    "AI customer service agent",
+    "AI appointment booking",
+    "AI call answering",
+    "business phone automation",
     "Call & Flow",
     "Call and Flow",
   ],
   locale: "en_US",
   ogImageAlt:
-    "Call & Flow — AI voice platform for service businesses and call centers",
+    "Call & Flow — AI voice agents and AI receptionist for US businesses",
   twitterHandle: "",
 } as const;
 
 export const faqItems = [
   {
-    question: "What is Call & Flow?",
+    question: "What is an AI receptionist?",
     answer:
-      "Call & Flow is an AI voice platform for service businesses and call centers. It answers inbound calls, books appointments, responds from your knowledge base, and hands off to humans when needed.",
+      "An AI receptionist is a voice agent that answers your business phone, greets callers, answers common questions, books appointments, captures lead details, and can transfer urgent calls to a person on your team.",
   },
   {
-    question: "Who is Call & Flow for?",
+    question: "How does an AI voice agent work?",
     answer:
-      "Call & Flow fits home and field services, healthcare, legal, insurance, real estate, restaurants, call centers, and other teams that cannot afford to miss the phone.",
+      "Call & Flow connects to your business phone line, listens to the caller, uses your knowledge base and booking rules to respond, and can hand off to a human when the conversation needs a person.",
   },
   {
-    question: "Can I try it before signing up?",
+    question: "Can AI answer business phone calls?",
     answer:
-      "Yes. Use the live browser voice demo on this page to talk to an AI agent, then start a free trial when you are ready.",
+      "Yes. Call & Flow AI voice agents answer inbound calls for service businesses and call centers, including after-hours coverage when your team is busy or offline.",
   },
   {
-    question: "What can AI voice agents do?",
+    question: "Can an AI receptionist book appointments?",
     answer:
-      "Agents can act as receptionists, customer support, or sales specialists — answering FAQs, capturing lead details, booking appointments, and escalating complex requests.",
+      "Yes. Agents can check availability, confirm caller details, and create appointments your team can trust — without inventing open times.",
   },
   {
-    question: "Are there industry templates?",
+    question: "Can AI transfer calls to a human?",
     answer:
-      "Yes. Start from templates for common service industries, then customize greeting, knowledge, booking rules, and handoff preferences for your business.",
+      "Yes. When a caller needs a person, Call & Flow supports human handoff. If a live transfer is unavailable, it can take a callback request and queue follow-up with context.",
   },
   {
-    question: "What happens when a caller needs a person?",
+    question: "Can AI answer calls after business hours?",
     answer:
-      "Call & Flow supports human handoff. When transfer is available, the call moves to your team with context. If not, Call & Flow can take a callback request and queue follow-up.",
+      "Yes. After-hours answering is a core use case — capture emergencies, book next-day appointments, answer FAQs, and make sure overnight leads are not lost.",
   },
   {
-    question: "Is Call & Flow multi-tenant?",
+    question: "How much does an AI receptionist cost?",
     answer:
-      "Yes. Each business keeps isolated numbers, agents, customers, appointments, and knowledge so data never mixes across companies.",
+      "Call & Flow plans start with Starter and scale by included voice minutes, concurrent calls, phone numbers, users, and knowledge documents. See the pricing page for current plan details and overage rates.",
   },
   {
-    question: "How do I get started?",
+    question: "What businesses can use AI voice agents?",
     answer:
-      "Try the voice demo, start a free trial, create your workspace, configure an agent from a template, and connect a phone number.",
+      "Home services, healthcare, dental, legal, real estate, restaurants, insurance, call centers, and other teams that cannot afford to miss the phone.",
   },
 ] as const;

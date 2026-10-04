@@ -14,5 +14,5 @@ test("ops and marketing share same-origin paths", () => {
   assert.equal(resolveFooterHref("playground"), "/playground");
   assert.equal(resolveFooterHref("ops"), "/login");
   assert.equal(resolveFooterHref("login"), "/login");
-  assert.equal(resolveFooterHref("pricing"), "/#pricing");
+  assert.equal(resolveFooterHref("pricing"), "/pricing");
 });
