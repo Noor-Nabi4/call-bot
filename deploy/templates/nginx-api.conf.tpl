@@ -1,7 +1,7 @@
 # Call & Flow platform API — ${API_DOMAIN} -> 127.0.0.1:8000
 # Managed by deploy/install.sh — do not hand-edit unless you know why.
 
-upstream voxpilot_api {
+upstream callandflow_api {
     server 127.0.0.1:8000;
     keepalive 32;
 }
@@ -33,7 +33,7 @@ server {
     client_max_body_size 50m;
 
     location / {
-        proxy_pass http://voxpilot_api;
+        proxy_pass http://callandflow_api;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

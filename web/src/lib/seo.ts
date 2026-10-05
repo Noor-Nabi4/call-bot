@@ -36,10 +36,21 @@ export const seo = {
     "Call and Flow",
   ],
   locale: "en_US",
+  /** Bump when OG art or brand copy changes so chat scrapers refetch. */
+  ogImageVersion: "20261005",
   ogImageAlt:
     "Call & Flow — AI voice agents and AI receptionist for US businesses",
   twitterHandle: "",
 } as const;
+
+/** Versioned OG/Twitter image paths for cache busting after rebrands. */
+export function ogImagePath(): string {
+  return `/opengraph-image?v=${seo.ogImageVersion}`;
+}
+
+export function twitterImagePath(): string {
+  return `/twitter-image?v=${seo.ogImageVersion}`;
+}
 
 export const faqItems = [
   {

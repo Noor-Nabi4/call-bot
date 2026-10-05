@@ -9,7 +9,7 @@ ${LIVEKIT_SERVICE_BLOCK}
   platform:
     build:
       context: ./platform
-    image: voxpilot-platform:prod
+    image: callandflow-platform:prod
     restart: unless-stopped
     env_file:
       - ./platform/.env.production
@@ -34,7 +34,7 @@ ${LIVEKIT_SERVICE_BLOCK}
       retries: 5
       start_period: 60s
     networks:
-      - voxpilot
+      - callandflow
 
   web:
     build:
@@ -42,7 +42,7 @@ ${LIVEKIT_SERVICE_BLOCK}
       args:
         NEXT_PUBLIC_SITE_URL: https://${WEB_DOMAIN}
         NEXT_PUBLIC_PLATFORM_API_URL: https://${API_DOMAIN}
-    image: voxpilot-web:prod
+    image: callandflow-web:prod
     restart: unless-stopped
     env_file:
       - ./web/.env.production
@@ -58,12 +58,12 @@ ${LIVEKIT_SERVICE_BLOCK}
       platform:
         condition: service_healthy
     networks:
-      - voxpilot
+      - callandflow
 
   voice-agent:
     build:
       context: ./voice-agent
-    image: voxpilot-agent:prod
+    image: callandflow-agent:prod
     restart: unless-stopped
     env_file:
       - ./voice-agent/.env.production
@@ -76,8 +76,8 @@ ${LIVEKIT_SERVICE_BLOCK}
 ${AGENT_LIVEKIT_DEPENDS}
     # Outbound only — no published ports
     networks:
-      - voxpilot
+      - callandflow
 
 networks:
-  voxpilot:
+  callandflow:
     driver: bridge

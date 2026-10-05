@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import { features, howItWorks, industries } from "@/lib/copy";
-import { absoluteUrl, getSiteUrl, seo } from "@/lib/seo";
+import {
+  absoluteUrl,
+  getSiteUrl,
+  ogImagePath,
+  seo,
+  twitterImagePath,
+} from "@/lib/seo";
 
 export type PageMetadataInput = {
   title: string;
@@ -48,7 +54,7 @@ export function buildRootMetadata(): Metadata {
       description: seo.description,
       images: [
         {
-          url: "/opengraph-image",
+          url: ogImagePath(),
           width: 1200,
           height: 630,
           alt: seo.ogImageAlt,
@@ -59,7 +65,7 @@ export function buildRootMetadata(): Metadata {
       card: "summary_large_image",
       title: seo.title,
       description: seo.description,
-      images: ["/twitter-image"],
+      images: [twitterImagePath()],
       ...(seo.twitterHandle
         ? { creator: seo.twitterHandle, site: seo.twitterHandle }
         : {}),
@@ -117,7 +123,7 @@ export function buildPageMetadata(input: PageMetadataInput): Metadata {
       description: input.description,
       images: [
         {
-          url: "/opengraph-image",
+          url: ogImagePath(),
           width: 1200,
           height: 630,
           alt: seo.ogImageAlt,
@@ -128,7 +134,7 @@ export function buildPageMetadata(input: PageMetadataInput): Metadata {
       card: "summary_large_image",
       title: fullTitle,
       description: input.description,
-      images: ["/twitter-image"],
+      images: [twitterImagePath()],
     },
     robots: input.noIndex
       ? { index: false, follow: false }
@@ -250,7 +256,7 @@ export function buildHomePageJsonLd() {
     about: { "@id": `${siteUrl}/#software` },
     primaryImageOfPage: {
       "@type": "ImageObject",
-      url: `${siteUrl}/opengraph-image`,
+      url: absoluteUrl(ogImagePath()),
     },
     speakable: {
       "@type": "SpeakableSpecification",

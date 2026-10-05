@@ -21,7 +21,6 @@ declare global {
     dataLayer?: Array<Record<string, unknown>>;
     callbotTrack?: (event: string, props?: AnalyticsProps) => void;
     callandflowTrack?: (event: string, props?: AnalyticsProps) => void;
-    voxpilotTrack?: (event: string, props?: AnalyticsProps) => void;
   }
 }
 
@@ -36,7 +35,6 @@ export function track(event: AnalyticsEvent, props: AnalyticsProps = {}): void {
   };
 
   window.dispatchEvent(new CustomEvent("callandflow:analytics", { detail: payload }));
-  window.dispatchEvent(new CustomEvent("voxpilot:analytics", { detail: payload })); // legacy
   // Back-compat for existing integrators
   window.dispatchEvent(new CustomEvent("callbot:analytics", { detail: payload }));
 
@@ -44,7 +42,7 @@ export function track(event: AnalyticsEvent, props: AnalyticsProps = {}): void {
     window.dataLayer.push(payload);
   }
 
-  const tracker = window.callandflowTrack || window.voxpilotTrack || window.callbotTrack;
+  const tracker = window.callandflowTrack || window.callbotTrack;
   if (typeof tracker === "function") {
     try {
       tracker(event, props);

@@ -65,7 +65,7 @@ Then sign in at `/login` with the tenant slug.
 
 ## Analytics
 
-Conversion events fire via `track()` (`web/src/lib/analytics.ts`): CustomEvent `callandflow:analytics` (legacy `voxpilot:analytics` / `callbot:analytics`), optional `window.dataLayer`, and optional `window.callandflowTrack` / `window.voxpilotTrack` / `window.callbotTrack`.
+Conversion events fire via `track()` (`web/src/lib/analytics.ts`): CustomEvent `callandflow:analytics` (legacy `callbot:analytics`), optional `window.dataLayer`, and optional `window.callandflowTrack` / `window.callbotTrack`.
 
 ## SEO
 

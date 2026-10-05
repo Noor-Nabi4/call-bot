@@ -136,8 +136,6 @@ def deliver_webhook(
         "X-CallAndFlow-Event": event,
         "X-CallAndFlow-Tenant-Id": tenant_id,
         # Legacy aliases for existing webhook receivers
-        "X-VoxPilot-Event": event,
-        "X-VoxPilot-Tenant-Id": tenant_id,
         "X-Callbot-Event": event,
         "X-Callbot-Tenant-Id": tenant_id,
     }
@@ -145,7 +143,6 @@ def deliver_webhook(
         digest = hmac.new(secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
         signature = f"sha256={digest}"
         headers["X-CallAndFlow-Signature"] = signature
-        headers["X-VoxPilot-Signature"] = signature
         headers["X-Callbot-Signature"] = signature
 
     try:

@@ -35,7 +35,13 @@ import {
   threeDUseCases,
 } from "./marketing/three-d-assets.ts";
 import { industryVisuals, useCaseVisuals } from "./marketing/visuals.ts";
-import { absoluteUrl, getSiteUrl } from "./seo.ts";
+import {
+  absoluteUrl,
+  getSiteUrl,
+  ogImagePath,
+  seo,
+  twitterImagePath,
+} from "./seo.ts";
 
 function assertUniqueStrings(values: string[], label: string) {
   const seen = new Set<string>();
@@ -51,6 +57,13 @@ test("getSiteUrl and absoluteUrl normalize the canonical origin", () => {
   assert.equal(getSiteUrl(), "https://callandflow.com");
   assert.equal(absoluteUrl("/pricing"), "https://callandflow.com/pricing");
   assert.equal(absoluteUrl("/"), "https://callandflow.com");
+});
+
+test("OG image paths are versioned for scraper cache busting", () => {
+  assert.equal(seo.brand, "Call & Flow");
+  assert.ok(!seo.brand.toLowerCase().includes("vox"));
+  assert.match(ogImagePath(), /^\/opengraph-image\?v=\d{8}$/);
+  assert.match(twitterImagePath(), /^\/twitter-image\?v=\d{8}$/);
 });
 
 test("marketing route registries cover commercial SEO pages", () => {

@@ -1,7 +1,7 @@
 # Call & Flow web — ${WEB_DOMAIN} (+ www) -> 127.0.0.1:3000
 # Managed by deploy/install.sh — do not hand-edit unless you know why.
 
-upstream voxpilot_web {
+upstream callandflow_web {
     server 127.0.0.1:3000;
     keepalive 32;
 }
@@ -48,7 +48,7 @@ server {
     client_max_body_size 20m;
 
     location / {
-        proxy_pass http://voxpilot_web;
+        proxy_pass http://callandflow_web;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

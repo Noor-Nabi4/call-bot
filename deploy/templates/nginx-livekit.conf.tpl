@@ -2,7 +2,7 @@
 # RTC UDP/TCP ports are exposed directly by Docker (not via nginx).
 # Managed by deploy/install.sh
 
-upstream voxpilot_livekit {
+upstream callandflow_livekit {
     server 127.0.0.1:7880;
     keepalive 64;
 }
@@ -37,7 +37,7 @@ server {
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     location / {
-        proxy_pass http://voxpilot_livekit;
+        proxy_pass http://callandflow_livekit;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

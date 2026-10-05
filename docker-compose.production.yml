@@ -10,7 +10,7 @@ services:
   platform:
     build:
       context: ./platform
-    image: voxpilot-platform:prod
+    image: callandflow-platform:prod
     restart: unless-stopped
     env_file:
       - ./platform/.env.production
@@ -39,7 +39,7 @@ services:
       args:
         NEXT_PUBLIC_SITE_URL: https://callandflow.com
         NEXT_PUBLIC_PLATFORM_API_URL: https://api.callandflow.com
-    image: voxpilot-web:prod
+    image: callandflow-web:prod
     restart: unless-stopped
     env_file:
       - ./web/.env.production

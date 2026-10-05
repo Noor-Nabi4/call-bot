@@ -328,7 +328,7 @@ export_template_vars() {
       - "7881:7881"
       - "50000-50100:50000-50100/udp"
     networks:
-      - voxpilot
+      - callandflow
 EOF
 )"
     AGENT_LIVEKIT_DEPENDS="$(cat <<'EOF'
