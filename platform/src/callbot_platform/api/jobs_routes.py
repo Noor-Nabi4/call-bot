@@ -40,7 +40,7 @@ class CreateTechnicianBody(BaseModel):
 class CreateJobBody(BaseModel):
     customer_id: UUID
     service_type: str
-    status: str = "new"
+    status: str = "NEW"
     scheduled_starts_at: datetime | None = None
     scheduled_ends_at: datetime | None = None
 
@@ -280,8 +280,11 @@ def transition_job(
         g.key == "jobs.update" and g.scope == "ALL_ORGANIZATION" for g in grants
     )
     if not has_org_wide_update and mode == "assigned":
-        allowed = {"in_progress", "completed"}
-        if body.status not in allowed:
+        allowed = {"IN_PROGRESS", "COMPLETED", "in_progress", "completed"}
+        if body.status not in allowed and body.status.upper().replace("-", "_") not in {
+            "IN_PROGRESS",
+            "COMPLETED",
+        }:
             raise HTTPException(
                 status_code=403,
                 detail={

@@ -245,8 +245,11 @@ def test_timeline_aggregates_existing_domains(session: Session, tenant: Tenant) 
         Job(
             tenant_id=tenant.id,
             customer_id=cid,
+            job_number="JOB-000001",
             service_type="Install",
             reference_code="JB-BBB222",
+            status="NEW",
+            priority="MEDIUM",
             created_at=now - timedelta(minutes=30),
         )
     )

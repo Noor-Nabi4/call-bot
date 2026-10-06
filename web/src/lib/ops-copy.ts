@@ -53,13 +53,16 @@ export const dispatch = {
 } as const;
 
 export const jobStatusLabels: Record<string, string> = {
-  new: "New",
-  scheduled: "Scheduled",
-  dispatched: "Dispatched",
-  in_progress: "In progress",
-  completed: "Completed",
-  canceled: "Canceled",
-  cancelled: "Canceled",
+  NEW: "New",
+  SCHEDULED: "Scheduled",
+  CONFIRMED: "Confirmed",
+  DISPATCHED: "Dispatched",
+  EN_ROUTE: "En route",
+  ARRIVED: "Arrived",
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+  NO_SHOW: "No show",
 };
 
 export const calls = {

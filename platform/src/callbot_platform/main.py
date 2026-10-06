@@ -63,6 +63,9 @@ from callbot_platform.api.handoff_routes import (
 from callbot_platform.api.jobs_admin_routes import (  # noqa: E402
     router as jobs_admin_router,
 )
+from callbot_platform.api.jobs_crm_routes import (  # noqa: E402
+    router as jobs_crm_router,
+)
 from callbot_platform.api.jobs_routes import router as jobs_router  # noqa: E402
 from callbot_platform.api.knowledge_routes import (  # noqa: E402
     internal_router as knowledge_internal_router,
@@ -131,6 +134,7 @@ app.include_router(leads_router)
 app.include_router(orders_router)
 app.include_router(rbac_router)
 app.include_router(jobs_router)
+app.include_router(jobs_crm_router)
 app.include_router(jobs_admin_router)
 app.include_router(knowledge_internal_router)
 app.include_router(knowledge_ops_router)

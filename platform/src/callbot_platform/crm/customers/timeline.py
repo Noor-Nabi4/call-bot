@@ -21,6 +21,7 @@ from callbot_platform.db.models import (
     LeadActivity,
     NotificationOutbox,
 )
+from callbot_platform.db.models.jobs import JobStatusHistory
 from callbot_platform.db.models.orders import Order, OrderStatusHistory
 
 # Controlled event types — only domains that exist today.
@@ -110,6 +111,11 @@ class CustomerTimelineService:
         if "JOB" in types:
             events.extend(
                 self._jobs(tenant_id, customer_id, fetch_n, since=since, until=until)
+            )
+            events.extend(
+                self._job_status_history(
+                    tenant_id, customer_id, fetch_n, since=since, until=until
+                )
             )
         if "APPOINTMENT" in types:
             events.extend(
@@ -413,11 +419,76 @@ class CustomerTimelineService:
                     "type": "JOB",
                     "id": str(row.id),
                     "timestamp": row.created_at.isoformat(),
-                    "title": f"Job · {row.service_type}",
+                    "title": f"Job · {row.job_number or row.service_type}",
                     "summary": f"Status: {row.status}",
                     "source": "jobs",
                     "source_key": f"job:{row.id}",
-                    "metadata": {"status": row.status},
+                    "metadata": {
+                        "event": "JOB_CREATED",
+                        "status": row.status,
+                        "job_number": row.job_number,
+                    },
+                    "_occurred_at": row.created_at,
+                }
+            )
+        return out
+
+    def _job_status_history(
+        self,
+        tenant_id: UUID,
+        customer_id: UUID,
+        limit: int,
+        *,
+        since: datetime | None,
+        until: datetime | None,
+    ) -> list[dict[str, Any]]:
+        job_ids = select(Job.id).where(
+            Job.tenant_id == tenant_id, Job.customer_id == customer_id
+        )
+        q = select(JobStatusHistory).where(
+            JobStatusHistory.tenant_id == tenant_id,
+            JobStatusHistory.job_id.in_(job_ids),
+            JobStatusHistory.from_status.is_not(None),
+        )
+        if since is not None:
+            q = q.where(JobStatusHistory.created_at >= since)
+        if until is not None:
+            q = q.where(JobStatusHistory.created_at <= until)
+        q = q.order_by(
+            JobStatusHistory.created_at.desc(), JobStatusHistory.id.desc()
+        ).limit(limit)
+        out: list[dict[str, Any]] = []
+        status_event = {
+            "SCHEDULED": "JOB_SCHEDULED",
+            "CONFIRMED": "JOB_CONFIRMED",
+            "DISPATCHED": "JOB_DISPATCHED",
+            "EN_ROUTE": "JOB_EN_ROUTE",
+            "ARRIVED": "JOB_ARRIVED",
+            "IN_PROGRESS": "JOB_IN_PROGRESS",
+            "COMPLETED": "JOB_COMPLETED",
+            "CANCELLED": "JOB_CANCELLED",
+            "NO_SHOW": "JOB_NO_SHOW",
+        }
+        for row in self._session.scalars(q).all():
+            event = status_event.get(row.to_status, "JOB_STATUS_CHANGED")
+            out.append(
+                {
+                    "type": "JOB",
+                    "id": str(row.id),
+                    "timestamp": row.created_at.isoformat(),
+                    "title": f"Job · {row.to_status}",
+                    "summary": (
+                        f"{row.from_status} → {row.to_status}"
+                        + (f" · {row.reason}" if row.reason else "")
+                    ),
+                    "source": "job_status_history",
+                    "source_key": f"job_status:{row.id}",
+                    "metadata": {
+                        "event": event,
+                        "job_id": str(row.job_id),
+                        "from_status": row.from_status,
+                        "to_status": row.to_status,
+                    },
                     "_occurred_at": row.created_at,
                 }
             )

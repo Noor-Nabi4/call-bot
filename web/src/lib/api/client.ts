@@ -16,6 +16,29 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
       ...(init?.headers || {}),
     },
   });
+  return handleApiResponse<T>(res);
+}
+
+/**
+ * Multipart upload helper — omits the JSON Content-Type header so the
+ * browser sets the multipart boundary itself. Shared by any API module that
+ * uploads files (product images, job attachments, etc.).
+ */
+export async function apiMultipart<T>(
+  path: string,
+  form: FormData,
+  init?: Omit<RequestInit, "body">
+): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    ...init,
+    credentials: "include",
+    body: form,
+  });
+  return handleApiResponse<T>(res);
+}
+
+async function handleApiResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let message: string = errors.generic;
     let code: string | undefined;
@@ -56,10 +79,10 @@ export function formatWhen(iso?: string | null) {
 }
 
 export const STATUS_ORDER = [
-  "new",
-  "scheduled",
-  "dispatched",
-  "in_progress",
-  "completed",
-  "canceled",
+  "NEW",
+  "SCHEDULED",
+  "DISPATCHED",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "CANCELLED",
 ] as const;

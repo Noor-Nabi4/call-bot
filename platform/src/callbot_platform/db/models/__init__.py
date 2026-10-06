@@ -80,7 +80,15 @@ from callbot_platform.db.models.handoff import (
     TenantHandoffSettings,
     TenantRetentionSettings,
 )
-from callbot_platform.db.models.jobs import Job, JobNote, Technician, TenantUser
+from callbot_platform.db.models.jobs import (
+    Job,
+    JobAttachment,
+    JobNote,
+    JobNumberCounter,
+    JobStatusHistory,
+    Technician,
+    TenantUser,
+)
 from callbot_platform.db.models.knowledge import KnowledgeArticle
 from callbot_platform.db.models.onboarding import OrganizationOnboarding
 from callbot_platform.db.models.queue import CallQueueItem
@@ -124,7 +132,10 @@ __all__ = [
     "CustomerTag",
     "CustomerTagLink",
     "Job",
+    "JobAttachment",
     "JobNote",
+    "JobNumberCounter",
+    "JobStatusHistory",
     "InventoryAlertConfiguration",
     "InventoryAlertEvent",
     "InventoryBalance",

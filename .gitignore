@@ -22,6 +22,8 @@ web/node_modules/
 web/.next/
 platform/.venv/
 platform/.env.local
+# Local filesystem ObjectStorage backend (dev/test default) — never committed.
+platform/data/
 .tmp-techverseo/
 .tmp-raffle/
 *.tsbuildinfo

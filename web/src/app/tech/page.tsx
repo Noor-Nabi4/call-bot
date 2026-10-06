@@ -46,7 +46,7 @@ export default function TechHomePage() {
     const data = await listJobs();
     setJobs(
       data.jobs.filter((j) =>
-        ["scheduled", "dispatched", "in_progress"].includes(j.status),
+        ["SCHEDULED", "DISPATCHED", "IN_PROGRESS"].includes(j.status),
       ),
     );
   }, []);
@@ -170,7 +170,7 @@ export default function TechHomePage() {
               { label: "Today", value: todayCount },
               {
                 label: "In progress",
-                value: sorted.filter((j) => j.status === "in_progress").length,
+                value: sorted.filter((j) => j.status === "IN_PROGRESS").length,
               },
             ]}
             className="lg:grid-cols-3"

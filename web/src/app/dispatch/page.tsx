@@ -277,12 +277,12 @@ function DispatchWorkspace() {
                         )
                       }
                       showAssign={
-                        status === "new" ||
-                        status === "scheduled" ||
-                        status === "dispatched"
+                        status === "NEW" ||
+                        status === "SCHEDULED" ||
+                        status === "DISPATCHED"
                       }
                       showDispatch={
-                        status === "scheduled" && !!job.assigned_technician_id
+                        status === "SCHEDULED" && !!job.assigned_technician_id
                       }
                     />
                   </li>

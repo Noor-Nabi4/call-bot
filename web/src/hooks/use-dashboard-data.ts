@@ -23,6 +23,7 @@ import {
   listTechnicians,
 } from "@/lib/api";
 import { getInventoryDashboard } from "@/lib/api/inventory";
+import { JOB_TERMINAL_STATUSES } from "@/lib/api/job-constants";
 import { buildAttentionItems } from "@/lib/attention";
 import { deriveUrgency } from "@/lib/schedule";
 import { errors } from "@/lib/ops-copy";
@@ -107,7 +108,7 @@ export function useDashboardData(user: OpsUser | null) {
   const activeJobs = useMemo(
     () =>
       jobs.filter((j) =>
-        ["new", "scheduled", "dispatched", "in_progress"].includes(j.status),
+        ["NEW", "SCHEDULED", "DISPATCHED", "IN_PROGRESS"].includes(j.status),
       ),
     [jobs],
   );
@@ -190,8 +191,8 @@ export function useDashboardData(user: OpsUser | null) {
       (j) =>
         deriveUrgency(j.scheduled_starts_at) === "today" ||
         deriveUrgency(j.scheduled_starts_at) === "overdue" ||
-        j.status === "in_progress" ||
-        j.status === "dispatched",
+        j.status === "IN_PROGRESS" ||
+        j.status === "DISPATCHED",
     );
     for (const j of todayJobs) {
       rows.push({
@@ -242,7 +243,7 @@ export function useDashboardData(user: OpsUser | null) {
           sort: new Date(j.updated_at).getTime(),
         });
       }
-      if (j.status === "completed" && j.updated_at) {
+      if (j.status === "COMPLETED" && j.updated_at) {
         items.push({
           id: `completed-${j.id}`,
           title: `Completed · ${j.reference_code}`,
@@ -299,7 +300,7 @@ export function useDashboardData(user: OpsUser | null) {
     );
     const completed = countByDay(
       jobs
-        .filter((j) => j.status === "completed")
+        .filter((j) => j.status === "COMPLETED")
         .map((j) => j.updated_at),
       buckets,
     );
@@ -337,7 +338,7 @@ export function useDashboardData(user: OpsUser | null) {
     const rows = techs.map((t) => {
       const assigned = jobs.filter((j) => j.assigned_technician_id === t.id);
       const active = assigned.filter(
-        (j) => !["completed", "canceled"].includes(j.status),
+        (j) => !JOB_TERMINAL_STATUSES.has(j.status),
       );
       return {
         name: t.display_name,
@@ -400,7 +401,7 @@ export function useDashboardData(user: OpsUser | null) {
       await createJob({
         customer_id: jobForm.customer_id,
         service_type: jobForm.service_type,
-        status: "new",
+        status: "NEW",
         scheduled_starts_at: jobForm.scheduled_starts_at
           ? new Date(jobForm.scheduled_starts_at).toISOString()
           : null,

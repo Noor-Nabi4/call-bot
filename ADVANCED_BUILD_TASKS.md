@@ -1616,16 +1616,16 @@ Docs: `docs/ORDERS.md`, `docs/ORDER_LIFECYCLE.md`, `docs/ORDER_INVENTORY_INTEGRA
 
 ### Checklist
 
-- [ ] Job model
-- [ ] Customer
-- [ ] Location
-- [ ] Service
-- [ ] Description
-- [ ] Priority
-- [ ] Status
-- [ ] Technician
-- [ ] Notes
-- [ ] Attachments
+- [x] Job model
+- [x] Customer
+- [x] Location
+- [x] Service
+- [x] Description
+- [x] Priority
+- [x] Status
+- [x] Technician
+- [x] Notes
+- [x] Attachments
 
 ---
 
@@ -1646,11 +1646,25 @@ NO_SHOW
 
 ### Checklist
 
-- [ ] State machine
-- [ ] Status history
-- [ ] Validation
-- [ ] Audit events
-- [ ] Tests
+- [x] State machine
+- [x] Status history
+- [x] Validation
+- [x] Audit events
+- [x] Tests
+
+### Hardening (post-10.2)
+
+- [x] Idempotency request fingerprint (`idempotency_request_hash`, migration `0040_jobs_hardening`)
+- [x] Same-key / different-payload → `idempotency_conflict`
+- [x] `EDITABLE_STATUSES` enforced on PATCH; status only via transition service
+- [x] Assign/unassign gated by `ASSIGNABLE_STATUSES` + `FOR UPDATE` (CRM + legacy)
+- [x] Attachment MIME sniff, path sanitization, size bound, orphan best-effort cleanup
+- [x] Full transition matrix / cancel / NO_SHOW / completion invariants tested
+- [x] PostgreSQL concurrency (numbering, transitions, assign, idempotency, NO_SHOW vs cancel)
+- [x] N+1 list bound + keyset pagination tests
+- [x] Representative local EXPLAIN ANALYZE (~2k jobs, multi-tenant)
+- [x] Frontend `JOB_ASSIGNABLE_STATUSES` aligned with backend
+- [x] Docs: `JOBS.md`, `JOB_LIFECYCLE.md`, `JOB_ASSIGNMENT.md`
 
 ---
 

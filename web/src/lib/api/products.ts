@@ -1,8 +1,6 @@
 /** Typed helpers for Product Catalog admin APIs. */
 
-import { api, API_BASE } from "./client";
-import { errors } from "@/lib/ops-copy";
-import { safeUserError } from "@/lib/safe-error";
+import { api, apiMultipart } from "./client";
 
 export type CatalogStatus = "ACTIVE" | "INACTIVE";
 
@@ -231,37 +229,6 @@ function productQuery(opts?: ProductListParams): string {
 
 function costQuery(includeCost?: boolean): string {
   return includeCost ? "?include_cost=true" : "";
-}
-
-/** Multipart upload helper — omits JSON Content-Type so the browser sets the boundary. */
-async function apiMultipart<T>(path: string, form: FormData): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
-    credentials: "include",
-    body: form,
-  });
-  if (!res.ok) {
-    let message: string = errors.generic;
-    let code: string | undefined;
-    try {
-      const body = await res.json();
-      const detail = body?.detail;
-      if (typeof detail === "string") message = detail;
-      else if (detail?.message) message = detail.message;
-      if (typeof detail === "object" && detail?.code) code = detail.code;
-    } catch {
-      /* ignore */
-    }
-    if (code === "subscription_required" && typeof window !== "undefined") {
-      const pathNow = window.location.pathname;
-      if (!pathNow.startsWith("/settings/billing")) {
-        window.location.assign("/settings/billing");
-      }
-    }
-    throw new Error(safeUserError(message, errors.generic));
-  }
-  if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
 }
 
 export function brandName(brand?: ProductBrand | string | null): string {

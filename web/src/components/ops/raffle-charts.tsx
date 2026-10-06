@@ -44,11 +44,15 @@ export const RAFFLE_COLORS = [
 export const JOB_STATUS_COLORS: Record<string, string> = {
   new: "#1aa884",
   scheduled: "#0F766E",
+  confirmed: "#0F766E",
   dispatched: "#14352c",
+  en_route: "#b45309",
+  arrived: "#b45309",
   in_progress: "#b45309",
   completed: "#0a5a4a",
   canceled: "#b91c1c",
   cancelled: "#b91c1c",
+  no_show: "#b91c1c",
 };
 
 /** Fixed brand colors for call statuses. */

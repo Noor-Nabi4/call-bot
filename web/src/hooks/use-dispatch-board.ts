@@ -23,13 +23,14 @@ import {
   EMPTY_TECH_FORM,
   type CreateTechForm,
 } from "@/components/ops/create-tech-drawer";
+import { JOB_TERMINAL_STATUSES } from "@/lib/api/job-constants";
 
 export const DISPATCH_COLUMNS = [
-  "new",
-  "scheduled",
-  "dispatched",
-  "in_progress",
-  "completed",
+  "NEW",
+  "SCHEDULED",
+  "DISPATCHED",
+  "IN_PROGRESS",
+  "COMPLETED",
 ] as const;
 
 export const DISPATCH_SAVED_VIEWS = [
@@ -65,7 +66,7 @@ function matchesDate(job: Job, dateFilter: string): boolean {
 }
 
 function isActiveJob(job: Job): boolean {
-  return !["completed", "canceled", "cancelled"].includes(job.status);
+  return !JOB_TERMINAL_STATUSES.has(job.status);
 }
 
 export function useDispatchBoard(user: OpsUser | null) {
@@ -84,7 +85,7 @@ export function useDispatchBoard(user: OpsUser | null) {
     const view = searchParams.get("view");
     return view && SAVED_VIEW_IDS.has(view) ? view : "all";
   });
-  const statusFilter = (searchParams.get("status") || "").toLowerCase().trim();
+  const statusFilter = (searchParams.get("status") || "").toUpperCase().trim();
   const [moreOpen, setMoreOpen] = useState(false);
   const [previewJob, setPreviewJob] = useState<Job | null>(null);
   const [jobDrawerOpen, setJobDrawerOpen] = useState(false);
@@ -167,7 +168,7 @@ export function useDispatchBoard(user: OpsUser | null) {
         deriveUrgency(job.scheduled_starts_at) !== "overdue"
       )
         return false;
-      if (statusFilter && job.status.toLowerCase() !== statusFilter) return false;
+      if (statusFilter && job.status.toUpperCase() !== statusFilter) return false;
       return true;
     });
   }, [
@@ -223,7 +224,7 @@ export function useDispatchBoard(user: OpsUser | null) {
   ) {
     setError(null);
     try {
-      await transitionJob(jobId, "dispatched");
+      await transitionJob(jobId, "DISPATCHED");
       await refresh();
       onSuccess("Job dispatched");
     } catch (e) {
@@ -242,7 +243,7 @@ export function useDispatchBoard(user: OpsUser | null) {
       await createJob({
         customer_id: jobForm.customer_id,
         service_type: jobForm.service_type,
-        status: "new",
+        status: "NEW",
         scheduled_starts_at: jobForm.scheduled_starts_at
           ? new Date(jobForm.scheduled_starts_at).toISOString()
           : null,

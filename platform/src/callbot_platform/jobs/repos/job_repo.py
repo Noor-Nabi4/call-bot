@@ -9,19 +9,22 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from callbot_platform.crm.jobs.numbering import allocate_job_number
+from callbot_platform.crm.jobs.transitions import JobTransitionService
 from callbot_platform.db.models import (
     Appointment,
     Customer,
     Job,
     JobNote,
+    JobStatusHistory,
     Technician,
 )
 from callbot_platform.jobs.errors import (
     ASSIGNABLE_STATUSES,
     DEFAULT_CHECKLIST,
-    TRANSITIONS,
     JobsError,
     checklist_item_id,
+    coerce_status,
     job_ref,
 )
 from callbot_platform.telephony.audit import write_audit
@@ -30,6 +33,7 @@ from callbot_platform.telephony.audit import write_audit
 class JobRepository:
     def __init__(self, session: Session) -> None:
         self._session = session
+        self._transitions = JobTransitionService(session)
 
     def create_from_appointment(
         self, appointment: Appointment
@@ -42,20 +46,36 @@ class JobRepository:
         )
         if existing is not None:
             return self._serialize(existing)
+        number = allocate_job_number(self._session, appointment.tenant_id)
         job = Job(
             tenant_id=appointment.tenant_id,
+            job_number=number,
             customer_id=appointment.customer_id,
             appointment_id=appointment.id,
             lead_id=appointment.lead_id,
             call_id=appointment.call_id,
-            status="scheduled",
+            status="SCHEDULED",
+            priority="MEDIUM",
             service_type=appointment.service_type,
             scheduled_starts_at=appointment.starts_at,
             scheduled_ends_at=appointment.ends_at,
             checklist=[dict(item) for item in DEFAULT_CHECKLIST],
             reference_code=job_ref(),
+            created_by="voice-agent",
+            updated_by="voice-agent",
         )
         self._session.add(job)
+        self._session.flush()
+        self._session.add(
+            JobStatusHistory(
+                tenant_id=appointment.tenant_id,
+                job_id=job.id,
+                from_status=None,
+                to_status="SCHEDULED",
+                changed_by="voice-agent",
+                reason="created_from_appointment",
+            )
+        )
         self._session.flush()
         write_audit(
             self._session,
@@ -65,6 +85,7 @@ class JobRepository:
             resource_ids={
                 "job_id": str(job.id),
                 "appointment_id": str(appointment.id),
+                "job_number": job.job_number,
                 "reference_code": job.reference_code,
             },
         )
@@ -76,7 +97,7 @@ class JobRepository:
         *,
         customer_id: UUID,
         service_type: str,
-        status: str = "new",
+        status: str = "NEW",
         scheduled_starts_at: datetime | None = None,
         scheduled_ends_at: datetime | None = None,
         appointment_id: UUID | None = None,
@@ -84,8 +105,11 @@ class JobRepository:
         call_id: UUID | None = None,
         actor: str = "dispatcher",
     ) -> dict[str, Any]:
-        if status not in TRANSITIONS:
-            raise JobsError("invalid_status", f"Unknown status: {status}")
+        status = coerce_status(status)
+        if status not in {"NEW", "SCHEDULED"}:
+            raise JobsError(
+                "invalid_status", "Jobs may only be created as NEW or SCHEDULED"
+            )
         customer = self._session.scalar(
             select(Customer).where(
                 Customer.id == customer_id, Customer.tenant_id == tenant_id
@@ -95,27 +119,47 @@ class JobRepository:
             raise JobsError("customer_not_found", "Customer not found for tenant")
         if not service_type or not service_type.strip():
             raise JobsError("invalid_service_type", "service_type is required")
+        number = allocate_job_number(self._session, tenant_id)
         job = Job(
             tenant_id=tenant_id,
+            job_number=number,
             customer_id=customer_id,
             appointment_id=appointment_id,
             lead_id=lead_id,
             call_id=call_id,
             status=status,
+            priority="MEDIUM",
             service_type=service_type.strip(),
             scheduled_starts_at=scheduled_starts_at,
             scheduled_ends_at=scheduled_ends_at,
             checklist=[dict(item) for item in DEFAULT_CHECKLIST],
             reference_code=job_ref(),
+            created_by=actor,
+            updated_by=actor,
         )
         self._session.add(job)
+        self._session.flush()
+        self._session.add(
+            JobStatusHistory(
+                tenant_id=tenant_id,
+                job_id=job.id,
+                from_status=None,
+                to_status=status,
+                changed_by=actor,
+                reason="created",
+            )
+        )
         self._session.flush()
         write_audit(
             self._session,
             tenant_id=tenant_id,
             actor=actor,
             action="job_created",
-            resource_ids={"job_id": str(job.id), "reference_code": job.reference_code},
+            resource_ids={
+                "job_id": str(job.id),
+                "job_number": job.job_number,
+                "reference_code": job.reference_code,
+            },
         )
         return self._serialize(job)
 
@@ -139,7 +183,7 @@ class JobRepository:
             .limit(max(1, min(limit, 200)))
         )
         if status:
-            q = q.where(Job.status == status)
+            q = q.where(Job.status == coerce_status(status))
         if technician_id:
             q = q.where(Job.assigned_technician_id == technician_id)
         return [self._serialize(j) for j in self._session.scalars(q).all()]
@@ -166,7 +210,15 @@ class JobRepository:
         technician_id: UUID,
         actor: str = "dispatcher",
     ) -> dict[str, Any]:
-        job = self._get(tenant_id, job_id)
+        job = self._session.scalar(
+            select(Job)
+            .where(Job.id == job_id, Job.tenant_id == tenant_id)
+            .with_for_update()
+        )
+        if job is None:
+            raise JobsError("job_not_found", "Job not found for tenant")
+        if job.archived_at is not None:
+            raise JobsError("job_archived", "Cannot assign an archived job")
         if job.status not in ASSIGNABLE_STATUSES:
             raise JobsError(
                 "invalid_transition",
@@ -204,45 +256,21 @@ class JobRepository:
         actor_user_id: UUID | None = None,
         actor: str = "dispatcher",
     ) -> dict[str, Any]:
-        job = self._get(tenant_id, job_id)
-        allowed = TRANSITIONS.get(job.status, frozenset())
-        if status not in allowed:
-            raise JobsError(
-                "invalid_transition",
-                f"Cannot move job from {job.status} to {status}",
+        from callbot_platform.crm.errors import CrmError
+
+        try:
+            result = self._transitions.transition(
+                tenant_id,
+                job_id,
+                to_status=status,
+                actor=actor,
+                completion_notes=completion_notes,
+                actor_user_id=actor_user_id,
             )
-        if status == "dispatched" and job.assigned_technician_id is None:
-            raise JobsError(
-                "technician_required",
-                "Assign a technician before dispatching the job",
-            )
-        if status == "completed":
-            notes = (completion_notes or "").strip()
-            if not notes:
-                raise JobsError(
-                    "completion_notes_required",
-                    "Completion notes are required when completing a job",
-                )
-            job.completion_notes = notes
-            note = JobNote(
-                tenant_id=tenant_id,
-                job_id=job.id,
-                author_user_id=actor_user_id,
-                body=f"Completed: {notes}",
-            )
-            self._session.add(note)
-        job.status = status
-        job.updated_at = datetime.now(UTC)
-        self._session.flush()
-        write_audit(
-            self._session,
-            tenant_id=tenant_id,
-            actor=actor,
-            action="job_status_changed",
-            resource_ids={"job_id": str(job.id)},
-            payload_summary={"status": status},
-        )
-        return self.get(tenant_id, job_id) or self._serialize(job)
+        except CrmError as exc:
+            raise JobsError(exc.code, str(exc)) from exc
+        # Preserve legacy serialisation shape for ops clients.
+        return self.get(tenant_id, job_id) or result
 
     def update_checklist(
         self,
@@ -330,6 +358,7 @@ class JobRepository:
         data: dict[str, Any] = {
             "id": str(job.id),
             "tenant_id": str(job.tenant_id),
+            "job_number": job.job_number,
             "customer_id": str(job.customer_id),
             "customer": customer,
             "appointment_id": str(job.appointment_id) if job.appointment_id else None,
@@ -340,6 +369,10 @@ class JobRepository:
             ),
             "assigned_technician": tech,
             "status": job.status,
+            "priority": job.priority,
+            "description": job.description,
+            "location_id": str(job.location_id) if job.location_id else None,
+            "service_id": str(job.service_id) if job.service_id else None,
             "service_type": job.service_type,
             "scheduled_starts_at": (
                 job.scheduled_starts_at.isoformat() if job.scheduled_starts_at else None
@@ -350,6 +383,7 @@ class JobRepository:
             "checklist": job.checklist or [],
             "completion_notes": job.completion_notes,
             "reference_code": job.reference_code,
+            "archived_at": job.archived_at.isoformat() if job.archived_at else None,
             "created_at": job.created_at.isoformat() if job.created_at else None,
             "updated_at": job.updated_at.isoformat() if job.updated_at else None,
         }
