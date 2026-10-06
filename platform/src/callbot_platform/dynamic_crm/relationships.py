@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from callbot_platform.business_config.modules import MODULE_KEYS
+from callbot_platform.db.models.catalog import Product
 from callbot_platform.db.models.crm import Call, Customer, Lead
 from callbot_platform.db.models.dynamic_crm import (
     OrganizationCrmRelationshipDefinition,
@@ -450,6 +451,7 @@ class RelationshipService:
             "JOBS": (Job, "Job"),
             "APPOINTMENTS": (Appointment, "Appointment"),
             "TECHNICIANS": (Technician, "Technician"),
+            "PRODUCTS": (Product, "Product"),
         }
         model, label = checkers[entity_key]
         row = self._session.scalar(

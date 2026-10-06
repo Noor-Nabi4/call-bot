@@ -445,6 +445,25 @@ export const customers = {
   timelineEmptyHint: "Calls, jobs, appointments, and notes appear here.",
 } as const;
 
+export const products = {
+  title: "Products",
+  description: "Catalog items your team and voice assistant can reference.",
+  empty: "No products yet",
+  emptyHint: "Create a product to start building your catalog.",
+  create: "New product",
+  notFound: "Product not found",
+  categoriesLink: "Manage categories",
+} as const;
+
+export const productCategories = {
+  title: "Categories",
+  description: "Organize products into a nested category tree.",
+  empty: "No categories yet",
+  emptyHint: "Create a root category, then nest children under it.",
+  create: "New category",
+  createChild: "Add child",
+} as const;
+
 export const appointments = {
   title: "Appointments",
   description: "Scheduled service visits for your customers.",

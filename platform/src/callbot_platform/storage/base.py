@@ -18,6 +18,19 @@ ALLOWED_OBJECT_MIME_TYPES: frozenset[str] = frozenset(
         "application/pdf",
         "text/plain",
         "text/markdown",
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/gif",
+    }
+)
+
+ALLOWED_PRODUCT_IMAGE_MIME_TYPES: frozenset[str] = frozenset(
+    {
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "image/gif",
     }
 )
 
@@ -26,6 +39,13 @@ def validate_object_mime_type(mime_type: str) -> str:
     cleaned = (mime_type or "").strip().lower() or "application/octet-stream"
     if cleaned not in ALLOWED_OBJECT_MIME_TYPES:
         raise ValueError(f"unsupported_content_type:{cleaned}")
+    return cleaned
+
+
+def validate_product_image_mime_type(mime_type: str) -> str:
+    cleaned = (mime_type or "").strip().lower()
+    if cleaned not in ALLOWED_PRODUCT_IMAGE_MIME_TYPES:
+        raise ValueError(f"unsupported_image_type:{cleaned}")
     return cleaned
 
 

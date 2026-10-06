@@ -1333,14 +1333,18 @@ Allow businesses to create and manage products.
 
 ### Checklist
 
-- [ ] Product table
-- [ ] CRUD
-- [ ] API
-- [ ] Validation
-- [ ] Search
-- [ ] Filtering
-- [ ] Pagination
-- [ ] Tests
+- [x] Product table
+- [x] CRUD
+- [x] API
+- [x] Validation
+- [x] Search
+- [x] Filtering
+- [x] Pagination
+- [x] Tests
+
+Docs: `docs/PRODUCT_CATALOG.md`
+
+> Implementation override: local only. Production readiness remains BLOCKED.
 
 ---
 
@@ -1348,11 +1352,13 @@ Allow businesses to create and manage products.
 
 ### Checklist
 
-- [ ] Category model
-- [ ] Parent category
-- [ ] Nested categories
-- [ ] Category CRUD
-- [ ] Product filtering
+- [x] Category model
+- [x] Parent category
+- [x] Nested categories
+- [x] Category CRUD
+- [x] Product filtering
+
+Docs: `docs/PRODUCT_CATEGORIES.md`
 
 ---
 
@@ -1381,13 +1387,15 @@ XL
 
 ### Checklist
 
-- [ ] Variant model
-- [ ] SKU per variant
-- [ ] Price per variant
-- [ ] Inventory per variant
-- [ ] Attributes
-- [ ] Variant API
-- [ ] Tests
+- [x] Variant model
+- [x] SKU per variant
+- [x] Price per variant
+- [x] Inventory per variant (transitional stock_on_hand + inventory_item_id)
+- [x] Attributes
+- [x] Variant API
+- [x] Tests
+
+Docs: `docs/PRODUCT_VARIANTS.md`
 
 ---
 
@@ -1395,12 +1403,14 @@ XL
 
 ### Checklist
 
-- [ ] Upload
-- [ ] Storage
-- [ ] Multiple images
-- [ ] Primary image
-- [ ] Delete image
-- [ ] Secure access
+- [x] Upload
+- [x] Storage
+- [x] Multiple images
+- [x] Primary image
+- [x] Delete image
+- [x] Secure access
+
+Docs: `docs/PRODUCT_IMAGES.md`
 
 ---
 

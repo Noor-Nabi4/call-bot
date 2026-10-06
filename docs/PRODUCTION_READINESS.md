@@ -71,6 +71,6 @@ Reason: staging/infrastructure verification for migrations, backup/restore, obje
 
 Dynamic CRM Phase 3 + Task 3.5 hardening are **locally verified** (`docs/DYNAMIC_CRM_HARDENING.md`) but do **not** close the staging gate.
 
-**Implementation override:** Tasks 4.1–4.4 Customer CRM were built and locally tested under an explicit development override. This does **not** approve production deployment. Gate status above remains authoritative.
+**Implementation override:** Tasks 4.1–4.4 Customer CRM and Tasks 5.1–5.4 Product Catalog were built and locally tested under an explicit development override. This does **not** approve production deployment. Gate status above remains authoritative.
 
-Do **not** implement Products / Inventory / Orders / Shipping / Estimates / Invoices / Payments / Memberships or other remaining Phase 4 commerce domains until the staging gate closes (Customer CRM foundation already landed under the override — see `docs/CUSTOMER_CRM.md`).
+Do **not** implement Orders / Inventory ledger / Shipping / Estimates / Invoices / Payments / Memberships or other remaining Phase 4+ commerce domains until the staging gate closes (Customer CRM and Product Catalog foundations already landed under the override — see `docs/CUSTOMER_CRM.md` and `docs/PRODUCT_CATALOG.md`).

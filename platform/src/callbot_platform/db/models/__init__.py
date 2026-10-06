@@ -13,6 +13,17 @@ from callbot_platform.db.models.automation import AutomationRule
 from callbot_platform.db.models.base import Base, JsonType, _utcnow, _uuid
 from callbot_platform.db.models.billing import StripeWebhookEvent, TenantSubscription
 from callbot_platform.db.models.branding import TenantBranding
+from callbot_platform.db.models.catalog import (
+    CatalogSku,
+    Product,
+    ProductAttribute,
+    ProductAttributeValue,
+    ProductBrand,
+    ProductCategory,
+    ProductImage,
+    ProductVariant,
+    ProductVariantAttributeValue,
+)
 from callbot_platform.db.models.cogs import CallCogs
 from callbot_platform.db.models.crm import (
     Call,
@@ -78,6 +89,7 @@ __all__ = [
     "Call",
     "CallCogs",
     "CallQueueItem",
+    "CatalogSku",
     "CrmCustomFieldValue",
     "Customer",
     "CustomerLocation",
@@ -104,6 +116,14 @@ __all__ = [
     "OrganizationOnboarding",
     "OrganizationRole",
     "Permission",
+    "Product",
+    "ProductAttribute",
+    "ProductAttributeValue",
+    "ProductBrand",
+    "ProductCategory",
+    "ProductImage",
+    "ProductVariant",
+    "ProductVariantAttributeValue",
     "RecordingObject",
     "RolePermission",
     "RolePermissionTombstone",

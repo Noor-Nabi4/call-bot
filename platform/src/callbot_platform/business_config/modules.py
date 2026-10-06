@@ -119,7 +119,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
     _m(
         "PRODUCTS",
         "Products",
-        description="Sellable products (catalog ships later)",
+        description="Sellable products",
         icon="package",
         category="commerce",
         default_order=30,
