@@ -1,61 +1,72 @@
-# Production Readiness Checklist (Phase 3)
+# Production Readiness Scorecard
 
-## Security
+**Date:** 2026-10-06 (staging gate)  
+**Branch:** `feat/tenancy-outbox-scaling`  
+**Migration head (repo):** `0022_phase3_async_jobs` (single head)  
+**Automated tests:** 194 passed, 1 skipped (S3 live gated)  
+**compileall:** PASS  
+**ruff (Phase 3 / storage / workers / call_scope + related tests):** PASS  
+**ruff (full `platform/` tree):** NOT VERIFIED clean — pre-existing FastAPI `Depends(...)` B008 debt
 
-- [x] tenant isolation (server-side `tenant_id` filters + TenantContext)
-- [x] call-scoped authorization on CRM / scheduling / knowledge / handoff internals
-- [x] secrets via env (no hardcoded provider keys)
-- [x] signed object URLs (S3 presign; filesystem local URI for dev)
-- [x] Stripe webhook signature + event-id idempotency
-- [x] deterministic job idempotency keys
-- [x] REQUIRE_CALL_SCOPE required in production settings
-- [x] no secrets in structured worker logs (keys/tokens redacted by omission)
+Statuses: **VERIFIED** | **NOT VERIFIED** | **NOT EXECUTED** | **NOT AVAILABLE** | **BLOCKED**
 
-## Database
+## Staging environment preflight
 
-- [x] migration `0022_phase3_async_jobs`
-- [x] indexes on `async_jobs` dequeue / tenant / type
-- [x] connection pools bounded (`DB_POOL_*`)
-- [x] tenant routing / dedicated engine cache (Phase 1/2)
-- [x] backup strategy documented (`docs/DISASTER_RECOVERY.md`)
-- [ ] restore procedure **executed** in staging/prod (operator task)
+```text
+Staging API/worker fleet: NOT AVAILABLE
+Staging managed DB / backups: NOT AVAILABLE
+S3/R2/MinIO credentials: NOT AVAILABLE
+Redis: NOT AVAILABLE (localhost:6379 closed)
+Docker daemon: NOT AVAILABLE
+Provider sandboxes (Twilio/Stripe): NOT AVAILABLE (empty keys)
+Production/Supabase: PRESENT LOCALLY — NOT TOUCHED
+Local Homebrew Postgres: available (used only for prior local DR; not claimed as staging)
+```
 
-## Workers
+## Final scorecard
 
-- [x] graceful SIGTERM shutdown
-- [x] leases + reclaim
-- [x] retries + exponential backoff
-- [x] DLQ + admin replay
-- [x] metrics (structured)
-- [x] TenantContext in workers
+| Area                  | Status         | Evidence                                                                 | Environment      |
+| --------------------- | -------------- | ------------------------------------------------------------------------ | ---------------- |
+| Tenant isolation      | VERIFIED       | pytest CRM/scheduling/knowledge/jobs/telephony/outbox                   | local (pytest)   |
+| Call scope            | VERIFIED       | pytest missing/invalid/expired/tampered/tenant/call; `exp <= now`; prod templates enforce `REQUIRE_CALL_SCOPE=true` | local (pytest + config) |
+| DB migrations         | NOT AVAILABLE  | Repo head `0022_phase3_async_jobs` confirmed; staging revision check not possible | staging missing  |
+| Backup/restore        | NOT AVAILABLE  | Managed/staging backup drill not possible; prior local drill is not staging/prod RTO/RPO | staging missing  |
+| Object storage        | NOT AVAILABLE  | Live S3 gated test not run; filesystem adapter verified in pytest       | staging missing  |
+| Query performance     | NOT AVAILABLE  | No representative staging dataset for EXPLAIN ANALYZE                    | staging missing  |
+| Cursor pagination     | VERIFIED       | `/api/admin/calls` + `/v1/calls` keyset `started_at DESC, id DESC`; pytest pages without duplicates | local (pytest) |
+| Load test             | NOT EXECUTED   | No staging fleet                                                         | staging missing  |
+| Multi-worker recovery | NOT EXECUTED   | Real multi-process crash/reclaim not run; lease/SKIP LOCKED covered in unit tests only | staging missing |
+| Outbox                | VERIFIED       | Code + pytest: TX commit then claim (`SKIP LOCKED`), retry/DLQ/leases   | local (pytest)   |
+| Async jobs            | VERIFIED       | Code + pytest: enqueue/run/idempotency/handlers (fakes)                  | local (pytest)   |
+| DLQ/retry             | VERIFIED       | pytest + admin replay paths                                              | local (pytest)   |
+| Twilio saga           | NOT AVAILABLE  | Live sandbox not available; fake-provider pytest only                    | no sandbox       |
+| LiveKit saga          | NOT AVAILABLE  | Live sandbox smoke not executed                                          | no sandbox       |
+| Stripe saga           | NOT AVAILABLE  | Test-mode keys empty; webhook/job paths mocked in pytest only            | no sandbox       |
+| Health/readiness      | VERIFIED       | `/liveness` process-only; `/readiness` checks Postgres; compose healthcheck now uses `/readiness` | local + config |
+| Graceful shutdown     | NOT VERIFIED   | API SIGTERM verified previously locally; worker multi-replica reclaim **NOT EXECUTED** | mixed            |
+| Security              | VERIFIED       | Call-scope + production settings gate; secret heuristic scan; install path fixed | local            |
+| Observability         | VERIFIED       | Structured metrics/logs for outbox/jobs (latency, counters); no full APM | code review      |
+| Connection pool       | VERIFIED       | Defaults documented: pool 5 + overflow 10 = 15/process; formula recorded | code + docs      |
 
-## External Providers
+## Hardening applied in this gate (real defects)
 
-- [x] Twilio purchase saga (async job)
-- [x] LiveKit connect saga (async job)
-- [x] Stripe signup saga (async job)
-- [x] provider failures → retry / DLQ / partial phone state
-- [ ] Live provider chaos testing in staging (operator task)
+1. **`deploy/install.sh` omitted `REQUIRE_CALL_SCOPE=true`** when generating `platform/.env.production` → production deploys could boot without call-scope. **Fixed.**
+2. **Compose production / selfhost templates** did not pin `REQUIRE_CALL_SCOPE=true` → **Fixed**; healthcheck switched from legacy `/health` to `/readiness`.
+3. **Call-scope expiry** previously used `exp < now` (token valid at exact expiry second) → already fixed to `exp <= now` with deterministic test.
+4. Local gitignored `platform/.env.production` updated to include `REQUIRE_CALL_SCOPE=true` (not committed).
 
-## Storage
+## Explicit non-claims
 
-- [x] S3-compatible backend (`OBJECT_STORAGE_BACKEND=s3|r2|minio`)
-- [x] private objects / tenant-scoped keys
-- [x] signed URLs
-- [x] retention cleanup idempotent for missing objects
-- [x] upload size limit
+- Local RTO/RPO are **not** production or staging values.
+- Pytest does **not** prove staging multi-worker or live provider behavior.
+- Full-tree ruff is **not** clean.
 
-## Operations
+## Phase 4
 
-- [x] `/liveness` vs `/readiness`
-- [x] logging + metrics
-- [x] load-testing methodology doc
-- [x] disaster recovery doc
-- [x] worker / saga runbooks
+```text
+NOT READY FOR PHASE 4
+```
 
-## Explicit remaining risks
+Reason: staging/infrastructure verification for migrations, backup/restore, object storage, EXPLAIN/load, multi-worker reclaim, and live provider sagas remains **NOT AVAILABLE** / **NOT EXECUTED**.
 
-- Production EXPLAIN ANALYZE not performed (no staging dataset in CI).
-- Backups not verified in this environment.
-- boto3 required only when using S3 backend.
-- Release/subaccount paths still perform some provider I/O in request handlers (short-lived; purchase/connect/signup sagas are the critical dual-write fixes).
+Do **not** implement Customers / Products / Inventory / Jobs / Appointments / Dispatch / Estimates / Invoices / Payments / Memberships or other Phase 4 domains until the staging gate closes.

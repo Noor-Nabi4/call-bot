@@ -1,13 +1,27 @@
 # Disaster Recovery
 
-**Date:** 2026-10-06 (Phase 3.1)  
-**Status:** Procedure documented.  
+**Date:** 2026-10-06 (final production readiness verification)  
+**Status:** Local non-production restore drill **VERIFIED**. Managed/staging/production backup pipelines **NOT VERIFIED**.
+
+## Latest drill (local Homebrew Postgres — non-production)
 
 ```text
-RESTORE DRILL NOT EXECUTED
-Reason: required infrastructure access unavailable (no non-production Postgres backup credentials in this environment)
-RTO: not measured
-RPO: not measured
+STATUS = VERIFIED (local scratch only)
+ENVIRONMENT = localhost PostgreSQL 17.9 (Homebrew)
+SOURCE_DB = call_bot (alembic 0017_tenant_branding at backup)
+RESTORE_DB = call_bot_dr_20261006113707
+backup_timestamp = 2026-10-06T11:37:06Z
+restore_start = 2026-10-06T11:37:07Z
+restore_completion = 2026-10-06T11:37:09Z
+RTO (this drill) = 2 seconds (dump restore only; excludes provisioning new host)
+RPO (this drill) = ~1 second (age of dump at restore start)
+POST_RESTORE = alembic upgrade head → 0022_phase3_async_jobs (no-op remaining)
+APP = uvicorn against restore DB
+  GET /liveness → {"status":"alive"} HTTP 200
+  GET /readiness → {"status":"ready","checks":{"postgres":"ok","object_storage":"filesystem"}} HTTP 200
+  SIGTERM → clean process exit
+PRODUCTION / SUPABASE = NOT TOUCHED
+MANAGED BACKUP PIPELINE = NOT EXECUTED (no cloud backup credentials / runbook execution)
 ```
 
 ## Goals
@@ -17,7 +31,7 @@ RPO: not measured
 | RPO | ≤ 24h (adjust with continuous WAL archiving) |
 | RTO | ≤ 4h for shared-DB fleet restore |
 
-Do **not** claim backups exist until the checklist below is executed in each environment.
+Do **not** claim production backups exist until the checklist below is executed against the real backup system.
 
 ## Database
 
@@ -38,6 +52,7 @@ total_connections ≈
 + admin/migration sessions
 ```
 
+Default settings observed in code: `DB_POOL_SIZE=5`, `DB_MAX_OVERFLOW=10` → 15 connections per process.
 Keep total under Postgres `max_connections` with headroom.
 
 ### Restore verification procedure
@@ -50,7 +65,7 @@ Keep total under Postgres `max_connections` with headroom.
 6. Spot-check: one tenant, one call row, one `async_jobs` / `notification_outbox` row.
 7. Record date, backup ID, and operator in the ops log.
 
-**Production EXPLAIN / restore not performed in CI for this repo.**
+**Production restore / EXPLAIN not performed against production data.**
 
 ## Object storage
 
@@ -73,4 +88,4 @@ Keep total under Postgres `max_connections` with headroom.
 
 ## What is not configured here
 
-This repository does not provision cloud backup jobs. Operators must configure provider-side backups and run the restore verification procedure above before declaring production readiness.
+This repository does not provision cloud backup jobs. Operators must configure provider-side backups and re-run the restore verification procedure against staging/managed backups before declaring production DR readiness.

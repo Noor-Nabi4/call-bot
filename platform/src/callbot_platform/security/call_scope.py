@@ -115,7 +115,8 @@ class CallScopeSigner:
             tenant_id = UUID(str(body["tenant_id"]))
         except (KeyError, TypeError, ValueError) as exc:
             raise CallScopeError("invalid_claim", "Call scope missing fields") from exc
-        if exp < now:
+        # RFC 7519: reject on or after exp (exp == now is expired).
+        if exp <= now:
             raise CallScopeError("expired_claim", "Call scope has expired")
         if iat > now + 60:
             raise CallScopeError("invalid_claim", "Call scope iat is in the future")

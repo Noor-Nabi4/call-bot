@@ -17,6 +17,7 @@ ${LIVEKIT_SERVICE_BLOCK}
       ENVIRONMENT: production
       COOKIE_SECURE: "true"
       ALLOW_ENV_TENANT_FALLBACK: "false"
+      REQUIRE_CALL_SCOPE: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -27,7 +28,7 @@ ${LIVEKIT_SERVICE_BLOCK}
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readiness', timeout=4)",
         ]
       interval: 30s
       timeout: 5s

@@ -118,10 +118,12 @@ def test_production_requires_secrets_and_non_local_database() -> None:
         stripe_secret_key="",
         stripe_webhook_secret="",
         database_url="postgresql+psycopg://postgres:postgres@localhost:5432/call_bot",
+        require_call_scope=False,
     )
     missing = missing_production_settings(incomplete)
     assert "credentials_encryption_key" in missing
     assert "database_url" in missing
+    assert "require_call_scope" in missing
 
     complete = _settings(
         environment="production",

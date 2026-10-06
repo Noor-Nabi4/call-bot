@@ -135,13 +135,16 @@ def test_call_scope_tampered_rejected() -> None:
     assert exc.value.code in {"tampered_claim", "invalid_claim"}
 
 
-def test_call_scope_expired_rejected() -> None:
+def test_call_scope_expired_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     signer = CallScopeSigner("test-metadata-hmac-secret")
+    monkeypatch.setattr(
+        "callbot_platform.security.call_scope.time.time", lambda: 1_700_000_000.0
+    )
     token = signer.issue(tenant_id=uuid.uuid4(), ttl_seconds=1)
-    # Force expiry by rewriting exp via verify time — issue with ttl=1 then sleep.
-    import time
-
-    time.sleep(1.1)
+    # Advance to exactly exp — must fail closed (exp <= now).
+    monkeypatch.setattr(
+        "callbot_platform.security.call_scope.time.time", lambda: 1_700_000_001.0
+    )
     with pytest.raises(CallScopeError) as exc:
         signer.verify(token)
     assert exc.value.code == "expired_claim"

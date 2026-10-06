@@ -1,7 +1,16 @@
 # Load Testing
 
-**Date:** 2026-10-06 (Phase 3.1)  
-**Status:** Methodology documented. Staging load: **NOT EXECUTED** (no staging fleet in this environment). Local smoke: `GET /liveness` via TestClient in unit tests only — not capacity evidence.
+**Date:** 2026-10-06 (final production readiness verification)
+
+```text
+STAGING LOAD TEST = NOT EXECUTED
+REASON = no staging API/worker fleet reachable in this environment
+MULTI-WORKER STRESS = NOT EXECUTED
+REASON = no dual worker replicas / staging job inject path available
+LOCAL CAPACITY METRICS (p50/p95/p99/RPS) = NOT MEASURED
+```
+
+Local unit/integration tests and a single-process API smoke against a restored DB are **not** capacity evidence.
 
 ## Scope
 
@@ -37,7 +46,7 @@ export const options = {
 export default function () {
   const res = http.get(`${__ENV.BASE_URL}/liveness`);
   check(res, { "alive": (r) => r.status === 200 });
-}
+};
 ```
 
 Authenticated scenarios must supply `INTERNAL_SERVICE_TOKEN` and valid `X-Call-Scope` tokens minted with `METADATA_HMAC_SECRET`.
@@ -48,13 +57,35 @@ Authenticated scenarios must supply `INTERNAL_SERVICE_TOKEN` and valid `X-Call-S
 - throughput (rps)
 - error rate
 - Postgres connections / CPU
+- Redis utilization (if used)
 - queue depth (`async_jobs` pending + `notification_outbox` pending)
 - worker processing latency (structured logs)
+
+## Connection budget (must verify on staging)
+
+```text
+total ≈ API_replicas × (DB_POOL_SIZE + DB_MAX_OVERFLOW)
+      + outbox_replicas × (DB_POOL_SIZE + DB_MAX_OVERFLOW)
+      + job_replicas × (DB_POOL_SIZE + DB_MAX_OVERFLOW)
+      + admin/migration
+```
+
+Defaults in settings: pool 5 + overflow 10 = **15 connections per process**. Example safe budget for `max_connections=100`:
+
+```text
+2 API + 2 job workers + 2 outbox workers = 6 × 15 = 90 (+ admin headroom)
+```
+
+## Multi-worker checklist (staging)
+
+1. Run ≥2 job worker replicas.
+2. Enqueue enough jobs to force concurrent claim.
+3. Confirm `FOR UPDATE SKIP LOCKED` — one job not processed twice concurrently.
+4. Kill worker A mid-lease → wait lease expiry → worker B reclaims → completes.
+5. Confirm retries, DLQ, and graceful SIGTERM drain.
+
+**Not executed in this verification environment.**
 
 ## Assumptions
 
 Document for each run: hardware, replica counts, pool sizes, whether DB is local Docker or managed, seed data size.
-
-## Executed in this phase
-
-Local unit/integration tests only. **No staging load run was executed as part of Phase 3 code delivery.**
