@@ -46,6 +46,11 @@ Before starting any task:
 - [ ] Do not use mock data for production functionality
 - [ ] Preserve existing functionality
 
+Architecture principles:
+
+- Authorization must be enforced server-side. Frontend permission checks are only for UI behavior. Organization Admin/Owner can manage organization roles and assignments, but cannot create arbitrary platform permissions or bypass protected platform/Owner security boundaries.
+- AI agents and AI tools must use the same organization authorization model as human users. AI must never bypass RBAC.
+
 For every completed task:
 
 - [ ] Database changes implemented
@@ -165,13 +170,38 @@ Connect users with businesses.
 
 ---
 
-## TASK 1.3 — RBAC
+## TASK 1.3 — Organization-Managed RBAC
 
 ### Description
 
-Implement organization-level roles.
+Implement a flexible organization-level role and permission system.
 
-### Roles
+The platform defines the available **permissions**, while each organization can manage its own roles and assign permissions to its users.
+
+Organizations should be able to:
+
+- View available permissions
+- Use predefined system roles
+- Create custom roles
+- Rename custom roles
+- Assign permissions to roles
+- Remove permissions from roles
+- Assign roles to organization members
+- Remove roles from members
+- Manage role membership
+- Disable/deactivate custom roles
+- View role assignments
+- Audit role and permission changes
+
+The platform must NOT allow organizations to create arbitrary permissions.
+
+Permissions are defined centrally by the platform.
+
+---
+
+### System roles
+
+Provide predefined roles as starting templates:
 
 - Owner
 - Admin
@@ -181,14 +211,529 @@ Implement organization-level roles.
 - CSR
 - Accountant
 
+These should be organization-scoped role assignments.
+
+Organizations may customize permissions for appropriate roles where allowed.
+
+The `Owner` role must remain protected.
+
+Do not allow an Admin or custom role to:
+
+- remove the Owner
+- modify the Owner's authority
+- grant themselves Owner
+- bypass platform-level security
+- grant permissions they are not authorized to delegate
+
+---
+
+### Custom roles
+
+Organizations should be able to create custom roles.
+
+Examples:
+
+- Sales Representative
+- Office Manager
+- Support Manager
+- Field Supervisor
+- Warehouse Manager
+- Billing Specialist
+- Marketing Manager
+
+Custom roles must belong to exactly one organization.
+
+A custom role must contain:
+
+- `id`
+- `organization_id`
+- `name`
+- `description`
+- `status`
+- `created_at`
+- `updated_at`
+
+Do not create separate database tables for every role.
+
+---
+
+### Platform permissions
+
+Permissions should be centrally defined.
+
+Use a consistent naming convention:
+
+```text
+resource.action
+```
+
+Examples:
+
+```text
+customers.read
+customers.create
+customers.update
+customers.delete
+
+leads.read
+leads.create
+leads.update
+leads.delete
+
+products.read
+products.create
+products.update
+products.delete
+
+inventory.read
+inventory.adjust
+
+orders.read
+orders.create
+orders.update
+orders.cancel
+
+jobs.read
+jobs.create
+jobs.update
+jobs.assign
+
+appointments.read
+appointments.create
+appointments.update
+appointments.cancel
+
+technicians.read
+technicians.manage
+
+estimates.read
+estimates.create
+estimates.send
+
+invoices.read
+invoices.create
+invoices.send
+
+payments.read
+payments.create
+payments.refund
+
+ai.read
+ai.configure
+
+knowledge.read
+knowledge.manage
+
+automations.read
+automations.manage
+
+integrations.read
+integrations.manage
+
+analytics.read
+
+organization.read
+organization.update
+
+members.read
+members.invite
+members.update
+members.remove
+
+roles.read
+roles.create
+roles.update
+roles.delete
+roles.assign
+```
+
+The exact permission catalog should be finalized during implementation based on the actual modules available.
+
+Do not duplicate permissions across modules.
+
+---
+
+### Role → permission model
+
+Use a normalized relationship:
+
+```text
+Organization
+    │
+    └── Roles
+          │
+          └── Role Permissions
+                  │
+                  └── Platform Permissions
+```
+
+And:
+
+```text
+Organization
+    │
+    └── Members
+          │
+          └── Role Assignments
+                  │
+                  └── Organization Roles
+```
+
+Avoid putting permissions into a JSON blob if a normalized relationship is more appropriate for authorization queries.
+
+Do not create one giant RBAC table containing every possible user/role/permission combination.
+
+---
+
+### Permission scope
+
+Design the authorization model so that permissions can support scope.
+
+Initial scopes:
+
+```text
+ALL_ORGANIZATION
+OWN
+ASSIGNED
+TEAM
+```
+
+Examples:
+
+```text
+Technician
+
+jobs.read       → ASSIGNED
+jobs.update     → ASSIGNED
+customers.read  → ASSIGNED
+```
+
+Manager:
+
+```text
+jobs.read       → ALL_ORGANIZATION
+jobs.update     → ALL_ORGANIZATION
+customers.read  → ALL_ORGANIZATION
+```
+
+Do not over-engineer complex attribute-based access control at this stage.
+
+The architecture should allow scope to be introduced without redesigning the entire authorization system.
+
+---
+
+### Role hierarchy / delegation
+
+Do not create an unrestricted role hierarchy.
+
+Instead, define safe delegation rules.
+
+An organization member may only:
+
+- assign roles they are authorized to assign
+- grant permissions they are authorized to delegate
+- modify roles within their administrative scope
+
+Owner has full organization administration authority.
+
+Admin may manage organization users and roles according to its assigned permissions.
+
+Manager and lower roles must not automatically gain role-management capabilities.
+
+Never allow privilege escalation.
+
+---
+
+### Organization admin UI
+
+The future UI should provide:
+
+```text
+Settings
+  └── Team & Permissions
+        │
+        ├── Members
+        │
+        ├── Roles
+        │     ├── Owner
+        │     ├── Admin
+        │     ├── Manager
+        │     ├── Dispatcher
+        │     ├── Technician
+        │     ├── CSR
+        │     ├── Accountant
+        │     └── Custom Roles
+        │
+        └── Permissions
+```
+
+Role editor:
+
+```text
+Role: Dispatcher
+
+Customers
+  ☑ View
+
+Jobs
+  ☑ View
+  ☑ Create
+  ☑ Update
+  ☑ Assign
+
+Appointments
+  ☑ View
+  ☑ Create
+  ☑ Update
+  ☑ Cancel
+
+Invoices
+  ☐ Create
+  ☐ Send
+
+Payments
+  ☐ Refund
+
+AI
+  ☐ Configure
+```
+
+The UI should only display permissions available to that organization and should prevent unauthorized privilege escalation.
+
+---
+
+### Authorization architecture
+
+All backend authorization must ultimately resolve:
+
+```text
+Authenticated User
+        ↓
+Organization Membership
+        ↓
+Assigned Role(s)
+        ↓
+Role Permissions
+        ↓
+Permission Scope
+        ↓
+Resource Ownership / Organization
+        ↓
+ALLOW / DENY
+```
+
+Never rely only on frontend permission checks.
+
+Frontend checks are for UX.
+
+Backend authorization is authoritative.
+
+AI agents and internal tools must use the same authorization model.
+
+---
+
+### AI agent authorization
+
+The RBAC system must also support AI actions.
+
+Example:
+
+```text
+AI Agent
+    ↓
+Organization
+    ↓
+Agent Permissions
+    ↓
+Tool Permission
+    ↓
+Resource Scope
+    ↓
+Tool Execution
+```
+
+For example:
+
+An AI receptionist may have:
+
+```text
+customers.read
+customers.create
+
+appointments.read
+appointments.create
+appointments.update
+
+services.read
+
+jobs.create
+
+send_sms
+```
+
+But not:
+
+```text
+payments.refund
+organization.delete
+members.remove
+roles.assign
+```
+
+AI must never bypass organization RBAC.
+
+Tool-level authorization remains mandatory even when the tool is called by the voice/SMS agent.
+
+---
+
+### RBAC database design
+
+The implementation plan should anticipate these concepts:
+
+```text
+permissions
+organization_roles
+role_permissions
+organization_members
+member_roles
+```
+
+If the existing architecture already has equivalent tables/models, reuse them instead of creating duplicates.
+
+Possible conceptual structure:
+
+```text
+permissions
+------------
+id
+key
+description
+resource
+action
+system_defined
+created_at
+
+
+organization_roles
+------------------
+id
+organization_id
+name
+description
+is_system_role
+status
+created_at
+updated_at
+
+
+role_permissions
+----------------
+role_id
+permission_id
+scope
+created_at
+
+
+member_roles
+------------
+member_id
+role_id
+created_at
+```
+
+Do not blindly implement these exact fields if the existing architecture suggests a better equivalent.
+
+Current codebase mapping (from architecture audit; do not implement in this planning task):
+
+- Organization ≈ `tenants`
+- Members ≈ `tenant_users`
+- Existing string roles (`admin`, `dispatcher`, `technician`) must migrate into organization-scoped role assignments without locking operators out
+
+---
+
+### Security requirements
+
+The implementation must include tests for:
+
+#### Tenant isolation
+
+Organization A cannot:
+
+- read Organization B roles
+- read Organization B permissions assigned to roles
+- modify Organization B roles
+- assign Organization B roles
+- assign permissions to Organization B roles
+
+#### Privilege escalation
+
+Test that:
+
+- Admin cannot make themselves Owner
+- Manager cannot grant themselves Admin
+- Technician cannot assign roles
+- Custom roles cannot bypass authorization
+- A user cannot grant a permission they cannot delegate
+
+#### AI security
+
+Test that:
+
+- AI cannot execute unauthorized tools
+- AI cannot bypass RBAC
+- AI cannot access another organization
+- AI cannot perform destructive operations without required permission
+
+#### Backend enforcement
+
+Test that direct API requests fail even if the frontend permission check is bypassed.
+
+---
+
+### Audit logging
+
+Role and permission changes must be auditable.
+
+Record events such as:
+
+```text
+ROLE_CREATED
+ROLE_UPDATED
+ROLE_DELETED
+ROLE_PERMISSION_GRANTED
+ROLE_PERMISSION_REVOKED
+MEMBER_ROLE_ASSIGNED
+MEMBER_ROLE_REMOVED
+```
+
+Audit records should include:
+
+- organization
+- actor
+- action
+- target
+- timestamp
+- relevant metadata
+
+Never log secrets.
+
+---
+
 ### Checklist
 
-- [ ] Define permissions
-- [ ] Permission middleware
-- [ ] Role middleware
-- [ ] API protection
-- [ ] UI permission checks
-- [ ] Permission tests
+- [ ] Platform permission catalog (`resource.action`)
+- [ ] Organization-scoped system roles (Owner protected)
+- [ ] Custom organization roles
+- [ ] Normalized role ↔ permission assignments with scope
+- [ ] Member ↔ role assignments
+- [ ] Safe delegation (no privilege escalation)
+- [ ] Server-side authorization (API + AI tools)
+- [ ] Ops UI: Team & Permissions (UX only; backend authoritative)
+- [ ] RBAC audit events
+- [ ] Tenant isolation tests
+- [ ] Privilege escalation tests
+- [ ] AI/tool authorization tests
+- [ ] Direct API bypass tests
 
 ---
 
@@ -2210,7 +2755,14 @@ The following must be completed before the first serious production release:
 ## Foundation
 
 - [ ] Multi-tenancy
-- [ ] RBAC
+- [ ] Organization-managed RBAC
+- [ ] Platform-defined permissions
+- [ ] System roles
+- [ ] Custom organization roles
+- [ ] Role assignments
+- [ ] Permission scopes
+- [ ] AI/tool authorization
+- [ ] RBAC audit logs
 - [ ] Tenant isolation
 - [ ] Business onboarding
 
