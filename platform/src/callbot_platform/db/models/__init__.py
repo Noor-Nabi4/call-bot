@@ -62,6 +62,12 @@ from callbot_platform.db.models.inventory import (
     InventoryOutboxEvent,
     InventoryTransaction,
 )
+from callbot_platform.db.models.orders import (
+    Order,
+    OrderItem,
+    OrderNumberCounter,
+    OrderStatusHistory,
+)
 from callbot_platform.db.models.services import (
     Pricebook,
     PricebookItem,
@@ -134,6 +140,10 @@ __all__ = [
     "LeadNote",
     "MemberRole",
     "NotificationOutbox",
+    "Order",
+    "OrderItem",
+    "OrderNumberCounter",
+    "OrderStatusHistory",
     "OrganizationCrmConfiguration",
     "OrganizationCrmField",
     "OrganizationCrmModule",

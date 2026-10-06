@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from callbot_platform.business_config.modules import MODULE_KEYS
 from callbot_platform.db.models.catalog import Product
 from callbot_platform.db.models.crm import Call, Customer, Lead
+from callbot_platform.db.models.orders import Order
 from callbot_platform.db.models.dynamic_crm import (
     OrganizationCrmRelationshipDefinition,
     OrganizationCrmRelationshipLink,
@@ -447,6 +448,7 @@ class RelationshipService:
         checkers: dict[str, Any] = {
             "CUSTOMERS": (Customer, "Customer"),
             "LEADS": (Lead, "Lead"),
+            "ORDERS": (Order, "Order"),
             "CALLS": (Call, "Call"),
             "JOBS": (Job, "Job"),
             "APPOINTMENTS": (Appointment, "Appointment"),

@@ -179,11 +179,11 @@ def test_configuration_only_relationship_rejected(
     with pytest.raises(DynamicCrmError) as exc:
         RelationshipService(session).create_definition(
             tenant.id,
-            relationship_key="customer_orders",
+            relationship_key="customer_invoices",
             source_type="module",
             source_key="CUSTOMERS",
             target_type="module",
-            target_key="ORDERS",
+            target_key="INVOICES",
             cardinality="ONE_TO_MANY",
             actor="a",
         )

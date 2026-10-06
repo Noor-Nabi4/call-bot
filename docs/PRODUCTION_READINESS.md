@@ -73,4 +73,17 @@ Dynamic CRM Phase 3 + Task 3.5 hardening are **locally verified** (`docs/DYNAMIC
 
 **Implementation override:** Tasks 4.1–4.4 Customer CRM and Tasks 5.1–5.4 Product Catalog were built and locally tested under an explicit development override. This does **not** approve production deployment. Gate status above remains authoritative.
 
+### Phase 9 Orders (9.5 staging gate — 2026-10-06)
+
+```text
+LOCAL Orders hardening: VERIFIED (389 pytest passed / PG concurrency 9/9 / web build)
+Repo Alembic head (workspace): 0038_orders_hardening
+Migration files 0037_orders + 0038_orders_hardening: PRESENT locally, UNTRACKED in git
+STAGING Orders migration/RBAC/smoke: NOT AVAILABLE (no staging env)
+PRODUCTION Orders migration/smoke: NOT EXECUTED (production credentials present; not touched)
+Orders production readiness: BLOCKED
+```
+
 Do **not** implement Orders / Inventory ledger / Shipping / Estimates / Invoices / Payments / Memberships or other remaining Phase 4+ commerce domains until the staging gate closes (Customer CRM and Product Catalog foundations already landed under the override — see `docs/CUSTOMER_CRM.md` and `docs/PRODUCT_CATALOG.md`).
+
+Note: Phase 9 Orders code exists locally under the same development override. **Orders is not staging-verified and not production-ready.**

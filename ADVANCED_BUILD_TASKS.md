@@ -1563,18 +1563,18 @@ Support commerce businesses and product sales.
 
 ### Checklist
 
-- [ ] Order
-- [ ] Customer
-- [ ] Line items
-- [ ] Product
-- [ ] Variant
-- [ ] Quantity
-- [ ] Price
-- [ ] Discount
-- [ ] Tax
-- [ ] Shipping
-- [ ] Total
-- [ ] Status
+- [x] Order
+- [x] Customer
+- [x] Line items
+- [x] Product
+- [x] Variant
+- [x] Quantity
+- [x] Price
+- [x] Discount
+- [x] Tax
+- [x] Shipping
+- [x] Total
+- [x] Status
 
 ---
 
@@ -1593,10 +1593,20 @@ DRAFT
 
 ### Checklist
 
-- [ ] State machine
-- [ ] Status history
-- [ ] Validation
-- [ ] Tests
+- [x] State machine
+- [x] Status history
+- [x] Validation
+- [x] Tests
+
+### Hardening (post-9.2)
+
+- [x] Idempotency request fingerprint (`0038_orders_hardening`)
+- [x] Inventory flags re-synced from ledger before mutation
+- [x] List serialize avoids status_history N+1
+- [x] PostgreSQL concurrency + EXPLAIN ANALYZE (local)
+- [x] Frontend mutation busy-guard + dedicated transition APIs
+
+Docs: `docs/ORDERS.md`, `docs/ORDER_LIFECYCLE.md`, `docs/ORDER_INVENTORY_INTEGRATION.md`
 
 ---
 

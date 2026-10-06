@@ -18,6 +18,7 @@ PLATFORM_MODULE_TABLES: Final[frozenset[str]] = frozenset(
     {
         "CUSTOMERS",
         "LEADS",
+        "ORDERS",
         "CALLS",
         "JOBS",
         "APPOINTMENTS",

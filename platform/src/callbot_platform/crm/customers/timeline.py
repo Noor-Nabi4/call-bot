@@ -21,10 +21,11 @@ from callbot_platform.db.models import (
     LeadActivity,
     NotificationOutbox,
 )
+from callbot_platform.db.models.orders import Order, OrderStatusHistory
 
 # Controlled event types — only domains that exist today.
 TIMELINE_EVENT_TYPES = frozenset(
-    {"CALL", "LEAD", "JOB", "APPOINTMENT", "NOTE", "SMS", "EMAIL"}
+    {"CALL", "LEAD", "JOB", "APPOINTMENT", "NOTE", "SMS", "EMAIL", "ORDER"}
 )
 
 # Permission keys required per event type (fail closed when denied by caller).
@@ -36,6 +37,7 @@ TIMELINE_PERMISSIONS: dict[str, str] = {
     "NOTE": "customers.read",
     "SMS": "appointments.read",
     "EMAIL": "appointments.read",
+    "ORDER": "orders.read",
 }
 
 
@@ -93,6 +95,15 @@ class CustomerTimelineService:
             )
             events.extend(
                 self._lead_activities(
+                    tenant_id, customer_id, fetch_n, since=since, until=until
+                )
+            )
+        if "ORDER" in types:
+            events.extend(
+                self._orders(tenant_id, customer_id, fetch_n, since=since, until=until)
+            )
+            events.extend(
+                self._order_status_history(
                     tenant_id, customer_id, fetch_n, since=since, until=until
                 )
             )
@@ -274,6 +285,104 @@ class CustomerTimelineService:
                         "activity_type": row.activity_type,
                         "lead_id": str(row.lead_id),
                         **dict(row.metadata_json or {}),
+                    },
+                    "_occurred_at": row.created_at,
+                }
+            )
+        return out
+
+    def _orders(
+        self,
+        tenant_id: UUID,
+        customer_id: UUID,
+        limit: int,
+        *,
+        since: datetime | None,
+        until: datetime | None,
+    ) -> list[dict[str, Any]]:
+        q = select(Order).where(
+            Order.tenant_id == tenant_id, Order.customer_id == customer_id
+        )
+        if since is not None:
+            q = q.where(Order.created_at >= since)
+        if until is not None:
+            q = q.where(Order.created_at <= until)
+        q = q.order_by(Order.created_at.desc(), Order.id.desc()).limit(limit)
+        out: list[dict[str, Any]] = []
+        for row in self._session.scalars(q).all():
+            out.append(
+                {
+                    "type": "ORDER",
+                    "id": str(row.id),
+                    "timestamp": row.created_at.isoformat(),
+                    "title": f"Order · {row.order_number}",
+                    "summary": f"Status: {row.status} · Total: {row.total} {row.currency}",
+                    "source": "orders",
+                    "source_key": f"order:{row.id}",
+                    "metadata": {
+                        "event": "ORDER_CREATED",
+                        "status": row.status,
+                        "order_number": row.order_number,
+                        "total": str(row.total),
+                        "currency": row.currency,
+                    },
+                    "_occurred_at": row.created_at,
+                }
+            )
+        return out
+
+    def _order_status_history(
+        self,
+        tenant_id: UUID,
+        customer_id: UUID,
+        limit: int,
+        *,
+        since: datetime | None,
+        until: datetime | None,
+    ) -> list[dict[str, Any]]:
+        order_ids = select(Order.id).where(
+            Order.tenant_id == tenant_id, Order.customer_id == customer_id
+        )
+        q = select(OrderStatusHistory).where(
+            OrderStatusHistory.tenant_id == tenant_id,
+            OrderStatusHistory.order_id.in_(order_ids),
+            OrderStatusHistory.from_status.is_not(None),
+        )
+        if since is not None:
+            q = q.where(OrderStatusHistory.created_at >= since)
+        if until is not None:
+            q = q.where(OrderStatusHistory.created_at <= until)
+        q = q.order_by(
+            OrderStatusHistory.created_at.desc(), OrderStatusHistory.id.desc()
+        ).limit(limit)
+        out: list[dict[str, Any]] = []
+        status_event = {
+            "CONFIRMED": "ORDER_CONFIRMED",
+            "PROCESSING": "ORDER_PROCESSING",
+            "SHIPPED": "ORDER_SHIPPED",
+            "DELIVERED": "ORDER_DELIVERED",
+            "CANCELLED": "ORDER_CANCELLED",
+            "REFUNDED": "ORDER_REFUNDED",
+        }
+        for row in self._session.scalars(q).all():
+            event = status_event.get(row.to_status, "ORDER_STATUS_CHANGED")
+            out.append(
+                {
+                    "type": "ORDER",
+                    "id": str(row.id),
+                    "timestamp": row.created_at.isoformat(),
+                    "title": f"Order · {row.to_status}",
+                    "summary": (
+                        f"{row.from_status} → {row.to_status}"
+                        + (f" · {row.reason}" if row.reason else "")
+                    ),
+                    "source": "order_status_history",
+                    "source_key": f"order_status:{row.id}",
+                    "metadata": {
+                        "event": event,
+                        "order_id": str(row.order_id),
+                        "from_status": row.from_status,
+                        "to_status": row.to_status,
                     },
                     "_occurred_at": row.created_at,
                 }
