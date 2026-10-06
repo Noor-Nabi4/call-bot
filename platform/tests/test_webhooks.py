@@ -85,6 +85,9 @@ def test_normalize_and_deliver_signed_webhook() -> None:
 
 
 def test_automation_post_webhook_action(session: Session, tenant: Tenant) -> None:
+    from callbot_platform.db.models import NotificationOutbox
+    from sqlalchemy import select
+
     service = AutomationService(session)
     with patch(
         "callbot_platform.automation.webhooks.socket.getaddrinfo",
@@ -98,18 +101,23 @@ def test_automation_post_webhook_action(session: Session, tenant: Tenant) -> Non
             config={"url": "https://hooks.example.com/callbot", "secret": "abc"},
         )
         assert rule["config"]["secret"] == "***"
-        with patch(
-            "callbot_platform.automation.service.deliver_webhook",
-            return_value={"status_code": 200},
-        ) as deliver:
-            results = service.dispatch(
-                tenant.id,
-                "call.ended",
-                payload={"call_id": str(uuid4())},
-            )
+        call_id = str(uuid4())
+        results = service.dispatch(
+            tenant.id,
+            "call.ended",
+            payload={"call_id": call_id},
+        )
         assert len(results) == 1
         assert results[0]["ok"] is True
-        deliver.assert_called_once()
+        assert results[0]["result"]["enqueued"] is True
+        rows = session.scalars(
+            select(NotificationOutbox).where(
+                NotificationOutbox.tenant_id == tenant.id,
+                NotificationOutbox.channel == "webhook",
+            )
+        ).all()
+        assert len(rows) == 1
+        assert rows[0].status == "pending"
 
     with pytest.raises(AutomationError):
         service.create_rule(

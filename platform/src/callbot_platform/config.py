@@ -20,6 +20,37 @@ class Settings(BaseSettings):
         default="postgresql+psycopg://postgres:postgres@localhost:5432/call_bot",
         alias="DATABASE_URL",
     )
+    db_pool_size: int = Field(default=5, alias="DB_POOL_SIZE", ge=1, le=100)
+    db_max_overflow: int = Field(default=10, alias="DB_MAX_OVERFLOW", ge=0, le=100)
+    db_pool_timeout: int = Field(default=30, alias="DB_POOL_TIMEOUT", ge=1, le=300)
+    db_pool_recycle: int = Field(default=1800, alias="DB_POOL_RECYCLE", ge=60)
+    db_pool_pre_ping: bool = Field(default=True, alias="DB_POOL_PRE_PING")
+
+    outbox_batch_size: int = Field(default=20, alias="OUTBOX_BATCH_SIZE", ge=1, le=500)
+    outbox_max_retries: int = Field(default=8, alias="OUTBOX_MAX_RETRIES", ge=1, le=50)
+    outbox_base_backoff_seconds: float = Field(
+        default=5.0, alias="OUTBOX_BASE_BACKOFF_SECONDS", ge=0.1
+    )
+    outbox_max_backoff_seconds: float = Field(
+        default=900.0, alias="OUTBOX_MAX_BACKOFF_SECONDS", ge=1.0
+    )
+    outbox_poll_interval_seconds: float = Field(
+        default=2.0, alias="OUTBOX_POLL_INTERVAL_SECONDS", ge=0.2
+    )
+    require_call_scope: bool = Field(default=False, alias="REQUIRE_CALL_SCOPE")
+    call_scope_ttl_seconds: int = Field(
+        default=14_400, alias="CALL_SCOPE_TTL_SECONDS", ge=60
+    )
+    object_storage_backend: str = Field(
+        default="filesystem", alias="OBJECT_STORAGE_BACKEND"
+    )
+    object_storage_root: str = Field(
+        default="./data/object-storage", alias="OBJECT_STORAGE_ROOT"
+    )
+    dedicated_db_idle_seconds: int = Field(
+        default=600, alias="DEDICATED_DB_IDLE_SECONDS", ge=60
+    )
+
     platform_api_host: str = Field(default="0.0.0.0", alias="PLATFORM_API_HOST")
     platform_api_port: int = Field(default=8000, alias="PLATFORM_API_PORT")
 
@@ -190,6 +221,8 @@ def missing_production_settings(settings: Settings) -> list[str]:
     database_url = settings.database_url.lower()
     if "localhost" in database_url or "127.0.0.1" in database_url:
         missing.append("database_url")
+    if not settings.require_call_scope:
+        missing.append("require_call_scope")
     return missing
 
 

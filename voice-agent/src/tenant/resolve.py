@@ -26,6 +26,7 @@ class TenantResolution:
     livekit_inbound_trunk_id: str | None = None
     livekit_dispatch_rule_id: str | None = None
     agent_profile_id: str | None = None
+    call_scope: str | None = None
 
 
 def verify_signed_metadata(raw: str | None, secret: str) -> dict[str, Any] | None:
@@ -188,6 +189,7 @@ class PlatformTenantResolver:
             livekit_inbound_trunk_id=data.get("livekit_inbound_trunk_id"),
             livekit_dispatch_rule_id=data.get("livekit_dispatch_rule_id"),
             agent_profile_id=data.get("agent_profile_id"),
+            call_scope=data.get("call_scope"),
         )
 
     def notify_inbound_observed(

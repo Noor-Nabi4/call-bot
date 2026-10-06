@@ -89,7 +89,9 @@ def list_technicians(
 @router.post("/technicians")
 def create_technician(
     body: CreateTechnicianBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     try:
@@ -133,7 +135,9 @@ def list_jobs(
 @router.post("/jobs")
 def create_job(
     body: CreateJobBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     try:
@@ -175,7 +179,9 @@ def get_job(
 def assign_job(
     job_id: UUID,
     body: AssignBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     try:

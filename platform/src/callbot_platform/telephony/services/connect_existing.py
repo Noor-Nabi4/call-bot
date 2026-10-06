@@ -75,9 +75,7 @@ class ConnectExistingService:
             )
 
         try:
-            EntitlementGuard(self._session).require_capacity(
-                tenant_id, "phone_numbers"
-            )
+            EntitlementGuard(self._session).require_capacity(tenant_id, "phone_numbers")
         except EntitlementError as exc:
             raise ConnectExistingError(exc.code, str(exc)) from exc
 
@@ -214,7 +212,7 @@ class ConnectExistingService:
                         "Twilio Console → Elastic SIP Trunking → Trunks → Create new SIP trunk"
                     ),
                     "cli": (
-                        'twilio api trunking v1 trunks create '
+                        "twilio api trunking v1 trunks create "
                         '--friendly-name "LiveKit inbound" '
                         '--domain-name "livekit-inbound-<unique>.pstn.twilio.com"'
                     ),
@@ -222,9 +220,7 @@ class ConnectExistingService:
                 {
                     "step": 2,
                     "title": "Add Origination URI to LiveKit",
-                    "ui": (
-                        f"Trunk → Origination → Add Origination URI → {uri}"
-                    ),
+                    "ui": (f"Trunk → Origination → Add Origination URI → {uri}"),
                     "cli": (
                         "twilio api trunking v1 trunks origination-urls create "
                         "--trunk-sid <twilio_trunk_sid> "

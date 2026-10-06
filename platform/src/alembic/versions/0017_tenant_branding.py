@@ -16,7 +16,9 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "tenant_branding",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
+        sa.Column(
+            "id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False
+        ),
         sa.Column(
             "tenant_id",
             postgresql.UUID(as_uuid=True),

@@ -233,7 +233,21 @@ export const knowledge = {
 export const settings = {
   title: "Settings",
   description:
-    "Manage data retention, review account activity, and open billing or team.",
+    "Manage your business profile, data retention, billing, and team.",
+  organization: "Business profile",
+  organizationHint:
+    "Legal and operating details for this tenant. Used for scheduling, invoices, and AI context.",
+  organizationSaved: "Business profile saved",
+  name: "Business name",
+  industry: "Industry",
+  businessType: "Business type",
+  timezone: "Timezone",
+  currency: "Currency",
+  country: "Country",
+  state: "State / region",
+  website: "Website",
+  phone: "Business phone",
+  email: "Business email",
   users: "Team members",
   invite: "Invite teammate",
   retention: "Data retention",

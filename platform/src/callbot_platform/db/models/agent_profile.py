@@ -58,6 +58,7 @@ class AgentProfile(Base):
         UniqueConstraint("tenant_id", "slug", name="uq_agent_profiles_tenant_slug"),
         Index("ix_agent_profiles_tenant_id", "tenant_id"),
         Index("ix_agent_profiles_tenant_default", "tenant_id", "is_default"),
+        Index("ix_agent_profiles_tenant_status", "tenant_id", "status"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(

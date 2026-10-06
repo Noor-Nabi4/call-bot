@@ -19,7 +19,9 @@ def upgrade() -> None:
     )
     op.add_column(
         "tenant_phone_numbers",
-        sa.Column("is_primary", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column(
+            "is_primary", sa.Boolean(), nullable=False, server_default=sa.false()
+        ),
     )
     op.create_table(
         "tenant_agent_settings",
@@ -74,7 +76,9 @@ def upgrade() -> None:
         sa.UniqueConstraint("tenant_id", "e164", name="uq_customer_phones_tenant_e164"),
     )
     op.create_index("ix_customer_phones_tenant_id", "customer_phones", ["tenant_id"])
-    op.create_index("ix_customer_phones_customer_id", "customer_phones", ["customer_id"])
+    op.create_index(
+        "ix_customer_phones_customer_id", "customer_phones", ["customer_id"]
+    )
     op.create_table(
         "calls",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),

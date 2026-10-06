@@ -48,15 +48,15 @@ def _http(exc: Exception) -> HTTPException:
 
 
 @internal_router.get("/{tenant_id}")
-def get_internal(
-    tenant_id: UUID, session: Session = Depends(db_dep)
-) -> dict[str, Any]:
+def get_internal(tenant_id: UUID, session: Session = Depends(db_dep)) -> dict[str, Any]:
     return {"settings": HandoffRepository(session).get(tenant_id)}
 
 
 @ops_router.get("")
 def get_ops(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     return {"settings": HandoffRepository(session).get(user.tenant_id)}
@@ -65,7 +65,9 @@ def get_ops(
 @ops_router.put("")
 def put_ops(
     body: UpsertBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
+    user: CurrentUser = Depends(
+        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
+    ),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
     try:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, date, datetime, timedelta
+
 from sqlalchemy.orm import Session
 
 from callbot_platform.db.models import Tenant, TenantPhoneNumber
@@ -12,6 +14,14 @@ from callbot_platform.domain.enums import (
     ProvisioningState,
     VerificationStatus,
 )
+
+
+def next_open_booking_day(*, after: date | None = None) -> date:
+    """Next weekday on or after tomorrow (UTC), inside the default 14-day horizon."""
+    day = (after or datetime.now(UTC).date()) + timedelta(days=1)
+    while day.weekday() >= 5:
+        day += timedelta(days=1)
+    return day
 
 
 def make_phone(

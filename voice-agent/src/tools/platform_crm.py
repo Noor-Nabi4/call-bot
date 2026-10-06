@@ -21,10 +21,15 @@ class PlatformCrmClient:
         base_url: str,
         internal_token: str,
         timeout_sec: float = 8.0,
+        call_scope: str | None = None,
     ) -> None:
         self._base = base_url.rstrip("/")
         self._token = internal_token
         self._timeout = timeout_sec
+        self._call_scope = call_scope
+
+    def set_call_scope(self, call_scope: str | None) -> None:
+        self._call_scope = call_scope
 
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         if not self._base or not self._token:
@@ -33,13 +38,16 @@ class PlatformCrmClient:
                 "PLATFORM_API_URL and INTERNAL_SERVICE_TOKEN are required for CRM tools",
             )
         body = json.dumps(payload).encode("utf-8")
+        headers = {
+            "Content-Type": "application/json",
+            "X-Internal-Token": self._token,
+        }
+        if self._call_scope:
+            headers["X-Call-Scope"] = self._call_scope
         req = request.Request(
             f"{self._base}{path}",
             data=body,
-            headers={
-                "Content-Type": "application/json",
-                "X-Internal-Token": self._token,
-            },
+            headers=headers,
             method="POST",
         )
         try:

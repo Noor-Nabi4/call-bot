@@ -74,13 +74,13 @@ def calls(
         description="Optional status filter (e.g. active for live monitoring)",
     ),
     limit: int = Query(default=100, ge=1, le=200),
+    cursor: str | None = Query(default=None, max_length=512),
 ) -> dict[str, Any]:
     try:
-        return {
-            "calls": AdminRepository(session).list_calls(
-                user.tenant_id, status=status, limit=limit
-            )
-        }
+        page = AdminRepository(session).list_calls(
+            user.tenant_id, status=status, limit=limit, cursor=cursor
+        )
+        return page
     except AdminError as exc:
         raise HTTPException(
             status_code=400, detail={"code": exc.code, "message": str(exc)}

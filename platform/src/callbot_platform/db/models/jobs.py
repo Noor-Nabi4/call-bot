@@ -114,6 +114,7 @@ class Job(Base):
     __table_args__ = (
         Index("ix_jobs_tenant_id", "tenant_id"),
         Index("ix_jobs_tenant_status", "tenant_id", "status"),
+        Index("ix_jobs_tenant_created", "tenant_id", "created_at"),
         Index("ix_jobs_tenant_technician", "tenant_id", "assigned_technician_id"),
         UniqueConstraint(
             "tenant_id", "appointment_id", name="uq_jobs_tenant_appointment"

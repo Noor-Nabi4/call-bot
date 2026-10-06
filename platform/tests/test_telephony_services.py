@@ -10,7 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from callbot_platform.config import Settings
-from callbot_platform.db.models import Tenant, TenantPhoneNumber, TelephonyIdempotencyKey
+from callbot_platform.db.models import (
+    Tenant,
+    TenantPhoneNumber,
+    TelephonyIdempotencyKey,
+)
 from callbot_platform.domain.enums import ConnectionStatus, VerificationStatus
 from callbot_platform.security.crypto import CredentialCipher
 from callbot_platform.security.metadata import MetadataSigner
@@ -25,7 +29,10 @@ from callbot_platform.telephony.services.connect_existing import (
     ConnectExistingError,
     ConnectExistingService,
 )
-from callbot_platform.telephony.services.purchase import PlatformPurchaseService, PurchaseError
+from callbot_platform.telephony.services.purchase import (
+    PlatformPurchaseService,
+    PurchaseError,
+)
 from callbot_platform.telephony.services.verification import DbNumberVerificationService
 from helpers import make_phone
 
@@ -40,7 +47,7 @@ class FakeLiveKit:
     def create_livekit_inbound_trunk(
         self, *, name: str, numbers: list[str], metadata: str | None = None
     ) -> LiveKitInboundTrunkInfo:
-        trunk_id = f"ST_{len(self.trunks)+1}"
+        trunk_id = f"ST_{len(self.trunks) + 1}"
         self.trunks.append(trunk_id)
         return LiveKitInboundTrunkInfo(trunk_id=trunk_id, name=name, numbers=numbers)
 
@@ -56,7 +63,7 @@ class FakeLiveKit:
         trunk_ids: list[str],
         room_prefix: str = "call-",
     ) -> LiveKitDispatchRuleInfo:
-        rule_id = f"SDR_{len(self.rules)+1}"
+        rule_id = f"SDR_{len(self.rules) + 1}"
         self.rules.append(rule_id)
         return LiveKitDispatchRuleInfo(dispatch_rule_id=rule_id, name=name)
 
@@ -280,9 +287,7 @@ def test_failed_purchase_not_blindly_retried(
         )
     assert exc2.value.code == "failed_purchase_not_retryable"
     row = session.scalar(
-        select(TelephonyIdempotencyKey).where(
-            TelephonyIdempotencyKey.key == "fail-key"
-        )
+        select(TelephonyIdempotencyKey).where(TelephonyIdempotencyKey.key == "fail-key")
     )
     assert row is not None
     assert row.status == "failed"
@@ -335,9 +340,7 @@ def test_release_authorization_path_a_denied(
     assert exc.value.code == "release_not_allowed"
 
 
-def test_tenant_isolation_on_verification(
-    session: Session, tenant: Tenant
-) -> None:
+def test_tenant_isolation_on_verification(session: Session, tenant: Tenant) -> None:
     other = Tenant(name="Other", slug="other")
     session.add(other)
     session.flush()
@@ -349,6 +352,4 @@ def test_tenant_isolation_on_verification(
     )
     verification = DbNumberVerificationService(session)
     with pytest.raises(Exception):
-        verification.start_verification(
-            tenant_id=other.id, phone_number_id=phone.id
-        )
+        verification.start_verification(tenant_id=other.id, phone_number_id=phone.id)

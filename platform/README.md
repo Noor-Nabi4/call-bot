@@ -93,7 +93,8 @@ Configure Stripe (platform account):
 
 Do **not** reuse Stripe Connect keys here. Tenant merchant payments (Phase 6) are separate.
 
-`POST /tenants` requires `X-Internal-Token`. Public onboarding uses `/auth/signup`.
+- Tenant organization profile: `GET|PATCH /api/admin/organization` (admin session; extends `tenants`, not a second org table)
+- `POST /tenants` requires `X-Internal-Token`. Public onboarding uses `/auth/signup`.
 
 Session-authenticated ops API (`/api/...`):
 

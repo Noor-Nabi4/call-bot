@@ -25,7 +25,9 @@ class TwilioProvider:
 
 
 class TwilioApiError(RuntimeError):
-    def __init__(self, message: str, *, status: int | None = None, code: int | None = None):
+    def __init__(
+        self, message: str, *, status: int | None = None, code: int | None = None
+    ):
         super().__init__(message)
         self.status = status
         self.code = code
@@ -125,9 +127,13 @@ class TwilioNumberInventoryService(NumberInventoryService):
             price_map = {}
             for item in getattr(pricing, "phone_number_prices", None) or []:
                 ntype = getattr(item, "number_type", None) or item.get("number_type")
-                price = getattr(item, "current_price", None) or item.get("current_price")
+                price = getattr(item, "current_price", None) or item.get(
+                    "current_price"
+                )
                 if ntype:
-                    price_map[str(ntype).lower()] = str(price) if price is not None else None
+                    price_map[str(ntype).lower()] = (
+                        str(price) if price is not None else None
+                    )
             unit = getattr(pricing, "price_unit", None)
             mapped_type = {
                 "local": "local",
@@ -268,7 +274,9 @@ class TwilioSipTrunkService:
     ) -> None:
         client = _client(account_sid, auth_token)
         try:
-            existing = client.trunking.v1.trunks(trunk_sid).phone_numbers.list(limit=100)
+            existing = client.trunking.v1.trunks(trunk_sid).phone_numbers.list(
+                limit=100
+            )
             for item in existing:
                 if item.sid == phone_number_sid:
                     return
@@ -293,7 +301,10 @@ class TwilioSipTrunkService:
         try:
             # Reuse existing subaccount with same friendly name when present.
             for account in client.api.accounts.list(status="active", limit=100):
-                if account.friendly_name == friendly_name and account.sid != master_account_sid:
+                if (
+                    account.friendly_name == friendly_name
+                    and account.sid != master_account_sid
+                ):
                     # Cannot retrieve auth token for existing accounts; caller must store it
                     # on first create. Signal reuse without token.
                     return account.sid, ""

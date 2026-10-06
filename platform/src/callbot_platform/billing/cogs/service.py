@@ -178,9 +178,7 @@ class CogsService:
         plan = plan_by_key(plan_key) if plan_key else None
         subscription_cents: int | None = None
         overage_cents: int | None = None
-        revenue_note = (
-            "Overage cents are estimated in-app; Stripe metered overage is not yet invoiced."
-        )
+        revenue_note = "Overage cents are estimated in-app; Stripe metered overage is not yet invoiced."
         if period_kind in {"this_month", "last_month"} and plan is not None:
             subscription_cents = int(plan["unit_amount"])
             if period_kind == "this_month":
@@ -189,9 +187,7 @@ class CogsService:
                 included = usage.get("included_minutes")
                 voice_minutes = seconds_to_billable_minutes(seconds)
                 overage_minutes = (
-                    max(0, voice_minutes - int(included))
-                    if included is not None
-                    else 0
+                    max(0, voice_minutes - int(included)) if included is not None else 0
                 )
                 rate = int(plan.get("overage_per_minute_cents") or 0)
                 overage_cents = overage_minutes * rate

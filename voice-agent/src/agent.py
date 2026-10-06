@@ -562,6 +562,8 @@ async def entrypoint(ctx: JobContext) -> None:
     # Overlap CRM call-start HTTP with greeting generation (skip marketing demo).
     async def _start_crm_call() -> str | None:
         try:
+            if resolution.call_scope:
+                crm_client.set_call_scope(resolution.call_scope)
             started = await run_in_thread(
                 lambda: crm_client.start_call(
                     tenant_id=resolution.tenant_id,
@@ -577,6 +579,9 @@ async def entrypoint(ctx: JobContext) -> None:
             )
             platform_call = started.get("call") or {}
             call_row_id = platform_call.get("id")
+            scope = started.get("call_scope")
+            if isinstance(scope, str) and scope:
+                crm_client.set_call_scope(scope)
             return str(call_row_id) if call_row_id else None
         except PlatformCrmError:
             logger.exception(

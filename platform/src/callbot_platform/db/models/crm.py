@@ -154,6 +154,8 @@ class Call(Base):
         Index("ix_calls_tenant_id", "tenant_id"),
         Index("ix_calls_customer_id", "customer_id"),
         Index("ix_calls_job_id", "job_id"),
+        Index("ix_calls_tenant_ended_at", "tenant_id", "ended_at"),
+        Index("ix_calls_tenant_status_started", "tenant_id", "status", "started_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -213,6 +215,7 @@ class Lead(Base):
         ),
         Index("ix_leads_tenant_id", "tenant_id"),
         Index("ix_leads_customer_id", "customer_id"),
+        Index("ix_leads_tenant_status_created", "tenant_id", "status", "created_at"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Mic, ScrollText, Shield, Users } from "lucide-react";
+import { Building2, Mic, ScrollText, Shield, Users } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
 import { errors, settings as copy } from "@/lib/ops-copy";
@@ -16,6 +16,7 @@ import {
   Input,
   LoadingSkeleton,
   PageHeader,
+  Select,
   Surface,
   useToast,
   type DataTableColumn,
@@ -32,6 +33,45 @@ type AuditEvent = {
   action?: string | null;
 };
 
+type OrganizationForm = {
+  name: string;
+  industry: string;
+  business_type: string;
+  timezone: string;
+  currency: string;
+  country: string;
+  state: string;
+  website: string;
+  phone: string;
+  email: string;
+};
+
+const EMPTY_ORG: OrganizationForm = {
+  name: "",
+  industry: "",
+  business_type: "",
+  timezone: "UTC",
+  currency: "USD",
+  country: "",
+  state: "",
+  website: "",
+  phone: "",
+  email: "",
+};
+
+const BUSINESS_TYPES = [
+  ["", "Select…"],
+  ["services", "Services"],
+  ["products", "Products"],
+  ["products_and_services", "Products + services"],
+  ["appointments", "Appointments"],
+  ["subscriptions", "Subscriptions"],
+  ["rentals", "Rentals"],
+  ["custom", "Custom"],
+] as const;
+
+const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "INR", "PKR", "AED", "MXN"];
+
 export default function SettingsPage() {
   const { user, loading } = useAuth({ roles: ["admin"] });
   const toast = useToast();
@@ -43,19 +83,39 @@ export default function SettingsPage() {
   });
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [org, setOrg] = useState<OrganizationForm>(EMPTY_ORG);
+  const [orgBusy, setOrgBusy] = useState(false);
   const [retentionBusy, setRetentionBusy] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [a, r] = await Promise.all([
+    const [a, r, o] = await Promise.all([
       fetch(`${API}/api/admin/audit`, { credentials: "include" }).then((x) =>
         x.json(),
       ),
       fetch(`${API}/api/admin/retention`, { credentials: "include" }).then((x) =>
         x.json(),
       ),
+      fetch(`${API}/api/admin/organization`, { credentials: "include" }).then(
+        (x) => x.json(),
+      ),
     ]);
     setAudit(a.events || []);
     if (r.settings) setRetention(r.settings);
+    const organization = o.organization;
+    if (organization) {
+      setOrg({
+        name: organization.name || "",
+        industry: organization.industry || "",
+        business_type: organization.business_type || "",
+        timezone: organization.timezone || "UTC",
+        currency: organization.currency || "USD",
+        country: organization.country || "",
+        state: organization.state || "",
+        website: organization.website || "",
+        phone: organization.phone || "",
+        email: organization.email || "",
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -106,6 +166,37 @@ export default function SettingsPage() {
     );
   }
 
+  async function onSaveOrganization(e: FormEvent) {
+    e.preventDefault();
+    setOrgBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API}/api/admin/organization`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: org.name,
+          industry: org.industry || null,
+          business_type: org.business_type || null,
+          timezone: org.timezone,
+          currency: org.currency,
+          country: org.country || null,
+          state: org.state || null,
+          website: org.website || null,
+          phone: org.phone || null,
+          email: org.email || null,
+        }),
+      });
+      if (!res.ok) throw new Error(errors.saveFailed);
+      toast.push(copy.organizationSaved, "success");
+    } catch (err) {
+      setError(safeUserError(err, errors.saveFailed));
+    } finally {
+      setOrgBusy(false);
+    }
+  }
+
   async function onRetention(e: FormEvent) {
     e.preventDefault();
     setRetentionBusy(true);
@@ -149,6 +240,127 @@ export default function SettingsPage() {
       ) : (
         <div className="space-y-6">
           <p className="text-sm text-text-secondary">{copy.privacyData}</p>
+          <section>
+            <div className="mb-3 flex items-center gap-2">
+              <Building2 className="size-4 text-text-muted" aria-hidden />
+              <h2 className="text-sm font-semibold text-text-primary">
+                {copy.organization}
+              </h2>
+            </div>
+            <Surface className="max-w-2xl p-4">
+              <p className="mb-3 text-sm text-text-secondary">
+                {copy.organizationHint}
+              </p>
+              <form
+                onSubmit={onSaveOrganization}
+                className="grid gap-3 sm:grid-cols-2"
+              >
+                <Field label={copy.name} className="sm:col-span-2">
+                  <Input
+                    value={org.name}
+                    onChange={(e) => setOrg({ ...org, name: e.target.value })}
+                    required
+                    autoComplete="organization"
+                  />
+                </Field>
+                <Field label={copy.industry}>
+                  <Input
+                    value={org.industry}
+                    onChange={(e) =>
+                      setOrg({ ...org, industry: e.target.value })
+                    }
+                    placeholder="hvac"
+                  />
+                </Field>
+                <Field label={copy.businessType}>
+                  <Select
+                    value={org.business_type}
+                    onChange={(e) =>
+                      setOrg({ ...org, business_type: e.target.value })
+                    }
+                  >
+                    {BUSINESS_TYPES.map(([value, label]) => (
+                      <option key={value || "none"} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label={copy.timezone}>
+                  <Input
+                    value={org.timezone}
+                    onChange={(e) =>
+                      setOrg({ ...org, timezone: e.target.value })
+                    }
+                    placeholder="America/Chicago"
+                  />
+                </Field>
+                <Field label={copy.currency}>
+                  <Select
+                    value={org.currency}
+                    onChange={(e) =>
+                      setOrg({ ...org, currency: e.target.value })
+                    }
+                  >
+                    {Array.from(new Set([org.currency, ...CURRENCIES]))
+                      .filter(Boolean)
+                      .map((code) => (
+                      <option key={code} value={code}>
+                        {code}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field label={copy.country}>
+                  <Input
+                    value={org.country}
+                    onChange={(e) =>
+                      setOrg({ ...org, country: e.target.value.toUpperCase() })
+                    }
+                    placeholder="US"
+                    maxLength={2}
+                  />
+                </Field>
+                <Field label={copy.state}>
+                  <Input
+                    value={org.state}
+                    onChange={(e) => setOrg({ ...org, state: e.target.value })}
+                  />
+                </Field>
+                <Field label={copy.website} className="sm:col-span-2">
+                  <Input
+                    type="url"
+                    value={org.website}
+                    onChange={(e) =>
+                      setOrg({ ...org, website: e.target.value })
+                    }
+                    placeholder="https://"
+                  />
+                </Field>
+                <Field label={copy.phone}>
+                  <Input
+                    type="tel"
+                    value={org.phone}
+                    onChange={(e) => setOrg({ ...org, phone: e.target.value })}
+                    autoComplete="tel"
+                  />
+                </Field>
+                <Field label={copy.email}>
+                  <Input
+                    type="email"
+                    value={org.email}
+                    onChange={(e) => setOrg({ ...org, email: e.target.value })}
+                    autoComplete="email"
+                  />
+                </Field>
+                <div className="sm:col-span-2">
+                  <Button type="submit" disabled={orgBusy} className="w-fit">
+                    {orgBusy ? "Saving…" : "Save business profile"}
+                  </Button>
+                </div>
+              </form>
+            </Surface>
+          </section>
           <Surface className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div className="flex items-start gap-2">
               <Mic className="mt-0.5 size-4 text-text-muted" aria-hidden />

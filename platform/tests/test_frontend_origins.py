@@ -135,6 +135,7 @@ def test_production_requires_secrets_and_non_local_database() -> None:
         livekit_api_secret="secret",
         stripe_secret_key="sk_test_x",
         stripe_webhook_secret="whsec_x",
+        require_call_scope=True,
     )
     assert missing_production_settings(complete) == []
 

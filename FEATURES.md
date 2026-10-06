@@ -8,7 +8,9 @@ This document describes **features that exist in the product codebase today**. I
 
 Related docs:
 
-- Phased product plan: [`TASKS.md`](./TASKS.md)
+- Phased product plan (voice platform): [`TASKS.md`](./TASKS.md)
+- Advanced Business OS plan: [`ADVANCED_BUILD_TASKS.md`](./ADVANCED_BUILD_TASKS.md)
+- Architecture audit: [`docs/ARCHITECTURE_AUDIT.md`](./docs/ARCHITECTURE_AUDIT.md)
 - Platform API: [`platform/README.md`](./platform/README.md)
 - Web (marketing + ops): [`web/README.md`](./web/README.md)
 - Voice agent: [`voice-agent/README.md`](./voice-agent/README.md)
@@ -80,7 +82,8 @@ Production voice-only LiveKit agent using OpenAI Realtime. Runs as a worker (con
 
 ## 3. Multi-tenancy & identity
 
-- Each customer is a **tenant** with its own data, numbers, agents, knowledge, and users.
+- Each customer is a **tenant** (`tenants` table) with its own data, numbers, agents, knowledge, and users. The tenant **is** the organization — there is no parallel org table.
+- Organization profile fields: name, slug, industry, business type, timezone, currency, country, state, website, phone, email, status, timestamps. Ops: `GET|PATCH /api/admin/organization`.
 - Voice calls **fail closed** if tenant / Agent Profile cannot be resolved.
 - Phone numbers can map to a specific `agent_profile_id` (or tenant default).
 - Tools never accept a client-supplied `tenant_id` override.

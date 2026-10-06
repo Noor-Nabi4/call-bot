@@ -69,7 +69,9 @@ class PlatformPurchaseService:
         self._twilio_sip = twilio_sip
         self._livekit = livekit
 
-    def ensure_subaccount(self, *, tenant_id: UUID, actor: str = "system") -> dict[str, Any]:
+    def ensure_subaccount(
+        self, *, tenant_id: UUID, actor: str = "system"
+    ) -> dict[str, Any]:
         tenant = self._require_tenant(tenant_id)
         existing = self._session.scalar(
             select(TenantTwilioSubaccount).where(
@@ -83,7 +85,10 @@ class PlatformPurchaseService:
                 "created": False,
             }
 
-        if not self._settings.twilio_account_sid or not self._settings.twilio_auth_token:
+        if (
+            not self._settings.twilio_account_sid
+            or not self._settings.twilio_auth_token
+        ):
             raise PurchaseError(
                 "twilio_not_configured",
                 "Platform Twilio master credentials are required for Path B",
@@ -180,9 +185,7 @@ class PlatformPurchaseService:
             )
 
         try:
-            EntitlementGuard(self._session).require_capacity(
-                tenant_id, "phone_numbers"
-            )
+            EntitlementGuard(self._session).require_capacity(tenant_id, "phone_numbers")
         except EntitlementError as exc:
             raise PurchaseError(exc.code, str(exc)) from exc
 

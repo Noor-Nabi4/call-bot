@@ -82,12 +82,18 @@ def internal_search(
 
 @ops_router.get("")
 def list_articles(
+    limit: int = 200,
+    offset: int = 0,
     user: CurrentUser = Depends(
         require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
     ),
     session: Session = Depends(db_dep),
 ) -> dict[str, Any]:
-    return {"articles": KnowledgeRepository(session).list(user.tenant_id)}
+    return {
+        "articles": KnowledgeRepository(session).list(
+            user.tenant_id, limit=limit, offset=offset
+        )
+    }
 
 
 @ops_router.post("/search")

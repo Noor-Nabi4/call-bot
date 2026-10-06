@@ -17,6 +17,7 @@ from callbot_platform.scheduling.availability import (
 )
 from callbot_platform.scheduling.notifications import NotificationService
 from callbot_platform.scheduling.repos import AppointmentRepository, SchedulingError
+from helpers import next_open_booking_day
 
 
 @pytest.fixture()
@@ -120,10 +121,11 @@ def test_book_and_double_book_rejected(session: Session, tenant: Tenant) -> None
         notification_service=NotificationService(session, sms_sender=_fake_sms),
     )
     # Find a future Monday slot in UTC tenant default hours.
+    day = next_open_booking_day()
     slots = repo.list_available_slots(
         tenant.id,
-        from_date=date(2026, 7, 20),
-        to_date=date(2026, 7, 20),
+        from_date=day,
+        to_date=day,
     )
     assert slots["slots"], "expected weekday slots"
     start = datetime.fromisoformat(slots["slots"][0]["starts_at"])
@@ -156,9 +158,8 @@ def test_cancel_frees_slot(session: Session, tenant: Tenant) -> None:
         session,
         notification_service=NotificationService(session, sms_sender=_fake_sms),
     )
-    slots = repo.list_available_slots(
-        tenant.id, from_date=date(2026, 7, 21), to_date=date(2026, 7, 21)
-    )
+    day = next_open_booking_day()
+    slots = repo.list_available_slots(tenant.id, from_date=day, to_date=day)
     start = datetime.fromisoformat(slots["slots"][0]["starts_at"])
     booked = repo.book(
         tenant.id,
@@ -167,9 +168,7 @@ def test_cancel_frees_slot(session: Session, tenant: Tenant) -> None:
         service_type="Heat",
     )
     repo.cancel(tenant.id, uuid.UUID(booked["id"]))
-    again = repo.list_available_slots(
-        tenant.id, from_date=date(2026, 7, 21), to_date=date(2026, 7, 21)
-    )
+    again = repo.list_available_slots(tenant.id, from_date=day, to_date=day)
     assert any(s["starts_at"] == booked["starts_at"] for s in again["slots"])
 
 
@@ -181,9 +180,8 @@ def test_idempotent_book(session: Session, tenant: Tenant) -> None:
         session,
         notification_service=NotificationService(session, sms_sender=_fake_sms),
     )
-    slots = repo.list_available_slots(
-        tenant.id, from_date=date(2026, 7, 22), to_date=date(2026, 7, 22)
-    )
+    day = next_open_booking_day()
+    slots = repo.list_available_slots(tenant.id, from_date=day, to_date=day)
     start = datetime.fromisoformat(slots["slots"][0]["starts_at"])
     a = repo.book(
         tenant.id,
@@ -213,9 +211,8 @@ def test_tenant_isolation_get(
         session,
         notification_service=NotificationService(session, sms_sender=_fake_sms),
     )
-    slots = repo.list_available_slots(
-        tenant.id, from_date=date(2026, 7, 23), to_date=date(2026, 7, 23)
-    )
+    day = next_open_booking_day()
+    slots = repo.list_available_slots(tenant.id, from_date=day, to_date=day)
     start = datetime.fromisoformat(slots["slots"][0]["starts_at"])
     appt = repo.book(
         tenant.id,
@@ -235,9 +232,8 @@ def test_reschedule(session: Session, tenant: Tenant) -> None:
         session,
         notification_service=NotificationService(session, sms_sender=_fake_sms),
     )
-    slots = repo.list_available_slots(
-        tenant.id, from_date=date(2026, 7, 24), to_date=date(2026, 7, 24)
-    )
+    day = next_open_booking_day()
+    slots = repo.list_available_slots(tenant.id, from_date=day, to_date=day)
     assert len(slots["slots"]) >= 2
     start = datetime.fromisoformat(slots["slots"][0]["starts_at"])
     new_start = datetime.fromisoformat(slots["slots"][1]["starts_at"])
@@ -247,16 +243,12 @@ def test_reschedule(session: Session, tenant: Tenant) -> None:
         starts_at=start,
         service_type="AC",
     )
-    moved = repo.reschedule(
-        tenant.id, uuid.UUID(appt["id"]), starts_at=new_start
-    )
+    moved = repo.reschedule(tenant.id, uuid.UUID(appt["id"]), starts_at=new_start)
     assert moved["starts_at"] == slots["slots"][1]["starts_at"]
     assert moved["confirmation_code"] == appt["confirmation_code"]
 
 
-def test_sms_outbox_and_email_pending(
-    session: Session, pacific_tenant: Tenant
-) -> None:
+def test_sms_outbox_and_email_pending(session: Session, pacific_tenant: Tenant) -> None:
     customer = CustomerRepository(session).upsert(
         pacific_tenant.id,
         name="Noor",
@@ -267,10 +259,11 @@ def test_sms_outbox_and_email_pending(
         session,
         notification_service=NotificationService(session, sms_sender=_fake_sms),
     )
+    day = next_open_booking_day()
     slots = repo.list_available_slots(
         pacific_tenant.id,
-        from_date=date(2026, 7, 20),
-        to_date=date(2026, 7, 20),
+        from_date=day,
+        to_date=day,
     )
     start = datetime.fromisoformat(slots["slots"][0]["starts_at"])
     appt = repo.book(
@@ -279,7 +272,10 @@ def test_sms_outbox_and_email_pending(
         starts_at=start,
         service_type="AC",
     )
-    assert any(n["channel"] == "sms" and n["status"] == "sent" for n in appt["notifications"])
+    assert any(
+        n["channel"] == "sms" and n["status"] == "pending"
+        for n in appt["notifications"]
+    )
     assert any(
         n["channel"] == "email" and n["status"] == "pending"
         for n in appt["notifications"]

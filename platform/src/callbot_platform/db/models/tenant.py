@@ -48,6 +48,18 @@ class Tenant(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
     industry_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    business_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
+    country: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    state: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    website: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Shared vs dedicated DB routing — see docs/TENANCY_ARCHITECTURE.md
+    db_strategy: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="shared"
+    )
+    db_dsn_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     default_agent_profile_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("agent_profiles.id", ondelete="SET NULL", use_alter=True),
@@ -57,6 +69,13 @@ class Tenant(Base):
         DateTime(timezone=True),
         nullable=False,
         default=_utcnow,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        onupdate=_utcnow,
         server_default=func.now(),
     )
 
@@ -116,6 +135,7 @@ class TenantPhoneNumber(Base):
         UniqueConstraint("e164", name="uq_tenant_phone_numbers_e164"),
         Index("ix_tenant_phone_numbers_tenant_id", "tenant_id"),
         Index("ix_tenant_phone_numbers_livekit_trunk", "livekit_inbound_trunk_id"),
+        Index("ix_tenant_phone_numbers_agent_profile_id", "agent_profile_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -213,7 +233,10 @@ class TenantTwilioSubaccount(Base):
 
 class TelephonyAuditEvent(Base):
     __tablename__ = "telephony_audit_events"
-    __table_args__ = (Index("ix_telephony_audit_tenant_id", "tenant_id"),)
+    __table_args__ = (
+        Index("ix_telephony_audit_tenant_id", "tenant_id"),
+        Index("ix_telephony_audit_tenant_created", "tenant_id", "created_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=_uuid

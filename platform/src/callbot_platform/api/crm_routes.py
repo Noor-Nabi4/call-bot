@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from callbot_platform.api.deps import db_dep, require_internal_token
+from callbot_platform.config import get_settings
 from callbot_platform.crm.repos import (
     AgentProfileRepository,
     AgentSettingsRepository,
@@ -21,6 +22,13 @@ from callbot_platform.crm.repos import (
 )
 from callbot_platform.db.models import Tenant
 from callbot_platform.domain.phone import PhoneNumberError
+from callbot_platform.security.call_scope import (
+    CallScope,
+    CallScopeSigner,
+    enforce_body_call,
+    enforce_body_tenant,
+    optional_or_required_call_scope,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +209,13 @@ def get_lead(
 
 
 @router.post("/calls/start")
-def call_start(body: CallStartBody, session: Session = Depends(db_dep)) -> dict:
+def call_start(
+    body: CallStartBody,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
+) -> dict:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
     try:
         call = CallRepository(session).start(
             body.tenant_id,
@@ -213,13 +227,29 @@ def call_start(body: CallStartBody, session: Session = Depends(db_dep)) -> dict:
             telephony_provider=body.telephony_provider,
             provider_call_id=body.provider_call_id,
         )
-        return {"call": call}
+        settings = get_settings()
+        call_scope_token = None
+        if settings.metadata_hmac_secret:
+            call_scope_token = CallScopeSigner(settings.metadata_hmac_secret).issue(
+                tenant_id=body.tenant_id,
+                call_id=UUID(call["id"]),
+                room_name=body.room_name,
+                ttl_seconds=settings.call_scope_ttl_seconds,
+            )
+        return {"call": call, "call_scope": call_scope_token}
     except Exception as exc:
         raise _http_error(exc) from exc
 
 
 @router.post("/calls/end")
-def call_end(body: CallEndBody, session: Session = Depends(db_dep)) -> dict:
+def call_end(
+    body: CallEndBody,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
+) -> dict:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
+        enforce_body_call(scope, body.call_id)
     try:
         call = CallRepository(session).end(
             body.tenant_id,

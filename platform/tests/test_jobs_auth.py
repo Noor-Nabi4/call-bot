@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 
 import pytest
 from sqlalchemy import select
@@ -21,6 +21,7 @@ from callbot_platform.security.session import (
     decode_session_token,
     verify_password,
 )
+from helpers import next_open_booking_day
 
 
 @pytest.fixture()
@@ -180,9 +181,8 @@ def test_appointment_creates_job(session: Session, tenant: Tenant) -> None:
         session,
         notification_service=NotificationService(session, sms_sender=_fake_sms),
     )
-    slots = repo.list_available_slots(
-        tenant.id, from_date=date(2026, 7, 20), to_date=date(2026, 7, 20)
-    )
+    day = next_open_booking_day()
+    slots = repo.list_available_slots(tenant.id, from_date=day, to_date=day)
     start = datetime.fromisoformat(slots["slots"][0]["starts_at"])
     booked = repo.book(
         tenant.id,
@@ -225,13 +225,9 @@ def test_job_assign_dispatch_complete(session: Session, tenant: Tenant) -> None:
         tenant.id, uuid.UUID(job["id"]), technician_id=uuid.UUID(tech["id"])
     )
     assert assigned["assigned_technician_id"] == tech["id"]
-    dispatched = jobs.transition(
-        tenant.id, uuid.UUID(job["id"]), status="dispatched"
-    )
+    dispatched = jobs.transition(tenant.id, uuid.UUID(job["id"]), status="dispatched")
     assert dispatched["status"] == "dispatched"
-    started = jobs.transition(
-        tenant.id, uuid.UUID(job["id"]), status="in_progress"
-    )
+    started = jobs.transition(tenant.id, uuid.UUID(job["id"]), status="in_progress")
     assert started["status"] == "in_progress"
     done = jobs.transition(
         tenant.id,

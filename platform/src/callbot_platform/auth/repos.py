@@ -119,7 +119,9 @@ class AuthRepository:
         actor: str = "admin",
     ) -> dict[str, Any]:
         if role not in VALID_ROLES:
-            raise AuthError("invalid_role", f"Role must be one of {sorted(VALID_ROLES)}")
+            raise AuthError(
+                "invalid_role", f"Role must be one of {sorted(VALID_ROLES)}"
+            )
         if len(password) < 8:
             raise AuthError("weak_password", "Password must be at least 8 characters")
         tenant = self._session.get(Tenant, tenant_id)
@@ -134,9 +136,7 @@ class AuthRepository:
         if existing is not None:
             raise AuthError("email_taken", "A user with that email already exists")
         try:
-            EntitlementGuard(self._session).require_capacity(
-                tenant_id, "team_users"
-            )
+            EntitlementGuard(self._session).require_capacity(tenant_id, "team_users")
         except EntitlementError as exc:
             raise AuthError(exc.code, str(exc)) from exc
         user = TenantUser(

@@ -31,6 +31,11 @@ from callbot_platform.telephony.services.connect_existing import ConnectExisting
 from callbot_platform.telephony.services.purchase import PlatformPurchaseService
 from callbot_platform.telephony.services.resolver import DbTenantDidResolver
 from callbot_platform.telephony.services.verification import DbNumberVerificationService
+from callbot_platform.tenancy import (
+    TenantContext,
+    TenantSource,
+    set_tenant_context,
+)
 
 _API_KEY_LIMITER = SlidingWindowRateLimiter(max_requests=120, window_sec=60.0)
 
@@ -88,7 +93,9 @@ def require_internal_token(
 ) -> None:
     expected = settings.internal_service_token
     if not expected:
-        raise HTTPException(status_code=500, detail="INTERNAL_SERVICE_TOKEN not configured")
+        raise HTTPException(
+            status_code=500, detail="INTERNAL_SERVICE_TOKEN not configured"
+        )
     if not x_internal_token or x_internal_token != expected:
         raise HTTPException(status_code=401, detail="Invalid internal service token")
 
@@ -117,7 +124,7 @@ def require_tenant_user(
     user = AuthRepository(session).get_user(tenant_id, user_id)
     if user is None:
         raise HTTPException(status_code=401, detail="User not found or inactive")
-    return CurrentUser(
+    current = CurrentUser(
         user_id=user_id,
         tenant_id=tenant_id,
         role=user["role"],
@@ -129,6 +136,10 @@ def require_tenant_user(
             UUID(user["technician_id"]) if user.get("technician_id") else None
         ),
     )
+    set_tenant_context(
+        TenantContext(tenant_id=current.tenant_id, source=TenantSource.SESSION)
+    )
+    return current
 
 
 def require_api_key(
@@ -156,6 +167,9 @@ def require_api_key(
         tenant_id=row.tenant_id,
         scopes=frozenset(row.scopes or []),
         name=row.name,
+    )
+    set_tenant_context(
+        TenantContext(tenant_id=principal.tenant_id, source=TenantSource.API_KEY)
     )
     try:
         _API_KEY_LIMITER.check(str(row.id))

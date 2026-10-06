@@ -82,6 +82,7 @@ class Appointment(Base):
         ),
         Index("ix_appointments_tenant_id", "tenant_id"),
         Index("ix_appointments_tenant_starts", "tenant_id", "starts_at"),
+        Index("ix_appointments_tenant_status", "tenant_id", "status"),
         Index("ix_appointments_customer_id", "customer_id"),
     )
 
@@ -137,6 +138,23 @@ class NotificationOutbox(Base):
     __table_args__ = (
         Index("ix_notification_outbox_tenant_id", "tenant_id"),
         Index("ix_notification_outbox_appointment_id", "appointment_id"),
+        Index(
+            "ix_notification_outbox_tenant_status_created",
+            "tenant_id",
+            "status",
+            "created_at",
+        ),
+        Index(
+            "ix_notification_outbox_dequeue",
+            "status",
+            "next_attempt_at",
+            "created_at",
+        ),
+        UniqueConstraint(
+            "tenant_id",
+            "idempotency_key",
+            name="uq_notification_outbox_tenant_idempotency",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -145,10 +163,10 @@ class NotificationOutbox(Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
     )
-    appointment_id: Mapped[uuid.UUID] = mapped_column(
+    appointment_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("appointments.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )
     channel: Mapped[str] = mapped_column(String(16), nullable=False)
     to_address: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -156,6 +174,16 @@ class NotificationOutbox(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     provider_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    claimed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    claimed_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JsonType, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -170,4 +198,4 @@ class NotificationOutbox(Base):
         server_default=func.now(),
     )
 
-    appointment: Mapped[Appointment] = relationship(back_populates="notifications")
+    appointment: Mapped[Appointment | None] = relationship(back_populates="notifications")

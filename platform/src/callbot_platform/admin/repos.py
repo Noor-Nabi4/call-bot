@@ -64,22 +64,46 @@ class AdminRepository:
         *,
         status: str | None = None,
         limit: int = 100,
-    ) -> list[dict[str, Any]]:
-        """List tenant calls, optionally filtered by status (e.g. active for live monitor)."""
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        """List tenant calls with optional status filter and keyset cursor."""
+        from sqlalchemy import and_, or_
+
+        from callbot_platform.db.cursor import CallCursor, parse_call_page
+
+        page, decoded = parse_call_page(limit=limit, cursor=cursor)
         stmt = select(Call).where(Call.tenant_id == tenant_id)
         if status is not None:
             normalized = status.strip().lower()
             if not normalized or len(normalized) > 32:
                 raise AdminError("invalid_status", "Invalid call status filter")
             stmt = stmt.where(Call.status == normalized)
-        rows = self._session.scalars(
-            stmt.order_by(Call.started_at.desc()).limit(max(1, min(limit, 200)))
-        ).all()
+        if decoded is not None:
+            stmt = stmt.where(
+                or_(
+                    Call.started_at < decoded.started_at,
+                    and_(
+                        Call.started_at == decoded.started_at,
+                        Call.id < decoded.id,
+                    ),
+                )
+            )
+        rows = list(
+            self._session.scalars(
+                stmt.order_by(Call.started_at.desc(), Call.id.desc()).limit(
+                    page.limit + 1
+                )
+            ).all()
+        )
         now = datetime.now(UTC)
-        out: list[dict[str, Any]] = []
-        for c in rows:
-            out.append(self._serialize_call(c, now=now))
-        return out
+        has_more = len(rows) > page.limit
+        rows = rows[: page.limit]
+        items = [self._serialize_call(c, now=now) for c in rows]
+        next_cursor = None
+        if has_more and rows:
+            last = rows[-1]
+            next_cursor = CallCursor(started_at=last.started_at, id=last.id).encode()
+        return {"calls": items, "next_cursor": next_cursor, "limit": page.limit}
 
     def _serialize_call(
         self, c: Call, *, now: datetime | None = None
@@ -175,8 +199,8 @@ class AdminRepository:
     ) -> dict[str, Any]:
         """Read-only call-center snapshot for supervisors (no listen-in)."""
         limit = max(1, min(recent_limit, 50))
-        active = self.list_calls(tenant_id, status="active", limit=100)
-        recent_all = self.list_calls(tenant_id, limit=limit + len(active))
+        active = self.list_calls(tenant_id, status="active", limit=100)["calls"]
+        recent_all = self.list_calls(tenant_id, limit=limit + len(active))["calls"]
         recent = [c for c in recent_all if c["status"] != "active"][:limit]
         attention = [c for c in active if c.get("handoff_requested")]
         today_metrics = self.metrics_summary(tenant_id, days=1)
