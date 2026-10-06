@@ -28,6 +28,13 @@ from callbot_platform.db.models.crm_config import (
     OrganizationCrmStatus,
     OrganizationCrmWorkflow,
 )
+from callbot_platform.db.models.dynamic_crm import (
+    CrmCustomFieldValue,
+    OrganizationCrmRelationshipDefinition,
+    OrganizationCrmRelationshipLink,
+    OrganizationCustomObjectDefinition,
+    OrganizationCustomObjectRecord,
+)
 from callbot_platform.db.models.handoff import (
     TenantHandoffSettings,
     TenantRetentionSettings,
@@ -67,6 +74,7 @@ __all__ = [
     "Call",
     "CallCogs",
     "CallQueueItem",
+    "CrmCustomFieldValue",
     "Customer",
     "CustomerPhone",
     "Job",
@@ -79,8 +87,12 @@ __all__ = [
     "OrganizationCrmConfiguration",
     "OrganizationCrmField",
     "OrganizationCrmModule",
+    "OrganizationCrmRelationshipDefinition",
+    "OrganizationCrmRelationshipLink",
     "OrganizationCrmStatus",
     "OrganizationCrmWorkflow",
+    "OrganizationCustomObjectDefinition",
+    "OrganizationCustomObjectRecord",
     "OrganizationOnboarding",
     "OrganizationRole",
     "Permission",

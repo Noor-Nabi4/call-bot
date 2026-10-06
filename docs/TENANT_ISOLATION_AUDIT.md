@@ -39,6 +39,9 @@ Missing context: **fail closed** via `require_tenant_context()` → `RuntimeErro
 | Identity | `organization_onboarding` | Yes | `UNIQUE(tenant_id)` + session scope | PASS |
 | Identity | `tenants.business_size` | Yes | session-scoped org update | PASS |
 | CRM config | `organization_crm_*` | Yes | `tenant_id` + unique keys | PASS |
+| Dynamic CRM | `crm_custom_field_values` | Yes | tenant + field + record unique | PASS |
+| Dynamic CRM | `organization_custom_object_*` | Yes | tenant-scoped definitions/records | PASS |
+| Dynamic CRM | `organization_crm_relationship_*` | Yes | tenant-scoped defs/links | PASS |
 | Platform | industry CRM templates | No (code registry) | immutable; tenant copies only | PASS (global) |
 | RBAC | `permissions` | No (platform) | Global catalog | PASS (global) |
 | RBAC | `organization_roles` | Yes | `tenant_id` | PASS |

@@ -10,6 +10,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from callbot_platform.business_config.modules import MODULE_BY_KEY
 from callbot_platform.crm_templates import resolve_template, serialize_template
 from callbot_platform.db.models.crm_config import (
     OrganizationCrmConfiguration,
@@ -135,6 +136,11 @@ class CrmSetupService:
             template.key,
             len(template.modules),
         )
+        from callbot_platform.dynamic_crm.config_cache import (
+            invalidate_effective_configuration,
+        )
+
+        invalidate_effective_configuration(tenant_id)
         return self._serialize(cfg)
 
     def _ensure_modules(self, tenant_id: UUID, modules: list[str]) -> None:
@@ -155,6 +161,9 @@ class CrmSetupService:
                         tenant_id=tenant_id,
                         module_key=key,
                         enabled=True,
+                        display_order=MODULE_BY_KEY.get(key).default_order
+                        if key in MODULE_BY_KEY
+                        else 100,
                         source="template",
                     )
                 )
@@ -209,8 +218,11 @@ class CrmSetupService:
                     OrganizationCrmField(
                         tenant_id=tenant_id,
                         module_key=module_key,
+                        owner_scope="module",
+                        owner_key=module_key,
                         field_key=field_key,
                         label=item.get("label") or field_key,
+                        field_type="TEXT",
                         source="template",
                     )
                 )
@@ -247,7 +259,10 @@ class CrmSetupService:
             self._session.scalars(
                 select(OrganizationCrmModule)
                 .where(OrganizationCrmModule.tenant_id == cfg.tenant_id)
-                .order_by(OrganizationCrmModule.module_key)
+                .order_by(
+                    OrganizationCrmModule.display_order,
+                    OrganizationCrmModule.module_key,
+                )
             ).all()
         )
         statuses = list(
@@ -289,6 +304,7 @@ class CrmSetupService:
                 {
                     "key": m.module_key,
                     "enabled": m.enabled,
+                    "display_order": m.display_order,
                     "source": m.source,
                 }
                 for m in modules
@@ -304,9 +320,14 @@ class CrmSetupService:
             ],
             "fields": [
                 {
-                    "module_key": f.module_key,
+                    "module_key": f.module_key or f.owner_key,
+                    "owner_scope": f.owner_scope,
+                    "owner_key": f.owner_key,
                     "key": f.field_key,
                     "label": f.label,
+                    "field_type": f.field_type,
+                    "required": f.required,
+                    "enabled": f.enabled,
                     "source": f.source,
                 }
                 for f in fields

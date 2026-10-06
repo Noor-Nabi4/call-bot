@@ -1,61 +1,103 @@
 import {
+  Badge,
   Bot,
   BookOpen,
   Briefcase,
+  Building2,
   Calendar,
+  CheckSquare,
   ClipboardList,
   CreditCard,
+  Cpu,
+  FileText,
+  Folder,
+  Handshake,
+  HardHat,
+  Home,
+  Layers,
   LayoutDashboard,
   LayoutGrid,
+  ListOrdered,
+  MessageSquare,
+  Package,
+  Percent,
   Phone,
   PhoneCall,
   PhoneForwarded,
+  Receipt,
+  RotateCcw,
   Settings,
   Shield,
-  ListOrdered,
+  ShoppingCart,
   Store,
   KeyRound,
   Palette,
+  Truck,
   Users,
+  UserPlus,
   Wrench,
   BarChart3,
   Zap,
   CircleDollarSign,
+  Box,
+  type LucideIcon,
 } from "lucide-react";
 import type { OpsUser } from "@/lib/api";
 import {
   filterNavByPermission,
   isTechnicianShell,
 } from "@/lib/permissions";
+import type { CrmNavItem } from "@/lib/crm/use-crm-configuration";
 
 export type NavItem = {
   href: string;
   label: string;
-  icon: typeof LayoutGrid;
+  icon: LucideIcon;
   /** Effective permission key required to show this item (UX only). */
   permission?: string;
   section?: "work" | "ai" | "admin";
 };
 
-const OPS_NAV: NavItem[] = [
+const ICON_BY_NAME: Record<string, LucideIcon> = {
+  users: Users,
+  building: Building2,
+  "user-plus": UserPlus,
+  handshake: Handshake,
+  package: Package,
+  wrench: Wrench,
+  "shopping-cart": ShoppingCart,
+  briefcase: Briefcase,
+  calendar: Calendar,
+  "file-text": FileText,
+  receipt: Receipt,
+  "credit-card": CreditCard,
+  cpu: Cpu,
+  badge: Badge,
+  phone: Phone,
+  "message-square": MessageSquare,
+  "check-square": CheckSquare,
+  folder: Folder,
+  layers: Layers,
+  map: LayoutGrid,
+  "hard-hat": HardHat,
+  home: Home,
+  truck: Truck,
+  "rotate-ccw": RotateCcw,
+  percent: Percent,
+  box: Box,
+};
+
+export function iconForCrm(name?: string | null): LucideIcon {
+  if (!name) return Box;
+  return ICON_BY_NAME[name] || Box;
+}
+
+/** Non-CRM workspace items that stay static. */
+const STATIC_WORK_NAV: NavItem[] = [
   {
     href: "/dashboard",
     label: "Dashboard",
     icon: LayoutDashboard,
-    section: "work",
-  },
-  {
-    href: "/dispatch",
-    label: "Dispatch",
-    icon: LayoutGrid,
-    permission: "jobs.read",
-    section: "work",
-  },
-  {
-    href: "/customers",
-    label: "Customers",
-    icon: Users,
-    permission: "customers.read",
     section: "work",
   },
   {
@@ -80,6 +122,31 @@ const OPS_NAV: NavItem[] = [
     section: "work",
   },
   {
+    href: "/metrics",
+    label: "Metrics",
+    icon: BarChart3,
+    permission: "analytics.read",
+    section: "work",
+  },
+];
+
+/** Legacy hardcoded CRM paths — used only when effective config is unavailable. */
+const FALLBACK_CRM_NAV: NavItem[] = [
+  {
+    href: "/dispatch",
+    label: "Dispatch",
+    icon: LayoutGrid,
+    permission: "jobs.read",
+    section: "work",
+  },
+  {
+    href: "/customers",
+    label: "Customers",
+    icon: Users,
+    permission: "customers.read",
+    section: "work",
+  },
+  {
     href: "/calls",
     label: "Calls",
     icon: Phone,
@@ -93,13 +160,9 @@ const OPS_NAV: NavItem[] = [
     permission: "appointments.read",
     section: "work",
   },
-  {
-    href: "/metrics",
-    label: "Metrics",
-    icon: BarChart3,
-    permission: "analytics.read",
-    section: "work",
-  },
+];
+
+const AI_NAV: NavItem[] = [
   {
     href: "/playground",
     label: "Playground",
@@ -142,11 +205,21 @@ const OPS_NAV: NavItem[] = [
     permission: "handoff.read",
     section: "ai",
   },
+];
+
+const ADMIN_NAV: NavItem[] = [
   {
     href: "/settings",
     label: "Settings",
     icon: Settings,
     permission: "organization.read",
+    section: "admin",
+  },
+  {
+    href: "/settings/crm",
+    label: "CRM modules",
+    icon: LayoutGrid,
+    permission: "crm.configure",
     section: "admin",
   },
   {
@@ -218,11 +291,40 @@ const TECH_NAV: NavItem[] = [
   { href: "/tech", label: "Jobs", icon: Briefcase, permission: "jobs.read" },
 ];
 
-export function navFor(user: OpsUser): NavItem[] {
+export function crmNavToItems(items: CrmNavItem[]): NavItem[] {
+  const seen = new Set<string>();
+  const out: NavItem[] = [];
+  for (const item of items) {
+    if (!item.href || seen.has(item.href)) continue;
+    seen.add(item.href);
+    out.push({
+      href: item.href,
+      label: item.label,
+      icon: iconForCrm(item.icon),
+      permission: item.permission || undefined,
+      section: "work",
+    });
+  }
+  return out;
+}
+
+export function navFor(
+  user: OpsUser,
+  crmNavigation?: CrmNavItem[] | null,
+): NavItem[] {
   if (isTechnicianShell(user)) {
     return filterNavByPermission(user, TECH_NAV);
   }
-  return filterNavByPermission(user, OPS_NAV);
+  const crmItems =
+    crmNavigation && crmNavigation.length > 0
+      ? crmNavToItems(crmNavigation)
+      : FALLBACK_CRM_NAV;
+  return filterNavByPermission(user, [
+    ...STATIC_WORK_NAV,
+    ...crmItems,
+    ...AI_NAV,
+    ...ADMIN_NAV,
+  ]);
 }
 
 export function isActivePath(pathname: string, href: string): boolean {
@@ -235,6 +337,9 @@ export function isActivePath(pathname: string, href: string): boolean {
   }
   if (href === "/playground") {
     return pathname === "/playground" || pathname.startsWith("/playground/");
+  }
+  if (href.startsWith("/crm/")) {
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }

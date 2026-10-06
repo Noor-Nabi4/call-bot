@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { OpsUser } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { useCrmConfiguration } from "@/lib/crm/use-crm-configuration";
 import { isActivePath, navFor, type NavItem } from "./nav";
 
 const SECTION_LABELS: Record<NonNullable<NavItem["section"]>, string> = {
@@ -20,7 +21,8 @@ export function SidebarNavigation({
   collapsed?: boolean;
 }) {
   const pathname = usePathname();
-  const items = navFor(user);
+  const { config } = useCrmConfiguration(user);
+  const items = navFor(user, config?.navigation);
   const sections: NonNullable<NavItem["section"]>[] = ["work", "ai", "admin"];
 
   return (

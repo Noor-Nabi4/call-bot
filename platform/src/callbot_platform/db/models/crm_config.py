@@ -84,6 +84,7 @@ class OrganizationCrmModule(Base):
     )
     module_key: Mapped[str] = mapped_column(String(64), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
     source: Mapped[str] = mapped_column(String(32), nullable=False, default="template")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -135,11 +136,18 @@ class OrganizationCrmField(Base):
     __table_args__ = (
         UniqueConstraint(
             "tenant_id",
-            "module_key",
+            "owner_scope",
+            "owner_key",
             "field_key",
-            name="uq_organization_crm_fields_tenant_module_field",
+            name="uq_organization_crm_fields_tenant_owner_field",
         ),
         Index("ix_organization_crm_fields_tenant_id", "tenant_id"),
+        Index(
+            "ix_organization_crm_fields_tenant_owner",
+            "tenant_id",
+            "owner_scope",
+            "owner_key",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -148,14 +156,40 @@ class OrganizationCrmField(Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
     )
-    module_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    # Legacy module-only key kept for Phase 2 template compatibility.
+    module_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # module | object
+    owner_scope: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="module"
+    )
+    # Module key or custom object_key
+    owner_key: Mapped[str] = mapped_column(String(64), nullable=False, default="")
     field_key: Mapped[str] = mapped_column(String(64), nullable=False)
     label: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    description: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    field_type: Mapped[str] = mapped_column(String(32), nullable=False, default="TEXT")
+    required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    default_value: Mapped[Any | None] = mapped_column(JsonType, nullable=True)
+    configuration: Mapped[dict[str, Any]] = mapped_column(
+        JsonType, nullable=False, default=dict
+    )
+    validation_rules: Mapped[dict[str, Any]] = mapped_column(
+        JsonType, nullable=False, default=dict
+    )
     source: Mapped[str] = mapped_column(String(32), nullable=False, default="template")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         default=_utcnow,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        onupdate=_utcnow,
         server_default=func.now(),
     )
 

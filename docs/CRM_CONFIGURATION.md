@@ -82,4 +82,4 @@ If setup fails, onboarding does **not** complete.
 
 Registry: `callbot_platform.business_config.modules` (`CUSTOMERS`, `JOBS`, …).
 
-Enabling a module does **not** implement its CRUD — Phase 3/4 owns product surfaces.
+Enabling a module does **not** implement its CRUD — Phase 3 owns the Dynamic CRM Engine metadata (`docs/DYNAMIC_CRM_ARCHITECTURE.md`); Phase 4 owns product surfaces after the staging gate.

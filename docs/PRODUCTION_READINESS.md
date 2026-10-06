@@ -69,4 +69,6 @@ NOT READY FOR PHASE 4
 
 Reason: staging/infrastructure verification for migrations, backup/restore, object storage, EXPLAIN/load, multi-worker reclaim, and live provider sagas remains **NOT AVAILABLE** / **NOT EXECUTED**.
 
+Dynamic CRM Phase 3 + Task 3.5 hardening are **locally verified** (`docs/DYNAMIC_CRM_HARDENING.md`) but do **not** close the staging gate.
+
 Do **not** implement Customers / Products / Inventory / Jobs / Appointments / Dispatch / Estimates / Invoices / Payments / Memberships or other Phase 4 domains until the staging gate closes.

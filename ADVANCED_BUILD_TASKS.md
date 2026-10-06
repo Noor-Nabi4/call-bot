@@ -1094,12 +1094,14 @@ CRM modules must be configurable instead of hardcoded per business.
 
 ### Checklist
 
-- [ ] Module registry
-- [ ] Enable/disable modules
-- [ ] Organization-specific configuration
-- [ ] Module ordering
-- [ ] Navigation generated dynamically
-- [ ] Permission mapping
+- [x] Module registry
+- [x] Enable/disable modules
+- [x] Organization-specific configuration
+- [x] Module ordering
+- [x] Navigation generated dynamically
+- [x] Permission mapping
+
+Docs: `docs/CRM_MODULES.md`, `docs/DYNAMIC_CRM_ARCHITECTURE.md`
 
 ---
 
@@ -1128,16 +1130,18 @@ Allow businesses to add custom fields without database migrations for every fiel
 
 ### Checklist
 
-- [ ] Custom field model
-- [ ] Field definitions
-- [ ] Validation
-- [ ] Field rendering
-- [ ] API support
-- [ ] Search support
-- [ ] Filtering support
-- [ ] Required fields
-- [ ] Default values
-- [ ] Permission support
+- [x] Custom field model
+- [x] Field definitions
+- [x] Validation
+- [x] Field rendering
+- [x] API support
+- [x] Search support
+- [x] Filtering support
+- [x] Required fields
+- [x] Default values
+- [x] Permission support
+
+Docs: `docs/CUSTOM_FIELDS.md`
 
 ---
 
@@ -1159,14 +1163,16 @@ Examples:
 
 ### Checklist
 
-- [ ] Object definition
-- [ ] Object fields
-- [ ] Relationships
-- [ ] CRUD API
-- [ ] Dynamic UI
-- [ ] Permissions
-- [ ] Search
-- [ ] Audit history
+- [x] Object definition
+- [x] Object fields
+- [x] Relationships
+- [x] CRUD API
+- [x] Dynamic UI
+- [x] Permissions
+- [x] Search
+- [x] Audit history
+
+Docs: `docs/CUSTOM_OBJECTS.md`
 
 ---
 
@@ -1191,13 +1197,39 @@ Customer
 
 ### Checklist
 
-- [ ] Relationship model
-- [ ] One-to-one
-- [ ] One-to-many
-- [ ] Many-to-many
-- [ ] Relationship API
-- [ ] Relationship UI
-- [ ] Query support
+- [x] Relationship model
+- [x] One-to-one
+- [x] One-to-many
+- [x] Many-to-many
+- [x] Relationship API
+- [x] Relationship UI
+- [x] Query support
+
+---
+
+
+## TASK 3.5 — Dynamic CRM Hardening & Phase 4 Readiness
+
+### Description
+
+Harden Phase 3 Dynamic CRM before Phase 4 commerce.
+
+### Checklist
+
+- [x] Effective configuration caching + invalidation
+- [x] EAV query/index hardening
+- [x] Filter AST security
+- [x] Relationship entity classification / integrity
+- [x] Custom object & field IDOR hardening
+- [x] Pagination limits
+- [x] Audit coverage (record update)
+- [x] Placeholder module messaging
+- [x] Local performance harness
+- [x] Hardening docs + staging runbook
+
+Docs: `docs/DYNAMIC_CRM_HARDENING.md`
+
+**Phase 4 gate:** remains `NOT READY FOR PHASE 4` until staging verification.
 
 ---
 
