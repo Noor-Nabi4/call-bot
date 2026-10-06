@@ -104,7 +104,7 @@ def test_build_instructions_composition_order_and_safety_override() -> None:
 def test_concise_policy_and_language_preferences() -> None:
     profile = AgentProfile.from_api_payload(_valid_payload())
     prompt = build_system_instructions_from_profile(profile)
-    assert "Answer the caller's exact question first" in prompt
+    assert "Answer the caller's latest question first" in prompt
     assert "Ask one question at a time" in prompt
     assert "Supported languages: en, es" in prompt
     assert "Default language code: en" in prompt

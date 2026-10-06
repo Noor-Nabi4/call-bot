@@ -185,7 +185,12 @@ TEMPLATES: dict[str, IndustryTemplate] = {
             "prescription changes",
             "test result interpretation",
         ],
-        custom_instructions="Escalate clinical questions to staff. Do not discuss protected health details beyond scheduling needs.",
+        custom_instructions=(
+            "When the caller asks for diagnosis, prescriptions, test results, or "
+            "other clinical advice, say you cannot advise on that and offer to "
+            "connect them with staff. Do not discuss protected health details "
+            "beyond what is needed to schedule. Do not give medical advice."
+        ),
         example_questions=[
             "I need to reschedule",
             "What are your hours?",
@@ -231,7 +236,12 @@ TEMPLATES: dict[str, IndustryTemplate] = {
         business_description="Insurance agency intake for quotes, claims routing, and FAQs.",
         booking_rules=None,
         restricted_topics=["guaranteed coverage decisions", "legal advice"],
-        custom_instructions="Do not bind coverage. Capture claim basics and escalate when required.",
+        custom_instructions=(
+            "Do not bind coverage or promise claim outcomes. For quote or claim "
+            "intake, capture the basics the caller provides, then escalate when "
+            "they ask to file a claim, dispute a decision, or need a licensed "
+            "agent. Do not invent policy terms."
+        ),
         enabled_tools={
             "crm": True,
             "scheduling": False,
@@ -332,7 +342,13 @@ TEMPLATES: dict[str, IndustryTemplate] = {
         business_description="Collections outreach agent for reminders and payment arrangement intake.",
         booking_rules="Never threaten. Capture preferred callback time or payment plan interest and escalate disputes.",
         restricted_topics=["legal threats", "credit score manipulation"],
-        custom_instructions="Be respectful. Confirm identity lightly, state the reason for the call, and offer handoff for disputes.",
+        custom_instructions=(
+            "Be respectful. At the start of the call, confirm identity lightly, "
+            "state the reason for the call once, and stop if the caller says it "
+            "is a bad time. When the caller disputes the balance, asks for a "
+            "person, or becomes distressed, offer handoff. Do not threaten or "
+            "repeat the debt reason every turn."
+        ),
         enabled_tools={
             "crm": True,
             "scheduling": True,

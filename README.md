@@ -5,6 +5,7 @@ Multi-tenant AI voice platform for service businesses and call centers
 
 ## Docs
 
+- Complete feature reference: [`FEATURES.md`](./FEATURES.md)
 - Product / phase plan: [`TASKS.md`](./TASKS.md)
 - Voice agent details: [`voice-agent/README.md`](./voice-agent/README.md)
 - Phase 2 telephony checklist: [`voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md`](./voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md)

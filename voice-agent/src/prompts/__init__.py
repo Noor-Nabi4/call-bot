@@ -21,7 +21,7 @@ from prompts.system import (
 from prompts.tool_rules import tool_usage_rules
 from tenant.agent_profile import AgentProfile, CallFacts
 
-PROMPT_COMPOSITION_VERSION = "prompt-compose-v3"
+PROMPT_COMPOSITION_VERSION = "prompt-compose-v4"
 
 
 def build_system_instructions_from_profile(
@@ -39,7 +39,7 @@ def build_system_instructions_from_profile(
       4. Tenant business rules
       5. Tenant conversation preferences (custom instructions delimited)
       6. Ordered call flow (when configured)
-      7. Tool usage rules
+      7. Tool usage rules (enabled tools only; isolation rules always)
       8. Current call context
     """
     sentences = max_spoken_sentences or profile.max_spoken_sentences()
@@ -56,7 +56,7 @@ def build_system_instructions_from_profile(
         sections.append(flow_section)
     sections.extend(
         [
-            tool_usage_rules(),
+            tool_usage_rules(profile.enabled_tools),
             unsupported_request_rules(),
             call_ending_rules(),
             call_context_section(call_facts),

@@ -69,9 +69,9 @@ def tenant_business_rules_section(profile: AgentProfile) -> str:
             + "; ".join(profile.restricted_topics)
         )
     lines.append(
-        "For live availability, appointments, customers, jobs, exact prices, "
-        "invoices, call history, or technician location, use tools — do not "
-        "guess from memory."
+        "Do not guess live availability, appointments, customers, jobs, exact "
+        "prices, invoices, call history, or technician location from memory. "
+        "Share those only when a tool for this call returned them."
     )
     return "\n".join(lines)
 

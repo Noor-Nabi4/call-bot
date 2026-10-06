@@ -17,8 +17,8 @@ Production voice agent for multi-tenant field service:
 - Fail-closed tenant resolve + Agent Profile fetch (`GET /internal/tenants/{id}/agent-profile` or `/agent-profiles/{profile_id}`)
 - Phone numbers may assign an `agent_profile_id`; SIP resolve returns it (else tenant default). Tools are gated by the profile's `enabled_tools`.
 - Knowledge search is scoped to tenant-wide articles plus the active profile's articles.
-- Versioned prompt composition (platform safety → voice → tenant identity/rules/prefs → optional ordered call flow → tools → call context; `prompt-compose-v3`)
-- Concise voice policy (answer the question first; one–two sentences default)
+- Versioned prompt composition (platform safety → voice → tenant identity/rules/prefs → optional ordered call flow → **enabled** tool rules → call context; `prompt-compose-v4`)
+- Concise voice policy with task-specific verbosity, short tool preambles, unclear-audio and entity-capture rules
 - Short-lived profile cache keyed by `tenant_id` + `profile_version` (in-memory, or shared Redis when `REDIS_URL` is set)
 - Per-call `CallState` / `CallFacts` (no long-term memory unless Platform API supports it)
 - Semantic VAD turn detection and barge-in
@@ -27,6 +27,23 @@ Production voice agent for multi-tenant field service:
 **Not used as tenant fallback**
 
 Env `BUSINESS_*` facts are for local/console helpers and tests only. After resolve, production calls never fall back to env business configuration.
+
+## Prompt composition (`prompt-compose-v4`)
+
+Platform-owned sections stay in a fixed order so instruction prefixes stay cache-stable:
+
+1. Platform safety (never overridden by tenants)
+2. Core voice (`core-voice-v3`): role, **task-specific verbosity**, short **preambles** before slow lookups (no tool/vendor names, no private reasoning), **confirmations**, **unclear audio**, **entity capture**
+3. Tenant identity / business rules / delimited custom instructions
+4. Optional ordered call flow
+5. Tool rules (`tool-rules-v3`) for **enabled tool groups only**, plus always-on isolation and no-invented-success lines
+6. Unsupported-request and call-ending rules, then current call context
+
+**Why tool rules are scoped:** disabled CRM/scheduling/knowledge/handoff groups must not appear in the system prompt, so the model is not steered toward tools that were not bound.
+
+**Unclear entities:** noisy or partial names, phones, addresses, dates, and times require a focused clarification — never a guessed value.
+
+**Model configuration is unchanged** (`gpt-realtime`, temperature, voice, VAD). Prompt-only change; no paid API evaluation was run as part of this update.
 
 ## Architecture
 
