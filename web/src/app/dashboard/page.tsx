@@ -123,6 +123,14 @@ export default function DashboardPage() {
                 value: dash.availableTechs.length,
               },
               { label: copy.callsToday, value: dash.callsToday.length },
+              {
+                label: "Low stock",
+                value: dash.inventoryLow,
+              },
+              {
+                label: "Out of stock",
+                value: dash.inventoryOut,
+              },
             ]}
           />
 

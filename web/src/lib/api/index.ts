@@ -121,6 +121,18 @@ export {
   type CatalogStatus,
 } from "./products";
 export {
+  listInventory,
+  getInventoryItem,
+  listInventoryLocations,
+  listInventoryTransactions,
+  getInventoryDashboard,
+  inventoryMutation,
+  type InventoryBalanceRow,
+  type InventoryLocation,
+  type InventoryDetail,
+  type InventoryTransaction,
+} from "./inventory";
+export {
   getSubscription,
   getUsage,
   createCheckout,

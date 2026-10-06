@@ -50,6 +50,15 @@ from callbot_platform.db.models.dynamic_crm import (
     OrganizationCustomObjectDefinition,
     OrganizationCustomObjectRecord,
 )
+from callbot_platform.db.models.inventory import (
+    InventoryAlertConfiguration,
+    InventoryAlertEvent,
+    InventoryBalance,
+    InventoryItem,
+    InventoryLocation,
+    InventoryOutboxEvent,
+    InventoryTransaction,
+)
 from callbot_platform.db.models.handoff import (
     TenantHandoffSettings,
     TenantRetentionSettings,
@@ -99,6 +108,13 @@ __all__ = [
     "CustomerTagLink",
     "Job",
     "JobNote",
+    "InventoryAlertConfiguration",
+    "InventoryAlertEvent",
+    "InventoryBalance",
+    "InventoryItem",
+    "InventoryLocation",
+    "InventoryOutboxEvent",
+    "InventoryTransaction",
     "JsonType",
     "KnowledgeArticle",
     "Lead",

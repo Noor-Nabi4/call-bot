@@ -1416,17 +1416,28 @@ Docs: `docs/PRODUCT_IMAGES.md`
 
 # PHASE 6 — INVENTORY
 
+Authoritative stock: `inventory_balances` (not transitional `product_variants.stock_on_hand`).
+
+Migrations: `0032_inventory`, `0033_inventory_outbox_worker`.
+
+Local verification: backend suite + Postgres concurrency + inventory outbox worker + HTTP RBAC/IDOR + frontend tsc/lint/build.
+
+Production readiness: **BLOCKED** (staging migration, multi-worker outbox, email provider, load/EXPLAIN still required).
+
+Docs: `docs/INVENTORY_ARCHITECTURE.md`, `docs/INVENTORY_LOCATIONS.md`, `docs/INVENTORY_TRANSACTIONS.md`, `docs/INVENTORY_ALERTS.md`
+
 ## TASK 6.1 — Inventory Model
 
 ### Checklist
 
-- [ ] Stock quantity
-- [ ] Reserved quantity
-- [ ] Available quantity
-- [ ] Minimum stock
-- [ ] Location
-- [ ] SKU
-- [ ] Inventory status
+- [x] Stock quantity
+- [x] Reserved quantity
+- [x] Available quantity (derived)
+- [x] Minimum stock
+- [x] Location
+- [x] SKU (reuse catalog / variant SKU)
+- [x] Inventory status (derived IN_STOCK / LOW_STOCK / OUT_OF_STOCK)
+- [x] Variant → inventory item auto-provision + idempotent backfill script
 
 ---
 
@@ -1447,12 +1458,15 @@ Never directly modify stock without creating an inventory transaction.
 
 ### Checklist
 
-- [ ] Transaction model
-- [ ] Atomic stock update
-- [ ] Transaction history
-- [ ] Audit log
-- [ ] Concurrency protection
-- [ ] Tests
+- [x] Transaction model
+- [x] Atomic stock update (`SELECT … FOR UPDATE`)
+- [x] Transaction history
+- [x] Audit log
+- [x] Concurrency protection (Postgres parallel tests)
+- [x] Idempotency (`Idempotency-Key`)
+- [x] Inventory outbox worker (claim / retry / dead_letter)
+- [x] HTTP RBAC + IDOR tests
+- [x] Tests
 
 ---
 
@@ -1460,11 +1474,11 @@ Never directly modify stock without creating an inventory transaction.
 
 ### Checklist
 
-- [ ] Threshold configuration
-- [ ] Alert event
-- [ ] Dashboard warning
-- [ ] Email
-- [ ] SMS optional
+- [x] Threshold configuration (`inventory_balances.minimum_stock` + alert config)
+- [x] Alert event (transition dedupe via `last_alert_status`)
+- [x] Dashboard warning + `/crm/inventory?low_stock=true` URL filter
+- [x] Email (via inventory outbox → `notification_outbox`; not sync in mutation TX)
+- [x] SMS optional (integration boundary only: `pending_integration`)
 
 ---
 

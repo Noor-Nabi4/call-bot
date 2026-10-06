@@ -166,6 +166,15 @@ class ProductVariantService:
                 )
             )
         self._session.flush()
+        # Phase 6: inventory item is authoritative for stock; provision on create.
+        if variant.inventory_item_id is None:
+            from callbot_platform.crm.inventory.items import InventoryItemService
+
+            item = InventoryItemService(self._session).ensure_for_variant(
+                tenant_id, variant.id, actor=actor
+            )
+            variant.inventory_item_id = item.id
+            self._session.flush()
         write_audit(
             self._session,
             tenant_id=tenant_id,
@@ -174,6 +183,9 @@ class ProductVariantService:
             resource_ids={
                 "product_id": str(product_id),
                 "variant_id": str(variant.id),
+                "inventory_item_id": str(variant.inventory_item_id)
+                if variant.inventory_item_id
+                else None,
             },
         )
         return self.get(tenant_id, product_id, variant.id, include_cost=include_cost)

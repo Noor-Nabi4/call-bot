@@ -22,6 +22,7 @@ import {
   listJobs,
   listTechnicians,
 } from "@/lib/api";
+import { getInventoryDashboard } from "@/lib/api/inventory";
 import { buildAttentionItems } from "@/lib/attention";
 import { deriveUrgency } from "@/lib/schedule";
 import { errors } from "@/lib/ops-copy";
@@ -61,21 +62,26 @@ export function useDashboardData(user: OpsUser | null) {
   const [jobDrawerOpen, setJobDrawerOpen] = useState(false);
   const [formBusy, setFormBusy] = useState(false);
   const [jobForm, setJobForm] = useState<CreateJobForm>(EMPTY_JOB_FORM);
+  const [inventoryLow, setInventoryLow] = useState(0);
+  const [inventoryOut, setInventoryOut] = useState(0);
   const now = useMemo(() => new Date(), []);
 
   const load = useCallback(async () => {
-    const [j, t, appts, callData, custs] = await Promise.all([
+    const [j, t, appts, callData, custs, invDash] = await Promise.all([
       listJobs(),
       listTechnicians(),
       listAppointments().catch(() => ({ appointments: [] as Appointment[] })),
       listCalls().catch(() => ({ calls: [] as Call[] })),
       listCustomers().catch(() => ({ customers: [] as CustomerOption[] })),
+      getInventoryDashboard().catch(() => null),
     ]);
     setJobs(j.jobs);
     setTechs(t.technicians);
     setAppointments(appts.appointments || []);
     setCalls(callData.calls || []);
     setCustomers(custs.customers || []);
+    setInventoryLow(invDash?.low_stock_balances ?? 0);
+    setInventoryOut(invDash?.out_of_stock_balances ?? 0);
   }, []);
 
   useEffect(() => {
@@ -136,8 +142,26 @@ export function useDashboardData(user: OpsUser | null) {
         href: "/calls",
       });
     }
+    if (inventoryOut > 0) {
+      items.push({
+        id: "inventory-out",
+        title: "Out of stock",
+        count: inventoryOut,
+        explanation: "Inventory balances with zero available quantity.",
+        href: "/crm/inventory?out_of_stock=true",
+      });
+    }
+    if (inventoryLow > 0) {
+      items.push({
+        id: "inventory-low",
+        title: "Low stock",
+        count: inventoryLow,
+        explanation: "Inventory at or below minimum threshold.",
+        href: "/crm/inventory?low_stock=true",
+      });
+    }
     return items;
-  }, [jobs, techs, callsToday]);
+  }, [jobs, techs, callsToday, inventoryLow, inventoryOut]);
 
   const todayWork = useMemo(() => {
     const rows: {
@@ -427,5 +451,7 @@ export function useDashboardData(user: OpsUser | null) {
     callsByStatusPie,
     onCreateJob,
     retryLoad,
+    inventoryLow,
+    inventoryOut,
   };
 }
