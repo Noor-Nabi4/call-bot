@@ -151,9 +151,17 @@ def test_completion_requires_mandatory_steps(session: Session, tenant: Tenant) -
         svc.mark_completed(tenant.id, actor="a@t.test")
     assert incomplete.value.code == "incomplete"
 
+    from callbot_platform.organization import OrganizationService
+
+    OrganizationService(session).update(
+        tenant.id,
+        actor="a@t.test",
+        name="Ready Co",
+        industry="hvac",
+        business_type="services",
+    )
     for step in REQUIRED_STEPS:
         svc.complete_step(tenant.id, step, actor="a@t.test")
-    # Completing last required auto-completes
     state = svc.get(tenant.id)
     assert state["status"] == STATUS_COMPLETED
     again = svc.mark_completed(tenant.id, actor="a@t.test")

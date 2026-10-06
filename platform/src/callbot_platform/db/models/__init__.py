@@ -21,6 +21,13 @@ from callbot_platform.db.models.crm import (
     Lead,
     TenantAgentSettings,
 )
+from callbot_platform.db.models.crm_config import (
+    OrganizationCrmConfiguration,
+    OrganizationCrmField,
+    OrganizationCrmModule,
+    OrganizationCrmStatus,
+    OrganizationCrmWorkflow,
+)
 from callbot_platform.db.models.handoff import (
     TenantHandoffSettings,
     TenantRetentionSettings,
@@ -69,6 +76,11 @@ __all__ = [
     "Lead",
     "MemberRole",
     "NotificationOutbox",
+    "OrganizationCrmConfiguration",
+    "OrganizationCrmField",
+    "OrganizationCrmModule",
+    "OrganizationCrmStatus",
+    "OrganizationCrmWorkflow",
     "OrganizationOnboarding",
     "OrganizationRole",
     "Permission",

@@ -40,6 +40,7 @@ class OrganizationBody(BaseModel):
     website: str | None = Field(default=None, max_length=2048)
     phone: str | None = Field(default=None, max_length=32)
     email: str | None = Field(default=None, max_length=255)
+    business_size: str | None = Field(default=None, max_length=32)
 
 
 class CreateMemberBody(BaseModel):

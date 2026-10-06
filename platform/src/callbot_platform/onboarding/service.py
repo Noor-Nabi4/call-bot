@@ -137,6 +137,8 @@ class OnboardingService:
         self._recompute(row)
         # Auto-complete when all required steps are done.
         if REQUIRED_STEPS.issubset(set(row.completed_steps)):
+            self._require_business_ready(tenant_id)
+            self._run_crm_setup(tenant_id, actor=actor)
             row.status = STATUS_COMPLETED
             if row.completed_at is None:
                 row.completed_at = datetime.now(UTC)
@@ -196,6 +198,8 @@ class OnboardingService:
                 "incomplete",
                 f"Required steps not completed: {', '.join(missing)}",
             )
+        self._require_business_ready(tenant_id)
+        self._run_crm_setup(tenant_id, actor=actor)
         row.status = STATUS_COMPLETED
         row.completed_at = datetime.now(UTC)
         self._recompute(row)
@@ -208,6 +212,33 @@ class OnboardingService:
             resource_ids={"onboarding_id": str(row.id)},
         )
         return self._serialize(row)
+
+    def _require_business_ready(self, tenant_id: UUID) -> None:
+        from callbot_platform.db.models.tenant import Tenant
+
+        tenant = self._session.get(Tenant, tenant_id)
+        if tenant is None:
+            raise OnboardingError("not_found", "Organization not found")
+        if not (tenant.name or "").strip():
+            raise OnboardingError(
+                "profile_incomplete", "Business name is required before completion"
+            )
+        if not tenant.industry_key:
+            raise OnboardingError(
+                "profile_incomplete", "Industry is required before completion"
+            )
+        if not tenant.business_type:
+            raise OnboardingError(
+                "profile_incomplete", "Business model is required before completion"
+            )
+
+    def _run_crm_setup(self, tenant_id: UUID, *, actor: str) -> None:
+        from callbot_platform.crm_config import CrmSetupError, CrmSetupService
+
+        try:
+            CrmSetupService(self._session).setup(tenant_id, actor=actor)
+        except CrmSetupError as exc:
+            raise OnboardingError(exc.code, str(exc)) from exc
 
     def mark_skipped(self, tenant_id: UUID, *, actor: str) -> dict[str, Any]:
         """Skip the entire onboarding wizard (org chooses to configure later)."""

@@ -931,17 +931,19 @@ Collect business information during signup.
 
 ### Checklist
 
-- [ ] Business name
-- [ ] Industry
-- [ ] Country
-- [ ] State
-- [ ] Timezone
-- [ ] Currency
-- [ ] Website
-- [ ] Phone
-- [ ] Email
-- [ ] Business size
-- [ ] Business type
+- [x] Business name
+- [x] Industry
+- [x] Country
+- [x] State
+- [x] Timezone
+- [x] Currency
+- [x] Website
+- [x] Phone
+- [x] Email
+- [x] Business size
+- [x] Business type
+
+Docs: `docs/BUSINESS_CONFIGURATION.md`
 
 ---
 
@@ -963,11 +965,11 @@ Determine what the business sells.
 
 ### Checklist
 
-- [ ] Selection UI
-- [ ] Store configuration
-- [ ] Validation
-- [ ] API
-- [ ] Tests
+- [x] Selection UI
+- [x] Store configuration
+- [x] Validation
+- [x] API
+- [x] Tests
 
 ---
 
@@ -995,15 +997,17 @@ Create configuration templates for different industries.
 
 ### Checklist
 
-- [ ] Template model
-- [ ] Template configuration
-- [ ] HVAC template
-- [ ] Plumbing template
-- [ ] Electrical template
-- [ ] Cleaning template
-- [ ] E-commerce template
-- [ ] Generic template
-- [ ] Template tests
+- [x] Template model
+- [x] Template configuration
+- [x] HVAC template
+- [x] Plumbing template
+- [x] Electrical template
+- [x] Cleaning template
+- [x] E-commerce template
+- [x] Generic template
+- [x] Template tests
+
+Docs: `docs/CRM_CONFIGURATION.md`
 
 ---
 
@@ -1047,16 +1051,16 @@ Discounts
 
 ### Checklist
 
-- [ ] Read onboarding configuration
-- [ ] Select template
-- [ ] Enable modules
-- [ ] Create default settings
-- [ ] Create default statuses
-- [ ] Create default fields
-- [ ] Create default workflows
-- [ ] Persist configuration
-- [ ] Make process idempotent
-- [ ] Add tests
+- [x] Read onboarding configuration
+- [x] Select template
+- [x] Enable modules
+- [x] Create default settings
+- [x] Create default statuses
+- [x] Create default fields
+- [x] Create default workflows
+- [x] Persist configuration
+- [x] Make process idempotent
+- [x] Add tests
 
 ---
 

@@ -121,11 +121,31 @@ def validate_industry(value: str | None) -> str | None:
     cleaned = _optional_str(value, max_length=64)
     if cleaned is None:
         return None
-    key = cleaned.lower()
-    if not _INDUSTRY_RE.match(key):
+    from callbot_platform.business_config.industries import (
+        INDUSTRY_KEYS,
+        normalize_industry_key,
+    )
+
+    key = normalize_industry_key(cleaned)
+    if key not in INDUSTRY_KEYS:
         raise OrganizationError(
             "invalid_industry",
-            "Industry must be a lowercase slug (letters, numbers, hyphen, underscore)",
+            "Industry must be a supported industry key",
+        )
+    return key
+
+
+def validate_business_size(value: str | None) -> str | None:
+    cleaned = _optional_str(value, max_length=32)
+    if cleaned is None:
+        return None
+    from callbot_platform.business_config.sizes import BUSINESS_SIZE_KEYS
+
+    key = cleaned.lower().replace(" ", "_").replace("-", "_")
+    if key not in BUSINESS_SIZE_KEYS:
+        raise OrganizationError(
+            "invalid_business_size",
+            "Business size must be one of: " + ", ".join(sorted(BUSINESS_SIZE_KEYS)),
         )
     return key
 
@@ -217,6 +237,7 @@ def serialize_organization(tenant: Tenant) -> dict[str, Any]:
         "website": tenant.website,
         "phone": tenant.phone,
         "email": tenant.email,
+        "business_size": tenant.business_size,
         "status": tenant.status,
         "default_agent_profile_id": str(tenant.default_agent_profile_id)
         if tenant.default_agent_profile_id

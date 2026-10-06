@@ -61,8 +61,8 @@ ONBOARDING_STEPS: tuple[OnboardingStepDef, ...] = (
     OnboardingStepDef(
         key="ai_configuration",
         title="AI agent",
-        required=True,
-        description="Voice agent profile and tools",
+        required=False,
+        description="Voice agent profile and tools (optional during first run)",
     ),
     OnboardingStepDef(
         key="knowledge",

@@ -14,6 +14,7 @@ from callbot_platform.db.models.tenant import Tenant
 from callbot_platform.organization.errors import OrganizationError
 from callbot_platform.organization.validation import (
     serialize_organization,
+    validate_business_size,
     validate_business_type,
     validate_country,
     validate_currency,
@@ -55,6 +56,7 @@ class OrganizationRepository:
         website: str | None = None,
         phone: str | None = None,
         email: str | None = None,
+        business_size: str | None = None,
     ) -> dict[str, Any]:
         cleaned_slug = slug.strip().lower()
         existing = self._session.scalar(
@@ -77,6 +79,7 @@ class OrganizationRepository:
             website=validate_website(website),
             phone=validate_phone(phone),
             email=validate_email(email),
+            business_size=validate_business_size(business_size),
         )
         self._session.add(tenant)
         self._session.flush()
@@ -146,6 +149,9 @@ class OrganizationRepository:
         if "email" in fields:
             tenant.email = validate_email(fields["email"])
             changed.append("email")
+        if "business_size" in fields:
+            tenant.business_size = validate_business_size(fields["business_size"])
+            changed.append("business_size")
 
         if not changed:
             return serialize_organization(tenant)

@@ -55,6 +55,7 @@ class Tenant(Base):
     website: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    business_size: Mapped[str | None] = mapped_column(String(32), nullable=True)
     # Shared vs dedicated DB routing — see docs/TENANCY_ARCHITECTURE.md
     db_strategy: Mapped[str] = mapped_column(
         String(32), nullable=False, default="shared"

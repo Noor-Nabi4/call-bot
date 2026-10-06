@@ -50,9 +50,13 @@ Unique constraints that are business-local are tenant-aware:
 UNIQUE (tenant_id, e164)          -- customer_phones
 UNIQUE (tenant_id, slug)          -- agent_profiles
 UNIQUE (tenant_id, idempotency_key)
+UNIQUE (tenant_id)                -- organization_onboarding / organization_crm_configurations
+UNIQUE (tenant_id, module_key)    -- organization_crm_modules
 ```
 
 Global uniqueness is intentional only where the resource is globally unique (e.g. phone DID inventory: `UNIQUE (e164)` on `tenant_phone_numbers`).
+
+Business profile fields live on `tenants` (Identity). Platform industry CRM templates are **code registries**, not tenant-mutable rows — see `docs/CRM_CONFIGURATION.md`.
 
 ### Defense in depth (planned)
 

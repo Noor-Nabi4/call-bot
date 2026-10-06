@@ -151,11 +151,30 @@ All queries filter `tenant_id = session.tenant_id`. One row per tenant. Cross-te
 
 ---
 
+See also: `docs/BUSINESS_CONFIGURATION.md`, `docs/CRM_CONFIGURATION.md` (Tasks 2.2–2.5).
+
+## Business onboarding completion (2.2–2.5)
+
+```text
+PATCH business-profile / business-model
+        ↓
+tenants profile fields (canonical)
+        ↓
+complete onboarding steps
+        ↓
+mark COMPLETED only after profile ready + CrmSetupService.setup()
+```
+
+Do **not** store business profile or CRM module lists inside `organization_onboarding.state_data`.
+
 ## Future tasks
 
-| Task | Should |
+| Task | Status |
 |------|--------|
-| 2.2 Business info | Persist to `tenants` profile fields; call `complete` on `business_profile` / `industry` / … |
+| 2.2 Business info | Done — `tenants` profile + `/business-profile` |
+| 2.3 Business model | Done — `tenants.business_type` + `/business-model` |
+| 2.4 Industry templates | Done — code registry `crm_templates` |
+| 2.5 CRM setup | Done — `organization_crm_*` + `CrmSetupService` |
 | Catalog / knowledge / phones | Use real domain APIs; only mark steps here |
 | Do not | Dump Business OS into `state_data` |
 

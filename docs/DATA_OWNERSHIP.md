@@ -30,15 +30,16 @@ Full table-by-table isolation status: `docs/TENANT_ISOLATION_AUDIT.md`.
 ## Identity
 
 **Package:** `auth`, `organization`, `api_keys`, `branding`, `security`  
-**Tables:** `tenants`, `tenant_users`, `tenant_api_keys`, `tenant_branding`, `organization_onboarding`
+**Tables:** `tenants`, `tenant_users`, `tenant_api_keys`, `tenant_branding`, `organization_onboarding`, `organization_crm_*`
 
 Owns:
 
-- Organization profile (name, slug, status, timezone, geo/contact fields)
+- Organization profile (name, slug, status, timezone, geo/contact, industry, business model/size — see `docs/BUSINESS_CONFIGURATION.md`)
 - User membership and roles
 - Session/API-key authentication artifacts
 - White-label branding
 - Organization onboarding workflow state (`organization_onboarding` — see `docs/ONBOARDING_ARCHITECTURE.md`)
+- Tenant CRM **configuration metadata** only (`organization_crm_configurations` + modules/statuses/fields/workflows — see `docs/CRM_CONFIGURATION.md`). Platform industry templates live in code, not in Identity tables.
 
 Does **not** own: customers, calls, jobs, Stripe subscription lifecycle details beyond linking.
 
@@ -57,7 +58,7 @@ Owns:
 - Leads and call session records
 - Caller ↔ customer matching for voice tools
 
-Does **not** own: appointments/jobs creation rules (Operations), SaaS invoices, agent prompt text.
+Does **not** own: appointments/jobs creation rules (Operations), SaaS invoices, agent prompt text, or organization CRM module/status/field **configuration** (Identity-owned metadata until Phase 3 domain packages claim it).
 
 **Future (when required):** `customer_addresses`, `tags` / `customer_tags`, `customer_notes`, `customer_custom_fields` — still CRM-owned.
 
