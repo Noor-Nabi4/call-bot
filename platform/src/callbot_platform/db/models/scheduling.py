@@ -182,8 +182,19 @@ class NotificationOutbox(Base):
         DateTime(timezone=True), nullable=True
     )
     claimed_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    lease_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    first_failed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_failed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    payload: Mapped[dict[str, Any]] = mapped_column(JsonType, nullable=False, default=dict)
+    payload: Mapped[dict[str, Any]] = mapped_column(
+        JsonType, nullable=False, default=dict
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -198,4 +209,6 @@ class NotificationOutbox(Base):
         server_default=func.now(),
     )
 
-    appointment: Mapped[Appointment | None] = relationship(back_populates="notifications")
+    appointment: Mapped[Appointment | None] = relationship(
+        back_populates="notifications"
+    )

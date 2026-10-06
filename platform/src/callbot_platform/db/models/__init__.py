@@ -8,6 +8,7 @@ from callbot_platform.db.models.agent_profile import (
     default_enabled_tools,
 )
 from callbot_platform.db.models.api_keys import TenantApiKey
+from callbot_platform.db.models.async_job import AsyncJob
 from callbot_platform.db.models.automation import AutomationRule
 from callbot_platform.db.models.base import Base, JsonType, _utcnow, _uuid
 from callbot_platform.db.models.billing import StripeWebhookEvent, TenantSubscription
@@ -45,6 +46,7 @@ from callbot_platform.db.models.tenant import (
 __all__ = [
     "AgentProfile",
     "Appointment",
+    "AsyncJob",
     "AutomationRule",
     "Base",
     "Call",

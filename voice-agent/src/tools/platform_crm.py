@@ -7,6 +7,8 @@ import os
 from typing import Any
 from urllib import error, request
 
+from tools.call_scope import CallScopeMixin
+
 
 class PlatformCrmError(RuntimeError):
     def __init__(self, code: str, message: str) -> None:
@@ -14,7 +16,7 @@ class PlatformCrmError(RuntimeError):
         self.code = code
 
 
-class PlatformCrmClient:
+class PlatformCrmClient(CallScopeMixin):
     def __init__(
         self,
         *,
@@ -28,9 +30,6 @@ class PlatformCrmClient:
         self._timeout = timeout_sec
         self._call_scope = call_scope
 
-    def set_call_scope(self, call_scope: str | None) -> None:
-        self._call_scope = call_scope
-
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         if not self._base or not self._token:
             raise PlatformCrmError(
@@ -38,12 +37,12 @@ class PlatformCrmClient:
                 "PLATFORM_API_URL and INTERNAL_SERVICE_TOKEN are required for CRM tools",
             )
         body = json.dumps(payload).encode("utf-8")
-        headers = {
-            "Content-Type": "application/json",
-            "X-Internal-Token": self._token,
-        }
-        if self._call_scope:
-            headers["X-Call-Scope"] = self._call_scope
+        headers = self._scope_headers(
+            {
+                "Content-Type": "application/json",
+                "X-Internal-Token": self._token,
+            }
+        )
         req = request.Request(
             f"{self._base}{path}",
             data=body,

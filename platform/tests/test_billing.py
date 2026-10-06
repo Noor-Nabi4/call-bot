@@ -10,12 +10,14 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.orm import Session
 
+from callbot_platform.async_jobs.runner import run_async_job
 from callbot_platform.auth.repos import AuthRepository
 from callbot_platform.billing.errors import BillingError
 from callbot_platform.billing.plans import VALID_PLAN_KEYS, plan_by_key
 from callbot_platform.billing.repos import BillingRepository
 from callbot_platform.billing.service import BillingService
 from callbot_platform.config import Settings
+from callbot_platform.db import get_session_factory
 from callbot_platform.db.models import Tenant
 from callbot_platform.domain.enums import TenantStatus
 
@@ -95,11 +97,11 @@ def test_signup_creates_pending_tenant(session: Session) -> None:
 
     with (
         patch(
-            "callbot_platform.billing.service.stripe.Customer.create",
+            "callbot_platform.async_jobs.handlers.stripe_billing.stripe.Customer.create",
             return_value=customer,
         ),
         patch(
-            "callbot_platform.billing.service.stripe.checkout.Session.create",
+            "callbot_platform.async_jobs.handlers.stripe_billing.stripe.checkout.Session.create",
             return_value=checkout,
         ) as create_session,
     ):
@@ -112,8 +114,14 @@ def test_signup_creates_pending_tenant(session: Session) -> None:
             password="password123",
             plan_key="growth",
         )
+        session.commit()
+        run_async_job(
+            get_session_factory(), UUID(str(result["job_id"])), settings=settings
+        )
+        checkout_info = service.get_signup_checkout(UUID(str(result["tenant_id"])))
+        result["checkout_url"] = checkout_info["checkout_url"]
 
-    session.flush()
+    session.expire_all()
     assert result["checkout_url"] == "https://checkout.stripe.test/session"
     assert result["user"]["email"] == "owner@acme.test"
     assert result["user"]["role"] == "admin"

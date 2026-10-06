@@ -23,9 +23,8 @@ dependencies = [
     "livekit-api>=1.0.0",
     "bcrypt>=4.2.0",
     "PyJWT>=2.10.0",
-    "stripe>=11.0.0",
+    "boto3>=1.35.0",
 ]
-
 [dependency-groups]
 dev = [
     "pytest>=8.0.0",

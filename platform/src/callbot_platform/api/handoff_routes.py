@@ -12,11 +12,16 @@ from sqlalchemy.orm import Session
 from callbot_platform.api.deps import (
     CurrentUser,
     db_dep,
-    require_internal_token,
     require_entitled_ops_roles,
+    require_internal_token,
 )
 from callbot_platform.domain.phone import PhoneNumberError
 from callbot_platform.handoff.repos import HandoffError, HandoffRepository
+from callbot_platform.security.call_scope import (
+    CallScope,
+    enforce_body_tenant,
+    optional_or_required_call_scope,
+)
 from callbot_platform.security.session import ROLE_ADMIN, ROLE_DISPATCHER
 
 internal_router = APIRouter(
@@ -48,7 +53,13 @@ def _http(exc: Exception) -> HTTPException:
 
 
 @internal_router.get("/{tenant_id}")
-def get_internal(tenant_id: UUID, session: Session = Depends(db_dep)) -> dict[str, Any]:
+def get_internal(
+    tenant_id: UUID,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
+) -> dict[str, Any]:
+    if scope is not None:
+        enforce_body_tenant(scope, tenant_id)
     return {"settings": HandoffRepository(session).get(tenant_id)}
 
 

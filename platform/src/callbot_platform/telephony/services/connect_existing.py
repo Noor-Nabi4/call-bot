@@ -9,6 +9,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from callbot_platform.async_jobs.service import AsyncJobService
+from callbot_platform.async_jobs.types import JobType
 from callbot_platform.billing.entitlements import EntitlementError, EntitlementGuard
 from callbot_platform.config import Settings
 from callbot_platform.db.models import Tenant, TenantPhoneNumber
@@ -22,10 +24,7 @@ from callbot_platform.domain.enums import (
 )
 from callbot_platform.domain.phone import PhoneNumberError, normalize_e164
 from callbot_platform.security.metadata import MetadataSigner
-from callbot_platform.telephony.adapters.livekit_sip import (
-    LiveKitApiError,
-    LiveKitSipService,
-)
+from callbot_platform.telephony.adapters.livekit_sip import LiveKitSipService
 from callbot_platform.telephony.audit import write_audit
 
 
@@ -79,6 +78,7 @@ class ConnectExistingService:
         except EntitlementError as exc:
             raise ConnectExistingError(exc.code, str(exc)) from exc
 
+        _ = tenant  # validated above; LiveKit work runs in async job after commit
         row = TenantPhoneNumber(
             tenant_id=tenant_id,
             provider=TelephonyProviderId.TWILIO.value,
@@ -89,87 +89,36 @@ class ConnectExistingService:
             onboarding_path=OnboardingPath.CONNECT_EXISTING.value,
             auth_method=AuthMethod.MANUAL.value,
             provisioning_state=ProvisioningState.IN_PROGRESS.value,
-            provisioning_details={},
+            provisioning_details={"steps_completed": []},
         )
         self._session.add(row)
         self._session.flush()
 
-        metadata = self._signer.sign_payload(
-            {
-                "tenant_id": str(tenant_id),
-                "did": e164,
-                "phone_number_id": str(row.id),
-                "source": "sip_dispatch",
-                **(
-                    {"agent_profile_id": str(tenant.default_agent_profile_id)}
-                    if tenant.default_agent_profile_id
-                    else {}
-                ),
-            }
+        job = AsyncJobService(self._session, settings=self._settings).enqueue(
+            tenant_id=tenant_id,
+            job_type=JobType.TELEPHONY_PROVISION_CONNECT,
+            idempotency_key=f"tenant:{tenant_id}:phone:{row.id}:connect",
+            resource_id=str(row.id),
+            payload={"phone_number_id": str(row.id), "e164": e164},
         )
-
-        details: dict[str, Any] = {"steps_completed": []}
-        try:
-            trunk = self._livekit.create_livekit_inbound_trunk(
-                name=f"inbound-{tenant.slug}-{e164}",
-                numbers=[e164],
-                metadata=metadata,
-            )
-            row.livekit_inbound_trunk_id = trunk.trunk_id
-            details["steps_completed"].append("livekit_inbound_trunk")
-            details["livekit_inbound_trunk_id"] = trunk.trunk_id
-
-            dispatch = self._livekit.create_individual_dispatch_rule(
-                name=f"dispatch-{tenant.slug}-{e164}",
-                agent_name=self._settings.agent_name,
-                metadata=metadata,
-                trunk_ids=[trunk.trunk_id],
-                room_prefix="call-",
-            )
-            row.livekit_dispatch_rule_id = dispatch.dispatch_rule_id
-            details["steps_completed"].append("livekit_dispatch_rule")
-            details["livekit_dispatch_rule_id"] = dispatch.dispatch_rule_id
-
-            row.connection_status = ConnectionStatus.PENDING_SETUP.value
-            row.provisioning_state = ProvisioningState.COMPLETE.value
-            row.provisioning_details = details
-            row.updated_at = datetime.now(UTC)
-        except (LiveKitApiError, Exception) as exc:
-            row.connection_status = ConnectionStatus.PARTIAL.value
-            row.provisioning_state = ProvisioningState.PARTIAL.value
-            details["error"] = str(exc)
-            row.provisioning_details = details
-            row.updated_at = datetime.now(UTC)
-            write_audit(
-                self._session,
-                tenant_id=tenant_id,
-                actor=actor,
-                action="connect_existing_partial",
-                resource_ids={"phone_number_id": str(row.id), "e164": e164},
-                payload_summary=details,
-            )
-            self._session.flush()
-            raise ConnectExistingError(
-                "partial_provisioning",
-                f"Partial LiveKit provisioning; recover manually: {exc}",
-            ) from exc
 
         write_audit(
             self._session,
             tenant_id=tenant_id,
             actor=actor,
-            action="connect_existing_started",
+            action="connect_existing_queued",
             resource_ids={
                 "phone_number_id": str(row.id),
                 "e164": e164,
-                "livekit_inbound_trunk_id": row.livekit_inbound_trunk_id,
-                "livekit_dispatch_rule_id": row.livekit_dispatch_rule_id,
+                "job_id": str(job.id),
             },
         )
         self._session.flush()
 
         return {
             "phone_number": self._serialize(row),
+            "job_id": str(job.id),
+            "provisioning": "queued",
             "twilio_setup": self._twilio_instructions(e164),
         }
 

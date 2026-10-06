@@ -89,7 +89,9 @@ def upgrade() -> None:
         sa.Column("mime_type", sa.String(length=128), nullable=False),
         sa.Column("size_bytes", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("storage_backend", sa.String(length=32), nullable=False),
-        sa.Column("status", sa.String(length=32), nullable=False, server_default="stored"),
+        sa.Column(
+            "status", sa.String(length=32), nullable=False, server_default="stored"
+        ),
         sa.Column("retention_until", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "metadata_json",

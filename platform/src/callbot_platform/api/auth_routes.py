@@ -117,7 +117,20 @@ def signup(
             password=body.password,
             plan_key=body.plan_key,
         )
+        job_id = result.get("job_id")
+        tenant_id = result.get("tenant_id")
         session.commit()
+        if job_id:
+            from callbot_platform.async_jobs.runner import run_async_job
+            from callbot_platform.db import get_session_factory
+
+            run_async_job(get_session_factory(), UUID(str(job_id)), settings=settings)
+            if tenant_id:
+                checkout = BillingService(session, settings).get_signup_checkout(
+                    UUID(str(tenant_id))
+                )
+                result["checkout_url"] = checkout.get("checkout_url")
+                result["provisioning"] = checkout.get("provisioning_status")
     except Exception as exc:
         session.rollback()
         raise _auth_http(exc) from exc

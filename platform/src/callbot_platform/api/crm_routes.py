@@ -148,7 +148,13 @@ def _http_error(exc: Exception) -> HTTPException:
 
 
 @router.post("/customers/lookup")
-def lookup_customer(body: LookupBody, session: Session = Depends(db_dep)) -> dict:
+def lookup_customer(
+    body: LookupBody,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
+) -> dict:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
     try:
         result = CustomerRepository(session).lookup_by_phone(body.tenant_id, body.phone)
         if result is None:
@@ -160,8 +166,12 @@ def lookup_customer(body: LookupBody, session: Session = Depends(db_dep)) -> dic
 
 @router.post("/customers/upsert")
 def upsert_customer(
-    body: UpsertCustomerBody, session: Session = Depends(db_dep)
+    body: UpsertCustomerBody,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
 ) -> dict:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
     try:
         customer = CustomerRepository(session).upsert(
             body.tenant_id,
@@ -176,7 +186,15 @@ def upsert_customer(
 
 
 @router.post("/leads")
-def create_lead(body: CreateLeadBody, session: Session = Depends(db_dep)) -> dict:
+def create_lead(
+    body: CreateLeadBody,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
+) -> dict:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
+        if body.call_id is not None:
+            enforce_body_call(scope, body.call_id)
     try:
         lead = LeadRepository(session).create(
             body.tenant_id,

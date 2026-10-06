@@ -46,9 +46,10 @@ class BillingRepository:
         self,
         *,
         tenant_id: UUID,
-        stripe_customer_id: str,
+        stripe_customer_id: str | None,
         plan_key: str,
         stripe_price_id: str | None = None,
+        provisioning_status: str = "ready",
     ) -> TenantSubscription:
         row = TenantSubscription(
             tenant_id=tenant_id,
@@ -56,6 +57,7 @@ class BillingRepository:
             plan_key=plan_key,
             status="incomplete",
             stripe_price_id=stripe_price_id,
+            provisioning_status=provisioning_status,
         )
         self._session.add(row)
         self._session.flush()

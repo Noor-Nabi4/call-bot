@@ -97,7 +97,12 @@ class BillingService:
         password: str,
         plan_key: str,
     ) -> dict[str, Any]:
-        """Create pending tenant + admin + Stripe customer + Checkout Session."""
+        """
+        Create pending tenant + admin + billing intent + Stripe provisioning job.
+
+        No Stripe HTTP inside the open DB transaction. Caller commits, then runs
+        the async job (see async_jobs.runner) to obtain checkout_url.
+        """
         self._require_stripe()
         cleaned_slug = slug.strip().lower()
         if (
@@ -141,48 +146,65 @@ class BillingService:
             actor="signup",
         )
 
-        try:
-            customer = stripe.Customer.create(
-                email=email.strip().lower(),
-                name=business_name.strip(),
-                metadata={
-                    "tenant_id": str(tenant.id),
-                    "tenant_slug": cleaned_slug,
-                },
-            )
-        except stripe.error.StripeError as exc:
-            logger.exception("Stripe customer create failed for tenant %s", tenant.id)
-            raise BillingError(
-                "stripe_error", "Could not create billing customer"
-            ) from exc
-
-        self._repo.create_incomplete(
+        sub = self._repo.create_incomplete(
             tenant_id=tenant.id,
-            stripe_customer_id=customer.id,
+            stripe_customer_id=None,
             plan_key=plan,
+            provisioning_status="pending_stripe",
         )
 
-        checkout_url = self._create_checkout_session(
+        from callbot_platform.async_jobs.service import AsyncJobService
+        from callbot_platform.async_jobs.types import JobType
+
+        job = AsyncJobService(self._session, settings=self._settings).enqueue(
             tenant_id=tenant.id,
-            tenant_slug=cleaned_slug,
-            customer_id=customer.id,
-            plan_key=plan,
+            job_type=JobType.STRIPE_SIGNUP_PROVISION,
+            idempotency_key=f"tenant:{tenant.id}:billing:signup",
+            resource_id=str(sub.id),
+            payload={
+                "plan_key": plan,
+                "email": email.strip().lower(),
+                "business_name": business_name.strip(),
+            },
         )
 
         write_audit(
             self._session,
             tenant_id=tenant.id,
             actor=email.strip().lower(),
-            action="tenant_signup_started",
-            resource_ids={"plan_key": plan, "stripe_customer_id": customer.id},
+            action="tenant_signup_queued",
+            resource_ids={"plan_key": plan, "job_id": str(job.id)},
         )
         self._session.flush()
-        return {"user": user, "checkout_url": checkout_url}
+        return {
+            "user": user,
+            "checkout_url": None,
+            "job_id": str(job.id),
+            "tenant_id": str(tenant.id),
+            "provisioning": "queued",
+        }
+
+    def get_signup_checkout(self, tenant_id: UUID) -> dict[str, Any]:
+        row = self._repo.get_by_tenant(tenant_id)
+        if row is None:
+            raise BillingError("subscription_not_found", "No subscription for tenant")
+        return {
+            "tenant_id": str(tenant_id),
+            "checkout_url": row.checkout_url,
+            "provisioning_status": getattr(row, "provisioning_status", "ready"),
+            "stripe_customer_id": row.stripe_customer_id,
+            "status": row.status,
+            "plan_key": row.plan_key,
+        }
 
     def create_checkout_for_tenant(
         self, *, tenant_id: UUID, plan_key: str | None = None
-    ) -> str:
-        """Resume Checkout for incomplete/canceled subscriptions."""
+    ) -> dict[str, Any]:
+        """
+        Queue Stripe checkout provisioning (no Stripe HTTP in this TX).
+
+        Returns job_id; caller commits then runs stripe.checkout_provision.
+        """
         self._require_stripe()
         row = self._repo.get_by_tenant(tenant_id)
         if row is None:
@@ -197,6 +219,11 @@ class BillingService:
         tenant = self._session.get(Tenant, tenant_id)
         if tenant is None:
             raise BillingError("tenant_not_found", "Tenant not found")
+        if not row.stripe_customer_id:
+            raise BillingError(
+                "customer_missing",
+                "Stripe customer not provisioned yet; wait for signup job",
+            )
 
         plan = (plan_key or row.plan_key).strip().lower()
         if plan not in VALID_PLAN_KEYS:
@@ -206,25 +233,42 @@ class BillingService:
             raise BillingError("invalid_plan", "Plan pricing is not available")
         row.plan_key = plan
         row.stripe_price_id = None
+        row.provisioning_status = "pending_checkout"
+        row.checkout_url = None
         self._session.flush()
 
-        return self._create_checkout_session(
-            tenant_id=tenant.id,
-            tenant_slug=tenant.slug,
-            customer_id=row.stripe_customer_id,
-            plan_key=plan,
+        from callbot_platform.async_jobs.service import AsyncJobService
+        from callbot_platform.async_jobs.types import JobType
+
+        job = AsyncJobService(self._session, settings=self._settings).enqueue(
+            tenant_id=tenant_id,
+            job_type=JobType.STRIPE_CHECKOUT_PROVISION,
+            idempotency_key=f"tenant:{tenant_id}:billing:{plan}:checkout_job",
+            resource_id=str(row.id),
+            payload={"plan_key": plan},
         )
+        return {
+            "job_id": str(job.id),
+            "tenant_id": str(tenant_id),
+            "checkout_url": None,
+            "provisioning": "queued",
+        }
 
     def create_portal_session(self, *, tenant_id: UUID) -> str:
+        """Read subscription then call Stripe (no prior writes in this path)."""
         self._require_stripe()
         row = self._repo.get_by_tenant(tenant_id)
         if row is None:
             raise BillingError(
                 "subscription_not_found", "No subscription for this tenant"
             )
+        if not row.stripe_customer_id:
+            raise BillingError("customer_missing", "Stripe customer not provisioned")
+        customer_id = row.stripe_customer_id
+        self._session.expire_all()
         try:
             portal = stripe.billing_portal.Session.create(
-                customer=row.stripe_customer_id,
+                customer=customer_id,
                 return_url=self._settings.stripe_portal_return_url,
             )
         except stripe.error.StripeError as exc:

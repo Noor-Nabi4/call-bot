@@ -85,8 +85,9 @@ def test_normalize_and_deliver_signed_webhook() -> None:
 
 
 def test_automation_post_webhook_action(session: Session, tenant: Tenant) -> None:
-    from callbot_platform.db.models import NotificationOutbox
     from sqlalchemy import select
+
+    from callbot_platform.db.models import NotificationOutbox
 
     service = AutomationService(session)
     with patch(

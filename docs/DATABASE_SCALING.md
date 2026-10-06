@@ -36,6 +36,7 @@ Tune using **total** connections across the fleet:
 max_connections_needed ≈
   (API_replicas × uvicorn_workers × (DB_POOL_SIZE + DB_MAX_OVERFLOW))
   + (outbox_worker_replicas × (DB_POOL_SIZE + DB_MAX_OVERFLOW))
+  + (job_worker_replicas × (DB_POOL_SIZE + DB_MAX_OVERFLOW))
   + (active dedicated engines × ~2–4 each)
   + headroom for migrations / admin / analytics
 

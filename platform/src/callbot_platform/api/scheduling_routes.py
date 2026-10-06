@@ -12,6 +12,11 @@ from sqlalchemy.orm import Session
 
 from callbot_platform.api.deps import db_dep, require_internal_token
 from callbot_platform.scheduling.repos import AppointmentRepository, SchedulingError
+from callbot_platform.security.call_scope import (
+    CallScope,
+    enforce_body_tenant,
+    optional_or_required_call_scope,
+)
 
 router = APIRouter(
     prefix="/internal/scheduling",
@@ -63,7 +68,13 @@ def _http_error(exc: Exception) -> HTTPException:
 
 
 @router.post("/slots")
-def list_slots(body: SlotsBody, session: Session = Depends(db_dep)) -> dict[str, Any]:
+def list_slots(
+    body: SlotsBody,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
+) -> dict[str, Any]:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
     try:
         return AppointmentRepository(session).list_available_slots(
             body.tenant_id,
@@ -77,8 +88,12 @@ def list_slots(body: SlotsBody, session: Session = Depends(db_dep)) -> dict[str,
 
 @router.post("/appointments")
 def book_appointment(
-    body: BookAppointmentBody, session: Session = Depends(db_dep)
+    body: BookAppointmentBody,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
 ) -> dict[str, Any]:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
     try:
         appointment = AppointmentRepository(session).book(
             body.tenant_id,
@@ -100,7 +115,10 @@ def get_appointment(
     appointment_id: UUID,
     tenant_id: UUID,
     session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
 ) -> dict[str, Any]:
+    if scope is not None:
+        enforce_body_tenant(scope, tenant_id)
     appointment = AppointmentRepository(session).get(tenant_id, appointment_id)
     if appointment is None:
         raise HTTPException(
@@ -118,7 +136,10 @@ def reschedule_appointment(
     appointment_id: UUID,
     body: RescheduleBody,
     session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
 ) -> dict[str, Any]:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
     try:
         appointment = AppointmentRepository(session).reschedule(
             body.tenant_id,
@@ -135,7 +156,10 @@ def cancel_appointment(
     appointment_id: UUID,
     body: CancelBody,
     session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
 ) -> dict[str, Any]:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
     try:
         appointment = AppointmentRepository(session).cancel(
             body.tenant_id,

@@ -39,6 +39,6 @@ BEGIN → business row + outbox pending → COMMIT
 
 ## Still deferred (do not pretend fixed)
 
-Twilio/LiveKit purchase/connect and Stripe signup still need provisioning sagas. Prefer intent row → commit → provision → reconcile when touching those paths.
+Release / inventory may still call providers in request handlers after reads. Purchase, connect, and Stripe signup use `async_jobs` sagas — see `docs/SAGA_ARCHITECTURE.md`.
 
-See: `docs/OUTBOX_ARCHITECTURE.md`, `docs/TRANSACTION_AUDIT.md`
+See: `docs/OUTBOX_ARCHITECTURE.md`, `docs/TRANSACTION_AUDIT.md`, `docs/SAGA_ARCHITECTURE.md`

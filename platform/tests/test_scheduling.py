@@ -6,6 +6,7 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
+from helpers import next_open_booking_day
 from sqlalchemy.orm import Session
 
 from callbot_platform.crm.repos import CustomerRepository
@@ -17,7 +18,6 @@ from callbot_platform.scheduling.availability import (
 )
 from callbot_platform.scheduling.notifications import NotificationService
 from callbot_platform.scheduling.repos import AppointmentRepository, SchedulingError
-from helpers import next_open_booking_day
 
 
 @pytest.fixture()

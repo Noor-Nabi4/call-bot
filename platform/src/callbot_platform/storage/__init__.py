@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import logging
 import uuid
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -16,50 +14,32 @@ from sqlalchemy.orm import Session
 
 from callbot_platform.config import Settings, get_settings
 from callbot_platform.db.models.recordings import RecordingObject
+from callbot_platform.storage.base import (
+    ObjectStorage,
+    StoredObject,
+    validate_object_mime_type,
+)
 
 logger = logging.getLogger(__name__)
 
-
-@dataclass(frozen=True, slots=True)
-class StoredObject:
-    object_key: str
-    size_bytes: int
-    mime_type: str
-    backend: str
-
-
-class ObjectStorage(ABC):
-    @abstractmethod
-    def put(
-        self,
-        *,
-        tenant_id: UUID,
-        object_key: str,
-        data: bytes,
-        mime_type: str,
-    ) -> StoredObject: ...
-
-    @abstractmethod
-    def get(self, *, tenant_id: UUID, object_key: str) -> bytes: ...
-
-    @abstractmethod
-    def delete(self, *, tenant_id: UUID, object_key: str) -> None: ...
-
-    @abstractmethod
-    def create_download_url(
-        self, *, tenant_id: UUID, object_key: str, ttl_seconds: int = 300
-    ) -> str: ...
+__all__ = [
+    "FilesystemObjectStorage",
+    "ObjectStorage",
+    "RecordingStorageService",
+    "StoredObject",
+    "get_object_storage",
+]
 
 
 class FilesystemObjectStorage(ObjectStorage):
     """Local filesystem backend for development and single-node deploys."""
 
-    def __init__(self, root: str) -> None:
+    def __init__(self, root: str, *, max_upload_bytes: int = 52_428_800) -> None:
         self._root = Path(root).expanduser().resolve()
         self._root.mkdir(parents=True, exist_ok=True)
+        self._max_bytes = int(max_upload_bytes)
 
     def _path(self, tenant_id: UUID, object_key: str) -> Path:
-        # Prevent path traversal outside tenant prefix.
         safe_key = object_key.lstrip("/").replace("..", "")
         path = (self._root / str(tenant_id) / safe_key).resolve()
         if not str(path).startswith(str(self._root / str(tenant_id))):
@@ -74,29 +54,33 @@ class FilesystemObjectStorage(ObjectStorage):
         data: bytes,
         mime_type: str,
     ) -> StoredObject:
+        if len(data) > self._max_bytes:
+            raise ValueError("object_too_large")
+        mime = validate_object_mime_type(mime_type)
         path = self._path(tenant_id, object_key)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
         return StoredObject(
             object_key=object_key,
             size_bytes=len(data),
-            mime_type=mime_type,
+            mime_type=mime,
             backend="filesystem",
         )
 
     def get(self, *, tenant_id: UUID, object_key: str) -> bytes:
-        path = self._path(tenant_id, object_key)
-        return path.read_bytes()
+        return self._path(tenant_id, object_key).read_bytes()
 
     def delete(self, *, tenant_id: UUID, object_key: str) -> None:
         path = self._path(tenant_id, object_key)
         if path.exists():
             path.unlink()
 
+    def exists(self, *, tenant_id: UUID, object_key: str) -> bool:
+        return self._path(tenant_id, object_key).exists()
+
     def create_download_url(
         self, *, tenant_id: UUID, object_key: str, ttl_seconds: int = 300
     ) -> str:
-        # Local file URI — production should use signed S3 URLs via another backend.
         path = self._path(tenant_id, object_key)
         return f"file://{path}?ttl={ttl_seconds}"
 
@@ -105,7 +89,14 @@ def get_object_storage(settings: Settings | None = None) -> ObjectStorage:
     cfg = settings or get_settings()
     backend = (cfg.object_storage_backend or "filesystem").strip().lower()
     if backend == "filesystem":
-        return FilesystemObjectStorage(cfg.object_storage_root)
+        return FilesystemObjectStorage(
+            cfg.object_storage_root,
+            max_upload_bytes=cfg.object_storage_max_upload_bytes,
+        )
+    if backend in {"s3", "r2", "minio"}:
+        from callbot_platform.storage.s3 import S3ObjectStorage
+
+        return S3ObjectStorage(cfg)
     raise ValueError(f"Unsupported OBJECT_STORAGE_BACKEND={backend!r}")
 
 
@@ -150,7 +141,11 @@ class RecordingStorageService:
                     TenantRetentionSettings.tenant_id == tenant_id
                 )
             )
-            days = row.recording_retention_days if row else 30
+            days = (
+                row.recording_retention_days
+                if row
+                else int(self._settings.recording_retention_days)
+            )
         retention_until = datetime.now(UTC) + timedelta(days=int(days))
         rec = RecordingObject(
             tenant_id=tenant_id,
@@ -178,7 +173,7 @@ class RecordingStorageService:
         }
 
     def delete_expired(self, *, limit: int = 100) -> int:
-        """Delete objects past retention_until for their owning tenant only."""
+        """Delete objects past retention_until; mark missing objects as deleted."""
         now = datetime.now(UTC)
         rows = list(
             self._session.scalars(
@@ -195,7 +190,12 @@ class RecordingStorageService:
         deleted = 0
         for row in rows:
             try:
-                self._storage.delete(tenant_id=row.tenant_id, object_key=row.object_key)
+                if self._storage.exists(
+                    tenant_id=row.tenant_id, object_key=row.object_key
+                ):
+                    self._storage.delete(
+                        tenant_id=row.tenant_id, object_key=row.object_key
+                    )
                 row.status = "deleted"
                 row.deleted_at = now
                 row.updated_at = now

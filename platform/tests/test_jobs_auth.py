@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime
 
 import pytest
+from helpers import next_open_booking_day
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -21,7 +22,6 @@ from callbot_platform.security.session import (
     decode_session_token,
     verify_password,
 )
-from helpers import next_open_booking_day
 
 
 @pytest.fixture()

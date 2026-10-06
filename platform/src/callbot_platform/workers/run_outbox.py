@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import logging
-import signal
 import sys
 
 from callbot_platform.config import get_settings
 from callbot_platform.db import get_session_factory
+from callbot_platform.workers.lifecycle import run_with_graceful_shutdown
 from callbot_platform.workers.outbox import NotificationOutboxWorker
 
 logging.basicConfig(
@@ -20,13 +20,6 @@ logger = logging.getLogger("outbox_worker")
 def main() -> int:
     settings = get_settings()
     worker = NotificationOutboxWorker(get_session_factory(), settings=settings)
-
-    def _stop(*_args: object) -> None:
-        logger.info("outbox_worker_shutdown_requested")
-        worker.request_stop()
-
-    signal.signal(signal.SIGINT, _stop)
-    signal.signal(signal.SIGTERM, _stop)
     logger.info(
         "outbox_worker_starting",
         extra={
@@ -34,7 +27,9 @@ def main() -> int:
             "poll_interval": settings.outbox_poll_interval_seconds,
         },
     )
-    worker.run_forever()
+    run_with_graceful_shutdown(
+        worker, shutdown_timeout_seconds=float(settings.job_shutdown_timeout_seconds)
+    )
     return 0
 
 

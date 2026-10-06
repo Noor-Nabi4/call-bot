@@ -474,9 +474,12 @@ def search_inventory(
     number_type: str = "local",
     limit: int = 20,
     user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
+    session: Session = Depends(db_dep),
     service: PlatformPurchaseService = Depends(purchase_service),
 ) -> dict[str, Any]:
     try:
+        service.ensure_subaccount(tenant_id=user.tenant_id, actor=user.email)
+        session.commit()
         items = service.search_inventory(
             tenant_id=user.tenant_id,
             country=country,
@@ -522,15 +525,49 @@ def release_phone(
     phone_number_id: UUID,
     body: ReleasePhoneBody,
     user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
+    session: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
     service: PlatformPurchaseService = Depends(purchase_service),
 ) -> dict[str, Any]:
     try:
-        return service.release(
+        from callbot_platform.async_jobs.handlers.telephony import (
+            TelephonyProvisionHandler,
+        )
+        from callbot_platform.async_jobs.runner import run_async_job
+        from callbot_platform.db import get_session_factory
+        from callbot_platform.db.models import TenantPhoneNumber
+
+        result = service.release(
             tenant_id=user.tenant_id,
             phone_number_id=phone_number_id,
             phone_number_sid=body.phone_number_sid,
             actor=user.email,
         )
+        job_id = result.get("job_id")
+        session.commit()
+        if job_id:
+            handler = TelephonyProvisionHandler(
+                settings=settings,
+                cipher=service._cipher,
+                signer=service._signer,
+                provisioning=service._provisioning,
+                livekit=service._livekit,
+            )
+            job = run_async_job(
+                get_session_factory(),
+                UUID(str(job_id)),
+                settings=settings,
+                telephony_handler=handler,
+            )
+            phone = session.get(TenantPhoneNumber, phone_number_id)
+            if phone is not None:
+                session.refresh(phone)
+                result = {
+                    "phone_number": service._serialize(phone),
+                    "job_id": str(job_id),
+                    "provisioning": job.status if job else "unknown",
+                }
+        return result
     except PurchaseError as exc:
         raise HTTPException(
             status_code=403 if exc.code == "release_not_allowed" else 400,

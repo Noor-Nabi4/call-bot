@@ -12,6 +12,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
@@ -43,7 +44,7 @@ class TenantSubscription(Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
     )
-    stripe_customer_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     stripe_subscription_id: Mapped[str | None] = mapped_column(
         String(128), nullable=True
     )
@@ -52,6 +53,10 @@ class TenantSubscription(Base):
         String(32), nullable=False, default="incomplete"
     )
     stripe_price_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    checkout_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provisioning_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="ready"
+    )
     current_period_end: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

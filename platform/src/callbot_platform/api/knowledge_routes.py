@@ -16,6 +16,11 @@ from callbot_platform.api.deps import (
     require_internal_token,
 )
 from callbot_platform.knowledge.repos import KnowledgeError, KnowledgeRepository
+from callbot_platform.security.call_scope import (
+    CallScope,
+    enforce_body_tenant,
+    optional_or_required_call_scope,
+)
 from callbot_platform.security.session import ROLE_ADMIN, ROLE_DISPATCHER
 
 internal_router = APIRouter(
@@ -66,8 +71,12 @@ def _http(exc: Exception) -> HTTPException:
 
 @internal_router.post("/search")
 def internal_search(
-    body: SearchBody, session: Session = Depends(db_dep)
+    body: SearchBody,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
 ) -> dict[str, Any]:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
     try:
         hits = KnowledgeRepository(session).search(
             body.tenant_id,

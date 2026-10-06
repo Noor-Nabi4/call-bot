@@ -34,8 +34,9 @@
 
 ## Explicitly deferred
 
-Telephony purchase/connect and Stripe signup still perform provider I/O inside request transactions. They need a dedicated provisioning saga (multi-step status machine). Tracked as next phase; do not confuse with notification outbox work.
+None for notification dual-writes. Telephony purchase/connect and Stripe signup were moved to `async_jobs` sagas in Phase 3 (see `docs/SAGA_ARCHITECTURE.md`).
 
+Release and inventory search may still call providers in a request handler after reads; they do not write business state before provider success for the critical purchase path.
 ---
 
 ## Anti-pattern (forbidden going forward)

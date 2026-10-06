@@ -37,12 +37,13 @@ Production startup (`require_production_settings`) **requires** `REQUIRE_CALL_SC
 2. `call_id` exists and belongs to scoped `tenant_id`
 3. Body `tenant_id` / `call_id` match the claim
 
-## What is still token-only
+## What is still token-only (pre-call / ops)
 
-- SIP resolve / inbound observed (pre-call)
-- Legacy telephony provisioning under `/tenants/...` (already internal-token gated)
+- SIP resolve / inbound observed (pre-call; issues tenant scope)
+- Legacy telephony provisioning under `/tenants/...` (internal-token gated; not call-originated)
 - Agent profile fetch at worker startup (pre-call)
+- Ops session cookie APIs
 
 ## Voice agent
 
-Clients should store `call_scope` from resolve/start and send `X-Call-Scope` on subsequent CRM/scheduling calls when the flag is enabled.
+All call-originated platform clients (`PlatformCrmClient`, `PlatformSchedulingClient`, `PlatformKnowledgeClient`, `PlatformHandoffClient`) send `X-Call-Scope` after resolve/start. Agent wires the same scope token into every client.

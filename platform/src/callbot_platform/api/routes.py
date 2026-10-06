@@ -16,10 +16,12 @@ from callbot_platform.api.deps import (
     purchase_service,
     require_internal_token,
     resolver_service,
+    settings_dep,
     signer_dep,
     verification_service,
 )
-from callbot_platform.config import get_settings
+from callbot_platform.config import Settings, get_settings
+from callbot_platform.db import get_session_factory
 from callbot_platform.db.models import Tenant, TenantPhoneNumber
 from callbot_platform.organization import OrganizationError, OrganizationService
 from callbot_platform.security.call_scope import CallScopeSigner
@@ -113,7 +115,43 @@ class SignMetadataBody(BaseModel):
 
 @router.get("/health")
 def health() -> dict[str, str]:
+    """Legacy alias for liveness."""
     return {"status": "ok"}
+
+
+@router.get("/liveness")
+def liveness() -> dict[str, str]:
+    """Process is alive — does not check Postgres."""
+    return {"status": "alive"}
+
+
+@router.get("/readiness")
+def readiness(
+    session: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
+) -> dict[str, Any]:
+    """Ready to serve traffic if required dependencies respond quickly."""
+    from sqlalchemy import text
+    from sqlalchemy.exc import SQLAlchemyError
+
+    checks: dict[str, str] = {}
+    try:
+        session.execute(text("SELECT 1"))
+        checks["postgres"] = "ok"
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "not_ready",
+                "message": "postgres unavailable",
+                "checks": {"postgres": "fail"},
+                "error": str(exc)[:200],
+            },
+        ) from exc
+
+    backend = (settings.object_storage_backend or "filesystem").strip().lower()
+    checks["object_storage"] = backend
+    return {"status": "ready", "checks": checks}
 
 
 @router.post("/tenants", dependencies=[Depends(require_internal_token)])
@@ -201,14 +239,41 @@ def list_phone_numbers(tenant_id: UUID, session: Session = Depends(db_dep)) -> d
 def connect_existing_number(
     tenant_id: UUID,
     body: ConnectNumberBody,
+    session: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
     service: ConnectExistingService = Depends(connect_service),
 ) -> dict:
     try:
-        return service.start(
+        result = service.start(
             tenant_id=tenant_id,
             phone_number=body.phone_number,
             twilio_account_sid=body.twilio_account_sid,
         )
+        job_id = result.get("job_id")
+        session.commit()
+        if job_id:
+            from callbot_platform.async_jobs.handlers.telephony import (
+                TelephonyProvisionHandler,
+            )
+            from callbot_platform.async_jobs.runner import run_async_job
+
+            handler = TelephonyProvisionHandler(
+                settings=settings,
+                signer=service._signer,
+                livekit=service._livekit,
+            )
+            job = run_async_job(
+                get_session_factory(),
+                UUID(str(job_id)),
+                settings=settings,
+                telephony_handler=handler,
+            )
+            phone = session.get(TenantPhoneNumber, UUID(result["phone_number"]["id"]))
+            if phone is not None:
+                session.refresh(phone)
+                result["phone_number"] = service._serialize(phone)
+            result["provisioning"] = job.status if job else "unknown"
+        return result
     except ConnectExistingError as exc:
         status = 409 if exc.code == "duplicate_number" else 400
         if exc.code == "partial_provisioning":
@@ -286,9 +351,12 @@ def search_inventory(
     area_code: str | None = None,
     number_type: str = "local",
     limit: int = 20,
+    session: Session = Depends(db_dep),
     service: PlatformPurchaseService = Depends(purchase_service),
 ) -> dict:
     try:
+        service.ensure_subaccount(tenant_id=tenant_id)
+        session.commit()
         items = service.search_inventory(
             tenant_id=tenant_id,
             country=country,
@@ -310,16 +378,48 @@ def search_inventory(
 def purchase_number(
     tenant_id: UUID,
     body: PurchaseBody,
+    session: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
     service: PlatformPurchaseService = Depends(purchase_service),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict:
     try:
-        return service.purchase(
+        result = service.purchase(
             tenant_id=tenant_id,
             phone_number=body.phone_number,
             confirm=body.confirm,
             idempotency_key=idempotency_key or "",
         )
+        job_id = result.get("job_id")
+        key = idempotency_key or ""
+        session.commit()
+        if job_id and result.get("provisioning") == "queued":
+            from callbot_platform.async_jobs.runner import (
+                complete_purchase_after_commit,
+            )
+
+            completed = complete_purchase_after_commit(
+                get_session_factory(),
+                tenant_id=tenant_id,
+                job_id=UUID(str(job_id)),
+                idempotency_key=key,
+                settings=settings,
+                purchase_deps={
+                    "cipher": service._cipher,
+                    "signer": service._signer,
+                    "inventory": service._inventory,
+                    "provisioning": service._provisioning,
+                    "twilio_sip": service._twilio_sip,
+                    "livekit": service._livekit,
+                },
+            )
+            if completed.get("error") == "partial_provisioning":
+                raise PurchaseError(
+                    "partial_provisioning",
+                    str(completed.get("message") or "Purchase partially completed"),
+                )
+            return completed
+        return result
     except PurchaseError as exc:
         status = 400
         if exc.code == "partial_provisioning":
@@ -339,14 +439,46 @@ def release_number(
     tenant_id: UUID,
     phone_number_id: UUID,
     body: ReleaseBody,
+    session: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
     service: PlatformPurchaseService = Depends(purchase_service),
 ) -> dict:
     try:
-        return service.release(
+        result = service.release(
             tenant_id=tenant_id,
             phone_number_id=phone_number_id,
             phone_number_sid=body.phone_number_sid,
         )
+        job_id = result.get("job_id")
+        session.commit()
+        if job_id:
+            from callbot_platform.async_jobs.handlers.telephony import (
+                TelephonyProvisionHandler,
+            )
+            from callbot_platform.async_jobs.runner import run_async_job
+
+            handler = TelephonyProvisionHandler(
+                settings=settings,
+                cipher=service._cipher,
+                signer=service._signer,
+                provisioning=service._provisioning,
+                livekit=service._livekit,
+            )
+            job = run_async_job(
+                get_session_factory(),
+                UUID(str(job_id)),
+                settings=settings,
+                telephony_handler=handler,
+            )
+            phone = session.get(TenantPhoneNumber, phone_number_id)
+            if phone is not None:
+                session.refresh(phone)
+                result = {
+                    "phone_number": service._serialize(phone),
+                    "job_id": str(job_id),
+                    "provisioning": job.status if job else "unknown",
+                }
+        return result
     except PurchaseError as exc:
         raise HTTPException(
             status_code=403 if exc.code == "release_not_allowed" else 400,

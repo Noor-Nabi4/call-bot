@@ -13,7 +13,6 @@ from callbot_platform.telephony.interfaces import (
     NumberInventoryService,
     NumberProvisioningService,
     PurchasedNumber,
-    SipTrunkService,
     TwilioTrunkInfo,
 )
 

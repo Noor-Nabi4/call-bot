@@ -7,6 +7,8 @@ import os
 from typing import Any
 from urllib import error, request
 
+from tools.call_scope import CallScopeMixin
+
 
 class PlatformKnowledgeError(RuntimeError):
     def __init__(self, code: str, message: str) -> None:
@@ -14,17 +16,19 @@ class PlatformKnowledgeError(RuntimeError):
         self.code = code
 
 
-class PlatformKnowledgeClient:
+class PlatformKnowledgeClient(CallScopeMixin):
     def __init__(
         self,
         *,
         base_url: str,
         internal_token: str,
         timeout_sec: float = 8.0,
+        call_scope: str | None = None,
     ) -> None:
         self._base = base_url.rstrip("/")
         self._token = internal_token
         self._timeout = timeout_sec
+        self._call_scope = call_scope
 
     def search(
         self,
@@ -50,10 +54,12 @@ class PlatformKnowledgeClient:
         req = request.Request(
             f"{self._base}/internal/knowledge/search",
             data=body,
-            headers={
-                "Content-Type": "application/json",
-                "X-Internal-Token": self._token,
-            },
+            headers=self._scope_headers(
+                {
+                    "Content-Type": "application/json",
+                    "X-Internal-Token": self._token,
+                }
+            ),
             method="POST",
         )
         try:

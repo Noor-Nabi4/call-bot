@@ -564,6 +564,9 @@ async def entrypoint(ctx: JobContext) -> None:
         try:
             if resolution.call_scope:
                 crm_client.set_call_scope(resolution.call_scope)
+                scheduling_client.set_call_scope(resolution.call_scope)
+                knowledge_client.set_call_scope(resolution.call_scope)
+                handoff_client.set_call_scope(resolution.call_scope)
             started = await run_in_thread(
                 lambda: crm_client.start_call(
                     tenant_id=resolution.tenant_id,
@@ -582,6 +585,9 @@ async def entrypoint(ctx: JobContext) -> None:
             scope = started.get("call_scope")
             if isinstance(scope, str) and scope:
                 crm_client.set_call_scope(scope)
+                scheduling_client.set_call_scope(scope)
+                knowledge_client.set_call_scope(scope)
+                handoff_client.set_call_scope(scope)
             return str(call_row_id) if call_row_id else None
         except PlatformCrmError:
             logger.exception(

@@ -51,6 +51,12 @@ OUTBOX_POLL_INTERVAL_SECONDS
 
 Postgres: `FOR UPDATE SKIP LOCKED`. SQLite tests use `FOR UPDATE` without skip.
 
+Lease reclaim: `lease_expires_at` on `processing` rows; expired leases return to `pending` (`OUTBOX_LEASE_SECONDS`).
+
 ## Tenant context
 
 Worker sets `TenantContext(source=JOB)` from the outbox row’s `tenant_id` before delivery.
+
+## Related
+
+Provisioning (Twilio/LiveKit/Stripe) uses `async_jobs`, not this table — see `docs/SAGA_ARCHITECTURE.md`.

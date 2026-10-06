@@ -101,6 +101,7 @@ class NotificationOutboxWorker:
                 time.sleep(interval)
 
     def process_batch(self) -> int:
+        self._reclaim_expired_leases()
         claimed = self._claim_batch()
         if not claimed:
             return 0
@@ -110,9 +111,42 @@ class NotificationOutboxWorker:
             self._process_one(row_id, tenant_id)
         return len(claimed)
 
+    def _reclaim_expired_leases(self) -> int:
+        now = datetime.now(UTC)
+        session: Session = self._session_factory()
+        try:
+            result = session.execute(
+                update(NotificationOutbox)
+                .where(
+                    NotificationOutbox.status == STATUS_PROCESSING,
+                    NotificationOutbox.lease_expires_at.is_not(None),
+                    NotificationOutbox.lease_expires_at < now,
+                )
+                .values(
+                    status=STATUS_PENDING,
+                    claimed_at=None,
+                    claimed_by=None,
+                    lease_expires_at=None,
+                    updated_at=now,
+                    error="lease_expired_reclaimed",
+                )
+            )
+            session.commit()
+            count = int(result.rowcount or 0)
+            if count:
+                self._metrics.inc("outbox_lease_reclaimed_total", count)
+            return count
+        except Exception:
+            session.rollback()
+            logger.exception("outbox_lease_reclaim_failed")
+            return 0
+        finally:
+            session.close()
+
     def _claim_batch(self) -> list[tuple[UUID, UUID]]:
         batch_size = int(self._settings.outbox_batch_size)
         now = datetime.now(UTC)
+        lease = now + timedelta(seconds=float(self._settings.outbox_lease_seconds))
         session: Session = self._session_factory()
         try:
             dialect = session.bind.dialect.name if session.bind is not None else ""
@@ -168,6 +202,7 @@ class NotificationOutboxWorker:
                     status=STATUS_PROCESSING,
                     claimed_at=now,
                     claimed_by=self._worker_id,
+                    lease_expires_at=lease,
                     updated_at=now,
                 )
             )
@@ -441,7 +476,11 @@ class NotificationOutboxWorker:
                 row.next_attempt_at = now + timedelta(seconds=delay)
                 row.claimed_at = None
                 row.claimed_by = None
+                row.lease_expires_at = None
                 self._metrics.inc("outbox_retry_count")
+            row.last_failed_at = now
+            if row.first_failed_at is None:
+                row.first_failed_at = now
             session.commit()
         finally:
             session.close()

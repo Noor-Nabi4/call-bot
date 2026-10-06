@@ -37,6 +37,24 @@ class Settings(BaseSettings):
     outbox_poll_interval_seconds: float = Field(
         default=2.0, alias="OUTBOX_POLL_INTERVAL_SECONDS", ge=0.2
     )
+    outbox_lease_seconds: float = Field(
+        default=120.0, alias="OUTBOX_LEASE_SECONDS", ge=10.0
+    )
+    job_batch_size: int = Field(default=10, alias="JOB_BATCH_SIZE", ge=1, le=200)
+    job_max_attempts: int = Field(default=8, alias="JOB_MAX_ATTEMPTS", ge=1, le=50)
+    job_base_backoff_seconds: float = Field(
+        default=5.0, alias="JOB_BASE_BACKOFF_SECONDS", ge=0.1
+    )
+    job_max_backoff_seconds: float = Field(
+        default=900.0, alias="JOB_MAX_BACKOFF_SECONDS", ge=1.0
+    )
+    job_poll_interval_seconds: float = Field(
+        default=2.0, alias="JOB_POLL_INTERVAL_SECONDS", ge=0.2
+    )
+    job_lease_seconds: float = Field(default=180.0, alias="JOB_LEASE_SECONDS", ge=10.0)
+    job_shutdown_timeout_seconds: float = Field(
+        default=30.0, alias="JOB_SHUTDOWN_TIMEOUT_SECONDS", ge=1.0
+    )
     require_call_scope: bool = Field(default=False, alias="REQUIRE_CALL_SCOPE")
     call_scope_ttl_seconds: int = Field(
         default=14_400, alias="CALL_SCOPE_TTL_SECONDS", ge=60
@@ -47,8 +65,26 @@ class Settings(BaseSettings):
     object_storage_root: str = Field(
         default="./data/object-storage", alias="OBJECT_STORAGE_ROOT"
     )
+    s3_endpoint_url: str = Field(default="", alias="S3_ENDPOINT_URL")
+    s3_region: str = Field(default="us-east-1", alias="S3_REGION")
+    s3_bucket: str = Field(default="", alias="S3_BUCKET")
+    s3_access_key_id: str = Field(default="", alias="S3_ACCESS_KEY_ID")
+    s3_secret_access_key: str = Field(default="", alias="S3_SECRET_ACCESS_KEY")
+    s3_force_path_style: bool = Field(default=False, alias="S3_FORCE_PATH_STYLE")
+    object_storage_max_upload_bytes: int = Field(
+        default=52_428_800, alias="OBJECT_STORAGE_MAX_UPLOAD_BYTES", ge=1024
+    )
+    object_storage_signed_url_ttl_seconds: int = Field(
+        default=300, alias="OBJECT_STORAGE_SIGNED_URL_TTL_SECONDS", ge=30
+    )
+    recording_retention_days: int = Field(
+        default=30, alias="RECORDING_RETENTION_DAYS", ge=1, le=3650
+    )
     dedicated_db_idle_seconds: int = Field(
         default=600, alias="DEDICATED_DB_IDLE_SECONDS", ge=60
+    )
+    health_db_timeout_seconds: float = Field(
+        default=2.0, alias="HEALTH_DB_TIMEOUT_SECONDS", ge=0.2, le=30.0
     )
 
     platform_api_host: str = Field(default="0.0.0.0", alias="PLATFORM_API_HOST")

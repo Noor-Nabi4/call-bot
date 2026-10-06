@@ -7,6 +7,8 @@ import os
 from typing import Any
 from urllib import error, request
 
+from tools.call_scope import CallScopeMixin
+
 
 class PlatformSchedulingError(RuntimeError):
     def __init__(self, code: str, message: str) -> None:
@@ -14,17 +16,19 @@ class PlatformSchedulingError(RuntimeError):
         self.code = code
 
 
-class PlatformSchedulingClient:
+class PlatformSchedulingClient(CallScopeMixin):
     def __init__(
         self,
         *,
         base_url: str,
         internal_token: str,
         timeout_sec: float = 8.0,
+        call_scope: str | None = None,
     ) -> None:
         self._base = base_url.rstrip("/")
         self._token = internal_token
         self._timeout = timeout_sec
+        self._call_scope = call_scope
 
     def _request(
         self,
@@ -39,7 +43,7 @@ class PlatformSchedulingClient:
                 "for scheduling tools",
             )
         data = None
-        headers = {"X-Internal-Token": self._token}
+        headers = self._scope_headers({"X-Internal-Token": self._token})
         if payload is not None:
             data = json.dumps(payload).encode("utf-8")
             headers["Content-Type"] = "application/json"

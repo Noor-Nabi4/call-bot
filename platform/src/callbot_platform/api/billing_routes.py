@@ -87,14 +87,27 @@ def create_checkout(
     user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN)),
     session: Session = Depends(db_dep),
     settings: Settings = Depends(settings_dep),
-) -> dict[str, str]:
+) -> dict[str, Any]:
     try:
-        url = BillingService(session, settings).create_checkout_for_tenant(
+        from uuid import UUID
+
+        from callbot_platform.async_jobs.runner import run_async_job
+        from callbot_platform.db import get_session_factory
+
+        queued = BillingService(session, settings).create_checkout_for_tenant(
             tenant_id=user.tenant_id,
             plan_key=body.plan_key,
         )
         session.commit()
-        return {"checkout_url": url}
+        job_id = queued.get("job_id")
+        if job_id:
+            run_async_job(get_session_factory(), UUID(str(job_id)), settings=settings)
+        info = BillingService(session, settings).get_signup_checkout(user.tenant_id)
+        return {
+            "checkout_url": info.get("checkout_url") or "",
+            "job_id": str(job_id) if job_id else "",
+            "provisioning": str(info.get("provisioning_status") or "ready"),
+        }
     except Exception as exc:
         session.rollback()
         raise _billing_http(exc) from exc
