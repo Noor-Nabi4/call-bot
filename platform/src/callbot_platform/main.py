@@ -38,6 +38,9 @@ from callbot_platform.api.product_catalog_routes import (  # noqa: E402
 from callbot_platform.api.inventory_routes import (  # noqa: E402
     router as inventory_router,
 )
+from callbot_platform.api.services_pricebook_routes import (  # noqa: E402
+    router as services_pricebook_router,
+)
 from callbot_platform.api.crm_routes import (  # noqa: E402
     internal_tenant_router,
     tenant_settings_router,
@@ -117,6 +120,7 @@ app.include_router(dynamic_crm_router)
 app.include_router(customer_crm_router)
 app.include_router(product_catalog_router)
 app.include_router(inventory_router)
+app.include_router(services_pricebook_router)
 app.include_router(rbac_router)
 app.include_router(jobs_router)
 app.include_router(jobs_admin_router)

@@ -59,6 +59,14 @@ from callbot_platform.db.models.inventory import (
     InventoryOutboxEvent,
     InventoryTransaction,
 )
+from callbot_platform.db.models.services import (
+    Pricebook,
+    PricebookItem,
+    PricebookItemComponent,
+    PricebookOverride,
+    Service,
+    ServiceCategory,
+)
 from callbot_platform.db.models.handoff import (
     TenantHandoffSettings,
     TenantRetentionSettings,
@@ -132,6 +140,10 @@ __all__ = [
     "OrganizationOnboarding",
     "OrganizationRole",
     "Permission",
+    "Pricebook",
+    "PricebookItem",
+    "PricebookItemComponent",
+    "PricebookOverride",
     "Product",
     "ProductAttribute",
     "ProductAttributeValue",
@@ -143,6 +155,8 @@ __all__ = [
     "RecordingObject",
     "RolePermission",
     "RolePermissionTombstone",
+    "Service",
+    "ServiceCategory",
     "StripeWebhookEvent",
     "Technician",
     "TelephonyAuditEvent",

@@ -24,6 +24,8 @@ PLATFORM_MODULE_TABLES: Final[frozenset[str]] = frozenset(
         "TECHNICIANS",
         "PRODUCTS",
         "INVENTORY",
+        "SERVICES",
+        "PRICEBOOKS",
     }
 )
 

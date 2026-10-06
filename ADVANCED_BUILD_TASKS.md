@@ -1488,14 +1488,14 @@ Never directly modify stock without creating an inventory transaction.
 
 ### Checklist
 
-- [ ] Service model
-- [ ] Category
-- [ ] Description
-- [ ] Duration
-- [ ] Base price
-- [ ] Status
-- [ ] CRUD
-- [ ] Search
+- [x] Service model
+- [x] Category
+- [x] Description
+- [x] Duration
+- [x] Base price
+- [x] Status
+- [x] CRUD
+- [x] Search
 
 ---
 
@@ -1503,15 +1503,15 @@ Never directly modify stock without creating an inventory transaction.
 
 ### Checklist
 
-- [ ] Pricebook
-- [ ] Pricebook items
-- [ ] Labor
-- [ ] Materials
-- [ ] Fixed pricing
-- [ ] Starting price
-- [ ] Organization pricing
-- [ ] Price overrides
-- [ ] Effective dates
+- [x] Pricebook
+- [x] Pricebook items
+- [x] Labor
+- [x] Materials
+- [x] Fixed pricing
+- [x] Starting price
+- [x] Organization pricing
+- [x] Price overrides
+- [x] Effective dates
 
 ---
 
