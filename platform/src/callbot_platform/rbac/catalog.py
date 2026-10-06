@@ -17,6 +17,12 @@ VALID_SCOPES: Final[frozenset[str]] = frozenset(
     {SCOPE_ALL, SCOPE_OWN, SCOPE_ASSIGNED, SCOPE_TEAM}
 )
 
+SOURCE_SYSTEM_DEFAULT = "SYSTEM_DEFAULT"
+SOURCE_ORG_CUSTOM = "ORG_CUSTOM"
+VALID_PERMISSION_SOURCES: Final[frozenset[str]] = frozenset(
+    {SOURCE_SYSTEM_DEFAULT, SOURCE_ORG_CUSTOM}
+)
+
 # (resource, action, description)
 PERMISSION_CATALOG: Final[tuple[tuple[str, str, str], ...]] = (
     ("customers", "read", "View customers"),

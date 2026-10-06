@@ -635,3 +635,976 @@ def test_jobs_list_assigned_mode_api(
         assert res.json()["jobs"] == []
     finally:
         app.dependency_overrides.clear()
+
+
+def test_reconcile_preserves_revocation_custom_role_and_idempotent(
+    session: Session, tenant: Tenant
+) -> None:
+    from sqlalchemy import select
+    from sqlalchemy.orm import joinedload
+
+    from callbot_platform.rbac.catalog import SYSTEM_ROLE_ADMIN
+    from callbot_platform.rbac.models import (
+        OrganizationRole,
+        Permission,
+        RolePermission,
+        RolePermissionTombstone,
+    )
+    from callbot_platform.rbac.reconcile import reconcile_system_roles_for_tenant
+    from callbot_platform.rbac.seed import ensure_system_roles_for_tenant
+
+    auth = AuthRepository(session)
+    owner = auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="owner@t.test",
+        password="password123",
+        name="Owner",
+    )
+    owner_id = uuid.UUID(owner["id"])
+    ensure_system_roles_for_tenant(session, tenant.id)
+
+    admin = session.scalar(
+        select(OrganizationRole).where(
+            OrganizationRole.tenant_id == tenant.id,
+            OrganizationRole.name == SYSTEM_ROLE_ADMIN,
+        )
+    )
+    assert admin is not None
+    billing = session.scalar(
+        select(Permission).where(
+            Permission.resource == "billing", Permission.action == "manage"
+        )
+    )
+    assert billing is not None
+    rp = session.scalar(
+        select(RolePermission).where(
+            RolePermission.role_id == admin.id,
+            RolePermission.permission_id == billing.id,
+        )
+    )
+    assert rp is not None
+    session.delete(rp)
+    session.add(RolePermissionTombstone(role_id=admin.id, permission_id=billing.id))
+
+    jobs_read = session.scalar(
+        select(Permission).where(
+            Permission.resource == "jobs", Permission.action == "read"
+        )
+    )
+    assert jobs_read is not None
+    jobs_rp = session.scalar(
+        select(RolePermission).where(
+            RolePermission.role_id == admin.id,
+            RolePermission.permission_id == jobs_read.id,
+        )
+    )
+    assert jobs_rp is not None
+    jobs_rp.scope = "OWN"
+    jobs_rp.source = "ORG_CUSTOM"
+    session.flush()
+
+    custom = RoleRepository(session).create_role(
+        tenant.id,
+        name="Custom Role A",
+        description="limited",
+        actor=owner["email"],
+        actor_user_id=owner_id,
+        permissions=[
+            {"key": "customers.read", "scope": "ALL_ORGANIZATION"},
+            {"key": "jobs.read", "scope": "ALL_ORGANIZATION"},
+        ],
+    )
+    custom_id = uuid.UUID(custom["id"])
+
+    first = reconcile_system_roles_for_tenant(session, tenant.id, actor="test")
+    second = reconcile_system_roles_for_tenant(session, tenant.id, actor="test")
+    assert second["added_count"] == 0
+
+    restored = session.scalar(
+        select(RolePermission).where(
+            RolePermission.role_id == admin.id,
+            RolePermission.permission_id == billing.id,
+        )
+    )
+    assert restored is None
+
+    jobs_rp2 = session.scalar(
+        select(RolePermission).where(
+            RolePermission.role_id == admin.id,
+            RolePermission.permission_id == jobs_read.id,
+        )
+    )
+    assert jobs_rp2 is not None
+    assert jobs_rp2.scope == "OWN"
+    assert jobs_rp2.source == "ORG_CUSTOM"
+
+    custom_after = RoleRepository(session).get_role(tenant.id, custom_id)
+    custom_keys_after = {p["key"] for p in custom_after["permissions"]}
+    assert custom_keys_after == {"customers.read", "jobs.read"}
+    assert first["tenant_id"] == str(tenant.id)
+
+
+def test_legacy_role_without_member_roles_denies(
+    session: Session, tenant: Tenant
+) -> None:
+    """Legacy role string with no member_roles grants nothing."""
+    from sqlalchemy import select
+
+    from callbot_platform.db.models.jobs import TenantUser
+    from callbot_platform.rbac.models import MemberRole
+
+    auth = AuthRepository(session)
+    owner = auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="owner@t.test",
+        password="password123",
+        name="Owner",
+    )
+    admin = auth.create_user(
+        tenant.id,
+        email="admin@t.test",
+        password="password123",
+        name="Admin",
+        role="admin",
+        actor=owner["email"],
+    )
+    admin_id = uuid.UUID(admin["id"])
+    for link in list(
+        session.scalars(select(MemberRole).where(MemberRole.tenant_user_id == admin_id))
+    ):
+        session.delete(link)
+    user = session.get(TenantUser, admin_id)
+    assert user is not None
+    user.role = "admin"
+    session.flush()
+
+    authz = AuthorizationService(session)
+    assert not authz.has_permission(tenant.id, admin_id, "billing.manage")
+    assert not authz.has_permission(tenant.id, admin_id, "team.manage")
+
+
+def test_me_includes_effective_permissions(
+    session: Session, tenant: Tenant, session_settings: Settings
+) -> None:
+    auth = AuthRepository(session)
+    owner = auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="owner@t.test",
+        password="password123",
+        name="Owner",
+    )
+    token = _token_for(session_settings, owner, tenant)
+    client = _client_for(session, session_settings, token=token)
+    try:
+        me = client.get("/auth/me")
+        assert me.status_code == 200
+        body = me.json()["user"]
+        assert "permissions" in body
+        assert "roles" in body
+        keys = {p["key"] for p in body["permissions"]}
+        assert "roles.assign" in keys
+        assert any(r["name"] == SYSTEM_ROLE_OWNER for r in body["roles"])
+
+        perms = client.get("/auth/me/permissions")
+        assert perms.status_code == 200
+        assert "permissions" in perms.json()
+        assert "roles" in perms.json()
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_reconcile_adds_missing_default_without_duplicating(
+    session: Session, tenant: Tenant
+) -> None:
+    from sqlalchemy import select
+
+    from callbot_platform.rbac.catalog import SYSTEM_ROLE_DISPATCHER
+    from callbot_platform.rbac.models import (
+        OrganizationRole,
+        Permission,
+        RolePermission,
+    )
+    from callbot_platform.rbac.reconcile import reconcile_system_roles_for_tenant
+    from callbot_platform.rbac.seed import ensure_system_roles_for_tenant
+
+    auth = AuthRepository(session)
+    auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="owner@t.test",
+        password="password123",
+        name="Owner",
+    )
+    ensure_system_roles_for_tenant(session, tenant.id)
+    dispatcher = session.scalar(
+        select(OrganizationRole).where(
+            OrganizationRole.tenant_id == tenant.id,
+            OrganizationRole.name == SYSTEM_ROLE_DISPATCHER,
+        )
+    )
+    assert dispatcher is not None
+    knowledge = session.scalar(
+        select(Permission).where(
+            Permission.resource == "knowledge", Permission.action == "manage"
+        )
+    )
+    assert knowledge is not None
+    existing = session.scalar(
+        select(RolePermission).where(
+            RolePermission.role_id == dispatcher.id,
+            RolePermission.permission_id == knowledge.id,
+        )
+    )
+    if existing is not None:
+        session.delete(existing)
+        session.flush()
+
+    result = reconcile_system_roles_for_tenant(session, tenant.id, actor="test")
+    assert any(
+        a["permission"] == "knowledge.manage" and a["role"] == SYSTEM_ROLE_DISPATCHER
+        for a in result["added"]
+    )
+    again = reconcile_system_roles_for_tenant(session, tenant.id, actor="test")
+    assert again["added_count"] == 0
+    count = len(
+        list(
+            session.scalars(
+                select(RolePermission).where(
+                    RolePermission.role_id == dispatcher.id,
+                    RolePermission.permission_id == knowledge.id,
+                )
+            )
+        )
+    )
+    assert count == 1
+
+
+def test_freeze_gap_then_reconcile_preserves_absence(
+    session: Session, tenant: Tenant
+) -> None:
+    """Scenario A: pre-existing gap becomes tombstone and stays missing."""
+    from sqlalchemy import select
+
+    from callbot_platform.rbac.catalog import SYSTEM_ROLE_ADMIN
+    from callbot_platform.rbac.models import (
+        OrganizationRole,
+        Permission,
+        RolePermission,
+        RolePermissionTombstone,
+    )
+    from callbot_platform.rbac.reconcile import (
+        freeze_system_role_gaps_for_tenant,
+        reconcile_system_roles_for_tenant,
+    )
+    from callbot_platform.rbac.seed import ensure_system_roles_for_tenant
+
+    auth = AuthRepository(session)
+    auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="owner@t.test",
+        password="password123",
+        name="Owner",
+    )
+    ensure_system_roles_for_tenant(session, tenant.id)
+    admin = session.scalar(
+        select(OrganizationRole).where(
+            OrganizationRole.tenant_id == tenant.id,
+            OrganizationRole.name == SYSTEM_ROLE_ADMIN,
+        )
+    )
+    assert admin is not None
+    billing = session.scalar(
+        select(Permission).where(
+            Permission.resource == "billing", Permission.action == "manage"
+        )
+    )
+    assert billing is not None
+    rp = session.scalar(
+        select(RolePermission).where(
+            RolePermission.role_id == admin.id,
+            RolePermission.permission_id == billing.id,
+        )
+    )
+    if rp is not None:
+        session.delete(rp)
+        session.flush()
+
+    frozen = freeze_system_role_gaps_for_tenant(session, tenant.id)
+    assert frozen >= 1
+    tomb = session.scalar(
+        select(RolePermissionTombstone).where(
+            RolePermissionTombstone.role_id == admin.id,
+            RolePermissionTombstone.permission_id == billing.id,
+        )
+    )
+    assert tomb is not None
+    reconcile_system_roles_for_tenant(session, tenant.id, actor="test")
+    restored = session.scalar(
+        select(RolePermission).where(
+            RolePermission.role_id == admin.id,
+            RolePermission.permission_id == billing.id,
+        )
+    )
+    assert restored is None
+
+
+def test_revoke_regrant_revoke_tombstone_lifecycle(
+    session: Session, tenant: Tenant
+) -> None:
+    """Scenarios C/D: revoke → tombstone; re-grant → clear; revoke again → tombstone."""
+    from sqlalchemy import select
+
+    from callbot_platform.rbac.catalog import SYSTEM_ROLE_ADMIN
+    from callbot_platform.rbac.models import (
+        OrganizationRole,
+        Permission,
+        RolePermission,
+        RolePermissionTombstone,
+    )
+    from callbot_platform.rbac.reconcile import reconcile_system_roles_for_tenant
+    from callbot_platform.rbac.seed import ensure_system_roles_for_tenant
+
+    auth = AuthRepository(session)
+    owner = auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="owner@t.test",
+        password="password123",
+        name="Owner",
+    )
+    owner_id = uuid.UUID(owner["id"])
+    ensure_system_roles_for_tenant(session, tenant.id)
+    admin = session.scalar(
+        select(OrganizationRole).where(
+            OrganizationRole.tenant_id == tenant.id,
+            OrganizationRole.name == SYSTEM_ROLE_ADMIN,
+        )
+    )
+    assert admin is not None
+    customers = session.scalar(
+        select(Permission).where(
+            Permission.resource == "customers", Permission.action == "read"
+        )
+    )
+    assert customers is not None
+
+    # Collect current Admin permissions minus customers.read
+    current = RoleRepository(session).get_role(tenant.id, admin.id)
+    remaining = [
+        {"key": p["key"], "scope": p["scope"]}
+        for p in current["permissions"]
+        if p["key"] != "customers.read"
+    ]
+    RoleRepository(session).update_role(
+        tenant.id,
+        admin.id,
+        actor=owner["email"],
+        actor_user_id=owner_id,
+        permissions=remaining,
+    )
+    assert (
+        session.scalar(
+            select(RolePermission).where(
+                RolePermission.role_id == admin.id,
+                RolePermission.permission_id == customers.id,
+            )
+        )
+        is None
+    )
+    assert (
+        session.scalar(
+            select(RolePermissionTombstone).where(
+                RolePermissionTombstone.role_id == admin.id,
+                RolePermissionTombstone.permission_id == customers.id,
+            )
+        )
+        is not None
+    )
+    reconcile_system_roles_for_tenant(session, tenant.id, actor="test")
+    assert (
+        session.scalar(
+            select(RolePermission).where(
+                RolePermission.role_id == admin.id,
+                RolePermission.permission_id == customers.id,
+            )
+        )
+        is None
+    )
+
+    # Re-grant
+    RoleRepository(session).update_role(
+        tenant.id,
+        admin.id,
+        actor=owner["email"],
+        actor_user_id=owner_id,
+        permissions=[
+            *remaining,
+            {"key": "customers.read", "scope": "ALL_ORGANIZATION"},
+        ],
+    )
+    rp = session.scalar(
+        select(RolePermission).where(
+            RolePermission.role_id == admin.id,
+            RolePermission.permission_id == customers.id,
+        )
+    )
+    assert rp is not None
+    assert rp.source == "ORG_CUSTOM"
+    assert (
+        session.scalar(
+            select(RolePermissionTombstone).where(
+                RolePermissionTombstone.role_id == admin.id,
+                RolePermissionTombstone.permission_id == customers.id,
+            )
+        )
+        is None
+    )
+    reconcile_system_roles_for_tenant(session, tenant.id, actor="test")
+    assert (
+        session.scalar(
+            select(RolePermission).where(
+                RolePermission.role_id == admin.id,
+                RolePermission.permission_id == customers.id,
+            )
+        )
+        is not None
+    )
+
+    # Revoke again after ORG_CUSTOM re-grant — must still tombstone
+    RoleRepository(session).update_role(
+        tenant.id,
+        admin.id,
+        actor=owner["email"],
+        actor_user_id=owner_id,
+        permissions=remaining,
+    )
+    assert (
+        session.scalar(
+            select(RolePermissionTombstone).where(
+                RolePermissionTombstone.role_id == admin.id,
+                RolePermissionTombstone.permission_id == customers.id,
+            )
+        )
+        is not None
+    )
+    for _ in range(3):
+        result = reconcile_system_roles_for_tenant(session, tenant.id, actor="test")
+        assert result["added_count"] == 0
+    assert (
+        session.scalar(
+            select(RolePermission).where(
+                RolePermission.role_id == admin.id,
+                RolePermission.permission_id == customers.id,
+            )
+        )
+        is None
+    )
+
+
+def test_authz_cache_invalidated_on_permission_revoke(
+    session: Session, tenant: Tenant
+) -> None:
+    from callbot_platform.rbac.catalog import SYSTEM_ROLE_ADMIN
+    from callbot_platform.rbac.models import OrganizationRole
+    from callbot_platform.rbac.seed import ensure_system_roles_for_tenant
+    from sqlalchemy import select
+
+    auth = AuthRepository(session)
+    owner = auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="owner@t.test",
+        password="password123",
+        name="Owner",
+    )
+    admin_user = auth.create_user(
+        tenant.id,
+        email="admin@t.test",
+        password="password123",
+        name="Admin",
+        role="admin",
+        actor=owner["email"],
+    )
+    admin_id = uuid.UUID(admin_user["id"])
+    owner_id = uuid.UUID(owner["id"])
+    ensure_system_roles_for_tenant(session, tenant.id)
+    authz = AuthorizationService(session)
+    assert authz.has_permission(tenant.id, admin_id, "billing.manage")
+
+    admin_role = session.scalar(
+        select(OrganizationRole).where(
+            OrganizationRole.tenant_id == tenant.id,
+            OrganizationRole.name == SYSTEM_ROLE_ADMIN,
+        )
+    )
+    assert admin_role is not None
+    current = RoleRepository(session).get_role(tenant.id, admin_role.id)
+    remaining = [
+        {"key": p["key"], "scope": p["scope"]}
+        for p in current["permissions"]
+        if p["key"] != "billing.manage"
+    ]
+    RoleRepository(session).update_role(
+        tenant.id,
+        admin_role.id,
+        actor=owner["email"],
+        actor_user_id=owner_id,
+        permissions=remaining,
+    )
+    assert not authz.has_permission(tenant.id, admin_id, "billing.manage")
+
+
+def test_reconcile_endpoint_is_tenant_scoped(
+    session: Session, tenant: Tenant, session_settings: Settings
+) -> None:
+    other = Tenant(name="Other", slug=f"other-{uuid.uuid4().hex[:8]}")
+    session.add(other)
+    session.flush()
+    auth = AuthRepository(session)
+    a = auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="a@t.test",
+        password="password123",
+        name="A",
+    )
+    auth.bootstrap_admin(
+        tenant_id=other.id,
+        email="b@t.test",
+        password="password123",
+        name="B",
+    )
+    token = _token_for(session_settings, a, tenant)
+    client = _client_for(session, session_settings, token=token)
+    try:
+        res = client.post("/api/admin/organization/reconcile")
+        assert res.status_code == 200
+        body = res.json()
+        assert body["tenant_id"] == str(tenant.id)
+        assert "added_count" in body
+    finally:
+        app.dependency_overrides.clear()
+
+
+def _admin_role_and_perm(
+    session: Session, tenant: Tenant, *, resource: str, action: str
+):
+    from sqlalchemy import select
+
+    from callbot_platform.rbac.catalog import SYSTEM_ROLE_ADMIN
+    from callbot_platform.rbac.models import OrganizationRole, Permission
+    from callbot_platform.rbac.seed import ensure_system_roles_for_tenant
+
+    ensure_system_roles_for_tenant(session, tenant.id)
+    role = session.scalar(
+        select(OrganizationRole).where(
+            OrganizationRole.tenant_id == tenant.id,
+            OrganizationRole.name == SYSTEM_ROLE_ADMIN,
+        )
+    )
+    perm = session.scalar(
+        select(Permission).where(
+            Permission.resource == resource, Permission.action == action
+        )
+    )
+    assert role is not None and perm is not None
+    return role, perm
+
+
+def test_billing_manage_full_tombstone_lifecycle(
+    session: Session, tenant: Tenant
+) -> None:
+    """States 1–6 for Admin.billing.manage (catalog default)."""
+    from sqlalchemy import select
+
+    from callbot_platform.rbac.models import RolePermission, RolePermissionTombstone
+    from callbot_platform.rbac.reconcile import reconcile_system_roles_for_tenant
+
+    auth = AuthRepository(session)
+    owner = auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="owner@t.test",
+        password="password123",
+        name="Owner",
+    )
+    owner_id = uuid.UUID(owner["id"])
+    admin, billing = _admin_role_and_perm(
+        session, tenant, resource="billing", action="manage"
+    )
+
+    # State 1 — default exists as SYSTEM_DEFAULT
+    rp = session.scalar(
+        select(RolePermission).where(
+            RolePermission.role_id == admin.id,
+            RolePermission.permission_id == billing.id,
+        )
+    )
+    assert rp is not None
+    assert rp.source == "SYSTEM_DEFAULT"
+    noop = reconcile_system_roles_for_tenant(session, tenant.id, actor="test")
+    assert all(a["permission"] != "billing.manage" for a in noop["added"])
+
+    current = RoleRepository(session).get_role(tenant.id, admin.id)
+    remaining = [
+        {"key": p["key"], "scope": p["scope"]}
+        for p in current["permissions"]
+        if p["key"] != "billing.manage"
+    ]
+
+    # State 2 — explicit revoke → tombstone
+    RoleRepository(session).update_role(
+        tenant.id,
+        admin.id,
+        actor=owner["email"],
+        actor_user_id=owner_id,
+        permissions=remaining,
+    )
+    assert (
+        session.scalar(
+            select(RolePermission).where(
+                RolePermission.role_id == admin.id,
+                RolePermission.permission_id == billing.id,
+            )
+        )
+        is None
+    )
+    assert (
+        session.scalar(
+            select(RolePermissionTombstone).where(
+                RolePermissionTombstone.role_id == admin.id,
+                RolePermissionTombstone.permission_id == billing.id,
+            )
+        )
+        is not None
+    )
+
+    # State 3 — reconcile must not restore
+    reconcile_system_roles_for_tenant(session, tenant.id, actor="test")
+    assert (
+        session.scalar(
+            select(RolePermission).where(
+                RolePermission.role_id == admin.id,
+                RolePermission.permission_id == billing.id,
+            )
+        )
+        is None
+    )
+
+    # State 4 — re-grant as ORG_CUSTOM clears tombstone
+    RoleRepository(session).update_role(
+        tenant.id,
+        admin.id,
+        actor=owner["email"],
+        actor_user_id=owner_id,
+        permissions=[
+            *remaining,
+            {"key": "billing.manage", "scope": "ALL_ORGANIZATION"},
+        ],
+    )
+    rp2 = session.scalar(
+        select(RolePermission).where(
+            RolePermission.role_id == admin.id,
+            RolePermission.permission_id == billing.id,
+        )
+    )
+    assert rp2 is not None
+    assert rp2.source == "ORG_CUSTOM"
+    assert (
+        session.scalar(
+            select(RolePermissionTombstone).where(
+                RolePermissionTombstone.role_id == admin.id,
+                RolePermissionTombstone.permission_id == billing.id,
+            )
+        )
+        is None
+    )
+
+    # State 5 — revoke again after ORG_CUSTOM
+    RoleRepository(session).update_role(
+        tenant.id,
+        admin.id,
+        actor=owner["email"],
+        actor_user_id=owner_id,
+        permissions=remaining,
+    )
+    assert (
+        session.scalar(
+            select(RolePermission).where(
+                RolePermission.role_id == admin.id,
+                RolePermission.permission_id == billing.id,
+            )
+        )
+        is None
+    )
+    assert (
+        session.scalar(
+            select(RolePermissionTombstone).where(
+                RolePermissionTombstone.role_id == admin.id,
+                RolePermissionTombstone.permission_id == billing.id,
+            )
+        )
+        is not None
+    )
+
+    # State 6 — reconcile still preserves revocation
+    for _ in range(3):
+        r = reconcile_system_roles_for_tenant(session, tenant.id, actor="test")
+        assert r["added_count"] == 0
+    assert (
+        session.scalar(
+            select(RolePermission).where(
+                RolePermission.role_id == admin.id,
+                RolePermission.permission_id == billing.id,
+            )
+        )
+        is None
+    )
+
+
+def test_admin_revoke_does_not_affect_custom_role(
+    session: Session, tenant: Tenant
+) -> None:
+    from sqlalchemy import select
+
+    from callbot_platform.rbac.models import RolePermission
+
+    auth = AuthRepository(session)
+    owner = auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="owner@t.test",
+        password="password123",
+        name="Owner",
+    )
+    owner_id = uuid.UUID(owner["id"])
+    admin, billing = _admin_role_and_perm(
+        session, tenant, resource="billing", action="manage"
+    )
+    custom = RoleRepository(session).create_role(
+        tenant.id,
+        name="Custom Manager",
+        description="custom",
+        actor=owner["email"],
+        actor_user_id=owner_id,
+        permissions=[
+            {"key": "billing.manage", "scope": "ALL_ORGANIZATION"},
+            {"key": "customers.read", "scope": "ALL_ORGANIZATION"},
+        ],
+    )
+    custom_id = uuid.UUID(custom["id"])
+    before = {
+        p["key"]
+        for p in RoleRepository(session).get_role(tenant.id, custom_id)["permissions"]
+    }
+
+    remaining = [
+        {"key": p["key"], "scope": p["scope"]}
+        for p in RoleRepository(session).get_role(tenant.id, admin.id)["permissions"]
+        if p["key"] != "billing.manage"
+    ]
+    RoleRepository(session).update_role(
+        tenant.id,
+        admin.id,
+        actor=owner["email"],
+        actor_user_id=owner_id,
+        permissions=remaining,
+    )
+    after = {
+        p["key"]
+        for p in RoleRepository(session).get_role(tenant.id, custom_id)["permissions"]
+    }
+    assert after == before
+    assert (
+        session.scalar(
+            select(RolePermission).where(
+                RolePermission.role_id == custom_id,
+                RolePermission.permission_id == billing.id,
+            )
+        )
+        is not None
+    )
+
+
+def test_tombstone_does_not_leak_across_tenants(
+    session: Session, tenant: Tenant
+) -> None:
+    from sqlalchemy import select
+
+    from callbot_platform.rbac.models import RolePermission, RolePermissionTombstone
+    from callbot_platform.rbac.reconcile import reconcile_system_roles_for_tenant
+    from callbot_platform.rbac.seed import ensure_system_roles_for_tenant
+
+    other = Tenant(name="Beta", slug=f"beta-{uuid.uuid4().hex[:8]}")
+    session.add(other)
+    session.flush()
+    auth = AuthRepository(session)
+    owner_a = auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="a@t.test",
+        password="password123",
+        name="A",
+    )
+    auth.bootstrap_admin(
+        tenant_id=other.id,
+        email="b@t.test",
+        password="password123",
+        name="B",
+    )
+    ensure_system_roles_for_tenant(session, other.id)
+    admin_a, billing = _admin_role_and_perm(
+        session, tenant, resource="billing", action="manage"
+    )
+    admin_b, _ = _admin_role_and_perm(
+        session, other, resource="billing", action="manage"
+    )
+
+    remaining = [
+        {"key": p["key"], "scope": p["scope"]}
+        for p in RoleRepository(session).get_role(tenant.id, admin_a.id)["permissions"]
+        if p["key"] != "billing.manage"
+    ]
+    RoleRepository(session).update_role(
+        tenant.id,
+        admin_a.id,
+        actor=owner_a["email"],
+        actor_user_id=uuid.UUID(owner_a["id"]),
+        permissions=remaining,
+    )
+    assert (
+        session.scalar(
+            select(RolePermissionTombstone).where(
+                RolePermissionTombstone.role_id == admin_a.id,
+                RolePermissionTombstone.permission_id == billing.id,
+            )
+        )
+        is not None
+    )
+    assert (
+        session.scalar(
+            select(RolePermissionTombstone).where(
+                RolePermissionTombstone.role_id == admin_b.id,
+                RolePermissionTombstone.permission_id == billing.id,
+            )
+        )
+        is None
+    )
+    assert (
+        session.scalar(
+            select(RolePermission).where(
+                RolePermission.role_id == admin_b.id,
+                RolePermission.permission_id == billing.id,
+            )
+        )
+        is not None
+    )
+    reconcile_system_roles_for_tenant(session, other.id, actor="test")
+    assert (
+        session.scalar(
+            select(RolePermission).where(
+                RolePermission.role_id == admin_b.id,
+                RolePermission.permission_id == billing.id,
+            )
+        )
+        is not None
+    )
+
+
+def test_authz_cache_shared_across_service_instances(
+    session: Session, tenant: Tenant
+) -> None:
+    """Service A caches; Service B invalidates via role update; A must deny."""
+    from sqlalchemy import select
+
+    from callbot_platform.rbac.catalog import SYSTEM_ROLE_ADMIN
+    from callbot_platform.rbac.models import OrganizationRole
+    from callbot_platform.rbac.seed import ensure_system_roles_for_tenant
+
+    auth = AuthRepository(session)
+    owner = auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="owner@t.test",
+        password="password123",
+        name="Owner",
+    )
+    admin_user = auth.create_user(
+        tenant.id,
+        email="admin@t.test",
+        password="password123",
+        name="Admin",
+        role="admin",
+        actor=owner["email"],
+    )
+    admin_id = uuid.UUID(admin_user["id"])
+    ensure_system_roles_for_tenant(session, tenant.id)
+
+    svc_a = AuthorizationService(session)
+    svc_b = AuthorizationService(session)
+    assert svc_a._cache is svc_b._cache
+    assert svc_a._cache is session.info["rbac_authz_cache"]
+    assert svc_a.has_permission(tenant.id, admin_id, "billing.manage")
+
+    admin_role = session.scalar(
+        select(OrganizationRole).where(
+            OrganizationRole.tenant_id == tenant.id,
+            OrganizationRole.name == SYSTEM_ROLE_ADMIN,
+        )
+    )
+    assert admin_role is not None
+    remaining = [
+        {"key": p["key"], "scope": p["scope"]}
+        for p in RoleRepository(session).get_role(tenant.id, admin_role.id)[
+            "permissions"
+        ]
+        if p["key"] != "billing.manage"
+    ]
+    # RoleRepository constructs its own AuthorizationService to invalidate —
+    # must clear the shared session cache used by svc_a.
+    RoleRepository(session).update_role(
+        tenant.id,
+        admin_role.id,
+        actor=owner["email"],
+        actor_user_id=uuid.UUID(owner["id"]),
+        permissions=remaining,
+    )
+    assert not svc_a.has_permission(tenant.id, admin_id, "billing.manage")
+    assert not svc_b.has_permission(tenant.id, admin_id, "billing.manage")
+
+    # Re-grant → ALLOW on both instances
+    RoleRepository(session).update_role(
+        tenant.id,
+        admin_role.id,
+        actor=owner["email"],
+        actor_user_id=uuid.UUID(owner["id"]),
+        permissions=[
+            *remaining,
+            {"key": "billing.manage", "scope": "ALL_ORGANIZATION"},
+        ],
+    )
+    assert svc_a.has_permission(tenant.id, admin_id, "billing.manage")
+    assert svc_b.has_permission(tenant.id, admin_id, "billing.manage")
+
+
+def test_authz_cache_not_shared_across_sessions(
+    session: Session, tenant: Tenant
+) -> None:
+    """Distinct Sessions must not share mutable cache dicts."""
+    from callbot_platform.db import get_session_factory
+
+    auth = AuthRepository(session)
+    owner = auth.bootstrap_admin(
+        tenant_id=tenant.id,
+        email="owner@t.test",
+        password="password123",
+        name="Owner",
+    )
+    owner_id = uuid.UUID(owner["id"])
+    svc_a = AuthorizationService(session)
+    assert svc_a.has_permission(tenant.id, owner_id, "roles.assign")
+    cache_a = session.info["rbac_authz_cache"]
+
+    factory = get_session_factory()
+    other = factory()
+    try:
+        svc_b = AuthorizationService(other)
+        cache_b = other.info.get("rbac_authz_cache")
+        # Until first use, B may create its own empty cache on init.
+        assert cache_b is not None
+        assert cache_b is not cache_a
+        assert svc_b._cache is not cache_a
+    finally:
+        other.close()

@@ -9,6 +9,7 @@ import { safeUserError } from "@/lib/safe-error";
 import {
   EmptyState,
   ErrorState,
+  ForbiddenState,
   FilterBar,
   LoadingSkeleton,
   MetricSummary,
@@ -62,7 +63,7 @@ function formatDuration(seconds: number): string {
 }
 
 export default function MetricsPage() {
-  const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const { user, loading, forbidden } = useAuth({ permission: "analytics.read" });
   const [days, setDays] = useState(30);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [fetching, setFetching] = useState(true);
@@ -117,6 +118,14 @@ export default function MetricsPage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

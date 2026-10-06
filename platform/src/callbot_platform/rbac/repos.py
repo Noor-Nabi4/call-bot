@@ -15,9 +15,11 @@ from callbot_platform.rbac.catalog import (
     OWNER_ONLY_PERMISSIONS,
     PROTECTED_SYSTEM_ROLES,
     SCOPE_ALL,
+    SOURCE_ORG_CUSTOM,
     SYSTEM_ROLE_OWNER,
     VALID_SCOPES,
     all_permission_keys,
+    default_role_permissions,
 )
 from callbot_platform.rbac.errors import RbacError
 from callbot_platform.rbac.models import (
@@ -25,6 +27,7 @@ from callbot_platform.rbac.models import (
     OrganizationRole,
     Permission,
     RolePermission,
+    RolePermissionTombstone,
 )
 from callbot_platform.rbac.seed import ensure_system_roles_for_tenant
 from callbot_platform.telephony.audit import write_audit
@@ -222,6 +225,9 @@ class RoleRepository:
         name = role.name
         self._session.delete(role)
         self._session.flush()
+        from callbot_platform.rbac.service import AuthorizationService
+
+        AuthorizationService(self._session).invalidate_tenant(tenant_id)
         write_audit(
             self._session,
             tenant_id=tenant_id,
@@ -271,6 +277,9 @@ class RoleRepository:
         self._session.add(MemberRole(tenant_user_id=member_id, role_id=role.id))
         self._session.flush()
         self._sync_legacy_role_string(member)
+        from callbot_platform.rbac.service import AuthorizationService
+
+        AuthorizationService(self._session).invalidate_member(member_id)
         write_audit(
             self._session,
             tenant_id=tenant_id,
@@ -320,6 +329,9 @@ class RoleRepository:
         self._session.delete(link)
         self._session.flush()
         self._sync_legacy_role_string(member)
+        from callbot_platform.rbac.service import AuthorizationService
+
+        AuthorizationService(self._session).invalidate_member(member_id)
         write_audit(
             self._session,
             tenant_id=tenant_id,
@@ -389,6 +401,13 @@ class RoleRepository:
 
         for key, rp in list(existing_by_key.items()):
             if key not in desired:
+                # Any intentional removal of a system-role default must be
+                # tombstoned — including ORG_CUSTOM re-grants — so reconcile
+                # cannot resurrect the permission.
+                if role.is_system and rp.permission is not None:
+                    default_keys = {k for k, _ in default_role_permissions(role.name)}
+                    if key in default_keys:
+                        self._ensure_tombstone(role.id, rp.permission.id)
                 self._session.delete(rp)
                 write_audit(
                     self._session,
@@ -407,10 +426,17 @@ class RoleRepository:
             )
             if perm is None:
                 continue
+            self._clear_tombstone(role.id, perm.id)
             if key in existing_by_key:
                 rp = existing_by_key[key]
+                changed = False
                 if rp.scope != scope:
                     rp.scope = scope
+                    changed = True
+                if rp.source != SOURCE_ORG_CUSTOM:
+                    rp.source = SOURCE_ORG_CUSTOM
+                    changed = True
+                if changed:
                     write_audit(
                         self._session,
                         tenant_id=tenant_id,
@@ -420,11 +446,17 @@ class RoleRepository:
                             "role_id": str(role.id),
                             "permission": key,
                             "scope": scope,
+                            "source": SOURCE_ORG_CUSTOM,
                         },
                     )
             else:
                 self._session.add(
-                    RolePermission(role_id=role.id, permission_id=perm.id, scope=scope)
+                    RolePermission(
+                        role_id=role.id,
+                        permission_id=perm.id,
+                        scope=scope,
+                        source=SOURCE_ORG_CUSTOM,
+                    )
                 )
                 write_audit(
                     self._session,
@@ -435,9 +467,35 @@ class RoleRepository:
                         "role_id": str(role.id),
                         "permission": key,
                         "scope": scope,
+                        "source": SOURCE_ORG_CUSTOM,
                     },
                 )
         self._session.flush()
+        from callbot_platform.rbac.service import AuthorizationService
+
+        AuthorizationService(self._session).invalidate_tenant(tenant_id)
+
+    def _ensure_tombstone(self, role_id: UUID, permission_id: UUID) -> None:
+        existing = self._session.scalar(
+            select(RolePermissionTombstone).where(
+                RolePermissionTombstone.role_id == role_id,
+                RolePermissionTombstone.permission_id == permission_id,
+            )
+        )
+        if existing is None:
+            self._session.add(
+                RolePermissionTombstone(role_id=role_id, permission_id=permission_id)
+            )
+
+    def _clear_tombstone(self, role_id: UUID, permission_id: UUID) -> None:
+        row = self._session.scalar(
+            select(RolePermissionTombstone).where(
+                RolePermissionTombstone.role_id == role_id,
+                RolePermissionTombstone.permission_id == permission_id,
+            )
+        )
+        if row is not None:
+            self._session.delete(row)
 
     def _sync_legacy_role_string(self, member: TenantUser) -> None:
         from callbot_platform.rbac.service import AuthorizationService

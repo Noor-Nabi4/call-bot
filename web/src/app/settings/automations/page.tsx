@@ -12,6 +12,7 @@ import {
   DetailDrawer,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   Input,
   LoadingSkeleton,
@@ -77,7 +78,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export default function AutomationsPage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "automations.read" });
   const toast = useToast();
   const [rules, setRules] = useState<Rule[]>([]);
   const [triggers, setTriggers] = useState<CatalogItem[]>([]);
@@ -199,6 +200,14 @@ export default function AutomationsPage() {
 
   if (loading || !user) {
     return <LoadingSkeleton rows={6} />;
+  }
+
+  if (forbidden && user) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
+    );
   }
 
   return (

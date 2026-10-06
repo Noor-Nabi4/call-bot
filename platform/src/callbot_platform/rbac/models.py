@@ -109,6 +109,9 @@ class RolePermission(Base):
     scope: Mapped[str] = mapped_column(
         String(32), nullable=False, default="ALL_ORGANIZATION"
     )
+    source: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="SYSTEM_DEFAULT"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -118,6 +121,40 @@ class RolePermission(Base):
 
     role: Mapped[OrganizationRole] = relationship(back_populates="role_permissions")
     permission: Mapped[Permission] = relationship()
+
+
+class RolePermissionTombstone(Base):
+    """Records intentional removal of a system-default permission from a role."""
+
+    __tablename__ = "role_permission_tombstones"
+    __table_args__ = (
+        UniqueConstraint(
+            "role_id",
+            "permission_id",
+            name="uq_role_permission_tombstones_role_permission",
+        ),
+        Index("ix_role_permission_tombstones_role_id", "role_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    role_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("organization_roles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    permission_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("permissions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        server_default=func.now(),
+    )
 
 
 class MemberRole(Base):

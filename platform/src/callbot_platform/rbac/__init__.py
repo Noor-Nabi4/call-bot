@@ -10,6 +10,11 @@ from callbot_platform.rbac.catalog import (
     VALID_SCOPES,
 )
 from callbot_platform.rbac.errors import RbacError
+from callbot_platform.rbac.models import RolePermissionTombstone
+from callbot_platform.rbac.reconcile import (
+    reconcile_all_tenants,
+    reconcile_system_roles_for_tenant,
+)
 from callbot_platform.rbac.repos import RoleRepository
 from callbot_platform.rbac.seed import (
     backfill_all_tenants,
@@ -28,9 +33,12 @@ __all__ = [
     "AuthorizationService",
     "RbacError",
     "ResourceContext",
+    "RolePermissionTombstone",
     "RoleRepository",
     "backfill_all_tenants",
     "backfill_tenant_rbac",
     "ensure_permission_catalog",
     "ensure_system_roles_for_tenant",
+    "reconcile_all_tenants",
+    "reconcile_system_roles_for_tenant",
 ]

@@ -80,9 +80,11 @@ class OrganizationRepository:
         )
         self._session.add(tenant)
         self._session.flush()
-        from callbot_platform.rbac.seed import ensure_system_roles_for_tenant
+        from callbot_platform.rbac.reconcile import reconcile_system_roles_for_tenant
 
-        ensure_system_roles_for_tenant(self._session, tenant.id)
+        reconcile_system_roles_for_tenant(
+            self._session, tenant.id, actor=actor
+        )
         write_audit(
             self._session,
             tenant_id=tenant.id,

@@ -777,6 +777,32 @@ See also: [`docs/RBAC_LEGACY_AUTH_AUDIT.md`](./docs/RBAC_LEGACY_AUTH_AUDIT.md)
 
 ---
 
+## TASK 1.3.3 — RBAC Reconciliation + Frontend Permission Migration
+
+### Description
+
+Safely reconcile system-role defaults for long-lived organizations without restoring intentional revocations. Migrate frontend UX gates from JWT/legacy role strings to effective RBAC permissions. Backend remains authoritative.
+
+### Checklist
+
+- [x] Implementation complete
+- [x] Local verification complete
+- [x] Security regression coverage complete (tombstone lifecycle + session RBAC cache)
+- [x] `role_permissions.source` + `role_permission_tombstones` (migration `0025`)
+- [x] Idempotent `reconcile_system_roles_for_tenant` / freeze-gaps upgrade path
+- [x] Intentional revocations preserved; custom roles/scopes untouched
+- [x] `/auth/me` + `/auth/me/permissions` return effective roles/permissions
+- [x] Frontend `hasPermission` / `useAuth({ permission })` / nav / forbidden UX
+- [x] Legacy JWT `role` kept for compatibility/display only (not authorization)
+- [x] Docs: `docs/RBAC_RECONCILIATION.md`, `docs/RBAC_STAGING_VERIFICATION.md`, legacy auth audit
+- [ ] Staging migration
+- [ ] Staging RBAC E2E
+- [ ] Browser E2E
+
+See also: [`docs/RBAC_RECONCILIATION.md`](./docs/RBAC_RECONCILIATION.md), [`docs/RBAC_STAGING_VERIFICATION.md`](./docs/RBAC_STAGING_VERIFICATION.md)
+
+---
+
 ## TASK 1.4 — Tenant Isolation
 
 ### Description
@@ -2803,6 +2829,7 @@ The following must be completed before the first serious production release:
 - [x] Permission scopes
 - [x] Legacy auth migrated to permissions (1.3.1)
 - [x] Fail-closed scoped authorization (1.3.2)
+- [x] RBAC reconciliation + frontend permission migration (1.3.3)
 - [x] AI/tool authorization
 - [x] RBAC audit logs
 - [ ] Tenant isolation

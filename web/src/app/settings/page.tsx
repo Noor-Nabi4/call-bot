@@ -12,6 +12,7 @@ import {
   DataTable,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   Input,
   LoadingSkeleton,
@@ -73,7 +74,7 @@ const BUSINESS_TYPES = [
 const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "INR", "PKR", "AED", "MXN"];
 
 export default function SettingsPage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "organization.read" });
   const toast = useToast();
   const [audit, setAudit] = useState<AuditEvent[]>([]);
   const [retention, setRetention] = useState({
@@ -163,6 +164,14 @@ export default function SettingsPage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

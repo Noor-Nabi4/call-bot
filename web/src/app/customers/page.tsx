@@ -10,6 +10,7 @@ import {
   DataTable,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   LoadingSkeleton,
   PageHeader,
   SearchInput,
@@ -45,7 +46,7 @@ function formatUpdated(iso?: string | null) {
 }
 
 export default function CustomersPage() {
-  const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const { user, loading, forbidden } = useAuth({ permission: "customers.read" });
   const [rows, setRows] = useState<Customer[]>([]);
   const [openCounts, setOpenCounts] = useState<Record<string, number>>({});
   const [search, setSearch] = useState("");
@@ -152,6 +153,14 @@ export default function CustomersPage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

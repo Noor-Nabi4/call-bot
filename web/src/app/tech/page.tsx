@@ -23,6 +23,7 @@ import {
   Button,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   LoadingSkeleton,
   MetricSummary,
   PageHeader,
@@ -32,8 +33,8 @@ import {
 } from "@/components/ui";
 
 export default function TechHomePage() {
-  const { user, loading } = useAuth({
-    roles: ["technician", "admin"],
+  const { user, loading, forbidden, isTechShell } = useAuth({
+    permission: "jobs.read",
   });
   const [jobs, setJobs] = useState<Job[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +93,7 @@ export default function TechHomePage() {
   );
 
   const nextJob = sorted[0] ?? null;
-  const isTech = user?.role === "technician";
+  const isTech = isTechShell;
 
   async function onPingLocation() {
     setLocMsg(null);
@@ -127,6 +128,14 @@ export default function TechHomePage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

@@ -21,6 +21,7 @@ import {
   DataTable,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   Input,
   LoadingSkeleton,
@@ -31,7 +32,7 @@ import {
 } from "@/components/ui";
 
 export default function RolesPage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "roles.read" });
   const toast = useToast();
   const [roles, setRoles] = useState<OrgRole[]>([]);
   const [catalog, setCatalog] = useState<PlatformPermission[]>([]);
@@ -153,6 +154,14 @@ export default function RolesPage() {
 
   if (loading || !user) {
     return <LoadingSkeleton rows={4} />;
+  }
+
+  if (forbidden && user) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
+    );
   }
 
   return (

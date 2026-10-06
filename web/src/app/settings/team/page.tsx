@@ -26,6 +26,7 @@ import {
   DetailDrawer,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   Input,
   LoadingSkeleton,
@@ -45,7 +46,7 @@ const EMPTY_INVITE = {
 const INVITE_FORM_ID = "invite-teammate-form";
 
 export default function TeamPage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "team.read" });
   const toast = useToast();
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [orgRoles, setOrgRoles] = useState<OrgRole[]>([]);
@@ -279,6 +280,14 @@ export default function TeamPage() {
 
   if (loading || !user) {
     return <LoadingSkeleton rows={6} />;
+  }
+
+  if (forbidden && user) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
+    );
   }
 
   const confirmingDeactivate = Boolean(confirmTarget?.is_active);

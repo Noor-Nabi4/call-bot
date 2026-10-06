@@ -7,6 +7,7 @@ import { login } from "@/lib/api";
 import { Button, Field, Input, ErrorState } from "@/components/ui";
 import { login as copy } from "@/lib/ops-copy";
 import { safeUserError } from "@/lib/safe-error";
+import { isTechnicianShell } from "@/lib/permissions";
 
 type LoginFormValues = {
   tenant_slug: string;
@@ -38,7 +39,7 @@ export default function LoginPage() {
         password: values.password,
         tenant_slug: values.tenant_slug,
       });
-      if (user.role === "technician") router.replace("/tech");
+      if (isTechnicianShell(user)) router.replace("/tech");
       else router.replace("/dashboard");
     } catch (err) {
       setError("root", {

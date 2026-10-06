@@ -47,6 +47,7 @@ from callbot_platform.rbac.models import (
     OrganizationRole,
     Permission,
     RolePermission,
+    RolePermissionTombstone,
 )
 
 __all__ = [
@@ -71,6 +72,7 @@ __all__ = [
     "Permission",
     "RecordingObject",
     "RolePermission",
+    "RolePermissionTombstone",
     "StripeWebhookEvent",
     "Technician",
     "TelephonyAuditEvent",

@@ -218,3 +218,18 @@ def remove_member_role(
         )
     except RbacError as exc:
         raise _http(exc) from exc
+
+
+@router.post("/reconcile")
+def reconcile_organization_roles(
+    user: CurrentUser = Depends(_require_roles_update),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    """Apply missing system-role catalog defaults for this tenant only.
+
+    Preserves tombstoned revocations, custom roles, and custom scopes.
+    Does not accept tenant_id from the client — uses the session tenant.
+    """
+    from callbot_platform.rbac.reconcile import reconcile_system_roles_for_tenant
+
+    return reconcile_system_roles_for_tenant(session, user.tenant_id, actor=user.email)

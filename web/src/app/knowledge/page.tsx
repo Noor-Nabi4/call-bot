@@ -14,6 +14,7 @@ import {
   DetailDrawer,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   FilterBar,
   Input,
@@ -86,7 +87,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export default function KnowledgePage() {
-  const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const { user, loading, forbidden } = useAuth({ permission: "knowledge.read" });
   const toast = useToast();
   const [articles, setArticles] = useState<Article[]>([]);
   const [profiles, setProfiles] = useState<AgentProfile[]>([]);
@@ -176,6 +177,14 @@ export default function KnowledgePage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

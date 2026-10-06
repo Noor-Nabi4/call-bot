@@ -23,6 +23,7 @@ import {
   ConfirmDialog,
   ErrorState,
   Field,
+  ForbiddenState,
   Input,
   LoadingSkeleton,
   PageHeader,
@@ -33,7 +34,9 @@ import {
 
 export default function JobDetailPage() {
   const params = useParams<{ id: string }>();
-  const { user, loading } = useAuth();
+  const { user, loading, forbidden, isTechShell } = useAuth({
+    permission: "jobs.read",
+  });
   const [job, setJob] = useState<Job | null>(null);
   const [note, setNote] = useState("");
   const [completionNotes, setCompletionNotes] = useState("");
@@ -43,7 +46,7 @@ export default function JobDetailPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
 
-  const isTech = user?.role === "technician";
+  const isTech = isTechShell;
   const btnSize = isTech ? "lg" : "md";
 
   const refresh = useCallback(async () => {
@@ -52,7 +55,7 @@ export default function JobDetailPage() {
   }, [params.id]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || forbidden) return;
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
@@ -65,13 +68,21 @@ export default function JobDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, refresh]);
+  }, [user, forbidden, refresh]);
 
   if (loading || !user) {
     return (
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

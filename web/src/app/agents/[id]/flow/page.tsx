@@ -15,6 +15,7 @@ import {
   Field,
   Input,
   LoadingSkeleton,
+  ForbiddenState,
   PageHeader,
   Select,
   Surface,
@@ -44,7 +45,7 @@ function newStep(): CallFlowStep {
 export default function AgentCallFlowPage() {
   const params = useParams<{ id: string }>();
   const profileId = params.id;
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "agents.manage" });
   const toast = useToast();
   const [name, setName] = useState("");
   const [flow, setFlow] = useState<CallFlow | null>(null);
@@ -64,7 +65,7 @@ export default function AgentCallFlowPage() {
   }, [profileId]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || forbidden) return;
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
@@ -77,7 +78,7 @@ export default function AgentCallFlowPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, load]);
+  }, [user, forbidden, load]);
 
   function updateStep(index: number, patch: Partial<CallFlowStep>) {
     if (!flow) return;
@@ -121,7 +122,19 @@ export default function AgentCallFlowPage() {
     }
   }
 
-  if (loading || !user || fetching || !flow) {
+  if (loading || !user) {
+    return <LoadingSkeleton rows={6} />;
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
+    );
+  }
+
+  if (fetching || !flow) {
     return <LoadingSkeleton rows={6} />;
   }
 

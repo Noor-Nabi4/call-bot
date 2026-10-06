@@ -5,8 +5,16 @@ export type OpsUser = {
   tenant_name: string;
   email: string;
   name: string;
+  /** Legacy display/compatibility role string — not authoritative for auth. */
   role: string;
   technician_id: string | null;
+  roles?: { id: string; name: string; system: boolean }[];
+  permissions?: {
+    key: string;
+    resource: string;
+    action: string;
+    scope: string;
+  }[];
 };
 
 export type Job = {

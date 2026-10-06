@@ -27,6 +27,7 @@ import {
   DetailDrawer,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   Input,
   LoadingSkeleton,
@@ -37,7 +38,7 @@ import {
 } from "@/components/ui";
 
 function DispatchWorkspace() {
-  const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const { user, loading, forbidden } = useAuth({ permission: "jobs.read" });
   const toast = useToast();
   const board = useDispatchBoard(user);
 
@@ -46,6 +47,14 @@ function DispatchWorkspace() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

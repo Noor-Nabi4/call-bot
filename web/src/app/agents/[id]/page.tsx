@@ -20,6 +20,7 @@ import { safeUserError } from "@/lib/safe-error";
 import {
   Button,
   ErrorState,
+  ForbiddenState,
   Field,
   Input,
   LoadingSkeleton,
@@ -52,7 +53,7 @@ function textToList(value: string): string[] {
 export default function AgentBuilderPage() {
   const params = useParams<{ id: string }>();
   const profileId = params.id;
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "agents.manage" });
   const toast = useToast();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<AgentProfile | null>(null);
@@ -163,6 +164,14 @@ export default function AgentBuilderPage() {
       <div className="p-6">
         <LoadingSkeleton rows={8} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

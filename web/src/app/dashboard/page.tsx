@@ -21,6 +21,7 @@ import {
   Button,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   LoadingSkeleton,
   StatusPill,
   useToast,
@@ -37,7 +38,7 @@ function greetingFor(now: Date): string {
 }
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const { user, loading, forbidden } = useAuth({ permissions: ["analytics.read", "customers.read", "calls.read"] });
   const router = useRouter();
   const toast = useToast();
   const dash = useDashboardData(user);
@@ -47,6 +48,14 @@ export default function DashboardPage() {
       <div className="p-6">
         <LoadingSkeleton rows={8} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

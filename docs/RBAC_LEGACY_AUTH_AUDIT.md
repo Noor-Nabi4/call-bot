@@ -1,100 +1,77 @@
-# RBAC Legacy Authorization Audit (Task 1.3.1)
+# RBAC Legacy Authorization Audit
 
-**Date:** 2026-10-06  
-**Scope:** Remaining `user.role` / `require_ops_roles` authorization after Task 1.3.
+**Updated:** Task 1.3.3 final verification  
+**Scope:** Remaining `user.role` / JWT role / `require_ops_roles` usage after reconciliation + frontend permission migration.
 
 ## Summary
 
-| Classification | Count (before) | Count (after) |
-| --- | ---: | ---: |
-| MUST_MIGRATE | 90+ route gates + jobs role branches | **0** |
-| COMPATIBILITY_ONLY | JWT/UI/serialize/seed map | documented below |
-| NON_AUTHORIZATION | invite creates Technician row, VALID_ROLES validation | kept |
-| FALSE_POSITIVE | comments / docs / tests fixtures | n/a |
+| Classification | Status |
+| --- | --- |
+| AUTHORIZATION (API / backend) | **0** — routes use permissions |
+| AUTHORIZATION (frontend UX gates) | **0** — `useAuth({ permission })` / `hasPermission` |
+| COMPATIBILITY | JWT + `tenant_users.role` + serialize + legacy sync |
+| DISPLAY | Profile / user menu show `user.role`; roles list for labels |
+| TEST FIXTURE / SEED | Creating users with `role=` |
+| FALSE POSITIVE | Docs, comments, `role ===` on **target member legacy field** in team settings |
 
-**Authorization usage of legacy role checks:** **0** remaining in API route gates.
-
-Deprecated helpers `require_ops_roles` / `require_entitled_ops_roles` remain in `api/deps.py` only for import compatibility; **no route uses them**.
+**Unauthorized role-string checks for access control:** **0**.
 
 ---
 
-## MUST_MIGRATE → Migrated
+## Backend (Tasks 1.3.1 / 1.3.2 / 1.3.3)
 
-| Area | Legacy gate | Permission(s) |
-| --- | --- | --- |
-| Jobs list/get/update | `user.role == technician` + OPS roles | `jobs.read` / `jobs.update` + `ResourceContext` |
-| Jobs create/assign | `require_entitled_ops_roles(admin, dispatcher)` | `jobs.create` / `jobs.assign` |
-| Technicians | OPS roles | `technicians.read` / `technicians.manage` |
-| Tech location | `user.role != technician` | `jobs.update` + self ASSIGNED context |
-| Billing subscription/usage | `require_ops_roles(admin)` | `billing.read` |
-| Billing checkout/portal | `require_ops_roles(admin)` | `billing.manage` |
-| Admin CRM lists | admin/dispatcher | `customers.read`, `calls.*`, `appointments.read`, `analytics.read` |
-| Admin queue/supervisor | admin/dispatcher | `calls.read`, `handoff.read` / `handoff.manage` |
-| Admin users | admin | `team.read` / `team.manage` |
-| Admin retention/audit | admin | `organization.read` / `organization.update` |
-| Admin agent settings | admin | `ai.read` / `ai.configure` |
-| Admin COGS | admin | `billing.read` |
-| Knowledge ops | admin/dispatcher | `knowledge.read` / `knowledge.manage` |
-| Handoff ops | admin/dispatcher | `handoff.read` / `handoff.manage` |
-| Automations | admin | `automations.read` / `automations.manage` |
-| Branding | admin | `branding.manage` |
-| API keys | admin | `api_keys.manage` |
-| Agent profiles / marketplace | admin | `ai.read` / `agents.manage` |
-| Phone numbers | admin | `phones.manage` |
-| Async job DLQ | admin | `automations.manage` |
-| Organization (already 1.3) | — | `organization.*`, `team.*`, `roles.*` |
+Deprecated helpers `require_ops_roles` / `require_entitled_ops_roles` remain in `api/deps.py` for import compatibility; **no route uses them**.
 
-Catalog adjustments to preserve prior access:
+`AuthorizationService.resolve_member_permissions` uses **member_roles → role_permissions only**. Legacy `tenant_users.role` does **not** grant access.
 
-- Admin system role includes `billing.manage` (Owner still exclusive for `api_keys.manage` grants).
-- Dispatcher gains `technicians.manage` and `knowledge.manage`.
+---
+
+## Frontend (Task 1.3.3)
+
+| Former pattern | Replacement |
+| --- | --- |
+| `useAuth({ roles: ["admin"] })` | `useAuth({ permission: "…" })` + `ForbiddenState` |
+| `navFor` filtered by `item.roles` | `item.permission` + `hasPermission` |
+| `user.role === "technician"` shell | `isTechnicianShell(user)` (roles/permissions UX) |
+| Login redirect by role string | `isTechnicianShell(user)` |
+
+Backend remains authoritative; hiding nav or showing Forbidden is UX only.
 
 ---
 
 ## COMPATIBILITY_ONLY (allowed)
 
-| Location | Why |
+| Location | Classification |
 | --- | --- |
-| `tenant_users.role` column | JWT claim + UI legacy select |
-| `AuthRepository._serialize_user` / membership serialize | response field |
-| `create_session_token(..., role=)` | JWT payload |
-| `LEGACY_ROLE_MAP` / `SYSTEM_TO_LEGACY` | sync display role |
-| `AuthorizationService` fallback when **no** `member_roles` | bootstrap edge case only |
-| `sync_legacy_primary_role` / seed backfill | migration |
-| `web` settings team “Legacy role” column | UX |
-| Frontend `useAuth({ roles: ["admin"] })` | UX gate only; backend authoritative |
+| `tenant_users.role` column | COMPATIBILITY |
+| `AuthRepository._serialize_user` | SERIALIZATION |
+| `create_session_token(..., role=)` | COMPATIBILITY |
+| `LEGACY_ROLE_MAP` / `SYSTEM_TO_LEGACY` | COMPATIBILITY |
+| `sync_legacy_primary_role` / seed backfill | SEED |
+| Team settings legacy role column / `role === target.role` | DISPLAY |
+| Profile / user-menu `user.role` | DISPLAY |
+| `require_ops_roles` definitions (unused by routes) | COMPATIBILITY (deprecated) |
 
 ---
 
 ## NON_AUTHORIZATION
 
-| Location | Why |
+| Location | Classification |
 | --- | --- |
-| `create_user` / update when `role == technician` | creates `technicians` row (domain side effect) |
-| `VALID_ROLES` on invite/update bodies | input validation of legacy string field |
-| Tests constructing users with `role=` | fixtures |
+| `create_user` when `role == technician` | SEED / domain side effect (technicians row) |
+| `VALID_ROLES` on invite/update | COMPATIBILITY input validation |
+| Tests constructing users with `role=` | TEST |
 
 ---
 
-## Auth repository last-admin
+## Reconciliation (Task 1.3.3)
 
-Previously counted `tenant_users.role == admin`.  
-Now counts active members with **Owner** or **Admin** `member_roles` (`_count_privileged_members`).
-
----
-
-## Task 1.3.2 fail-closed scopes
-
-`AuthorizationService.has_permission`:
-
-- `ALL_ORGANIZATION` → allow without resource; with resource require `resource.tenant_id == tenant_id`
-- `OWN` / `ASSIGNED` / `TEAM` only → **DENY** if `resource is None` or required fields missing
-- List endpoints use `list_access_mode()` (`all` | `assigned` | deny) instead of treating missing context as allow
+See [`docs/RBAC_RECONCILIATION.md`](./RBAC_RECONCILIATION.md).
 
 ---
 
 ## Remaining risks
 
-- Frontend still filters by JWT legacy role for page access (UX only).
-- Legacy string role still synced for clients; do not delete until clients migrate.
-- Background maintenance jobs remain trusted system operations (documented; not user-acting).
+- Staging/production migration `0025` and browser E2E: **NOT EXECUTED** (no staging credentials in this environment). See [`docs/RBAC_STAGING_VERIFICATION.md`](./RBAC_STAGING_VERIFICATION.md).
+- Downgrade of `0025` is lossy (drops tombstones + source).
+- Session-local `rbac_authz_cache` does **not** synchronize across horizontally scaled instances; the database remains authoritative per request.

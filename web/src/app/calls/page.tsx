@@ -16,6 +16,7 @@ import {
   DetailDrawer,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   LoadingSkeleton,
   PageHeader,
@@ -55,7 +56,7 @@ function formatDuration(
 function CallsWorkspace() {
   const searchParams = useSearchParams();
   const statusFilter = (searchParams.get("status") || "").toLowerCase().trim();
-  const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const { user, loading, forbidden } = useAuth({ permission: "calls.read" });
   const toast = useToast();
   const [rows, setRows] = useState<Call[]>([]);
   const [search, setSearch] = useState("");
@@ -227,6 +228,14 @@ function CallsWorkspace() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

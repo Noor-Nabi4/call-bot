@@ -30,6 +30,7 @@ import {
   Button,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   LoadingSkeleton,
   PageHeader,
   StatusPill,
@@ -50,7 +51,7 @@ function planDisplayName(planKey: string): string {
 }
 
 export default function BillingPage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "billing.read" });
   const toast = useToast();
   const searchParams = useSearchParams();
   const checkoutSuccess = searchParams.get("checkout") === "success";
@@ -126,6 +127,14 @@ export default function BillingPage() {
 
   if (loading || !user) {
     return <LoadingSkeleton rows={4} />;
+  }
+
+  if (forbidden && user) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
+    );
   }
 
   const awaitingWebhook = checkoutSuccess && !subscription?.is_entitled;

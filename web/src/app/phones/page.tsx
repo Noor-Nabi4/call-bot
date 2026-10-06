@@ -28,6 +28,7 @@ import {
   DetailDrawer,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   Input,
   LoadingSkeleton,
@@ -41,7 +42,7 @@ const CONNECT_FORM_ID = "connect-phone-form";
 const BUY_FORM_ID = "buy-phone-form";
 
 export default function PhonesPage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "phones.manage" });
   const toast = useToast();
   const [phones, setPhones] = useState<PhoneNumber[]>([]);
   const [profiles, setProfiles] = useState<AgentProfile[]>([]);
@@ -216,6 +217,14 @@ export default function PhonesPage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

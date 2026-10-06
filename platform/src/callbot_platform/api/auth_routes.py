@@ -21,9 +21,20 @@ from callbot_platform.billing.errors import BillingError
 from callbot_platform.billing.service import BillingService
 from callbot_platform.config import Settings
 from callbot_platform.origins import session_cookie_params
+from callbot_platform.rbac.service import AuthorizationService
 from callbot_platform.security.session import create_session_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _enrich_user_session(session: Session, user: dict[str, Any]) -> dict[str, Any]:
+    """Attach effective RBAC roles/permissions for frontend UX (not authority)."""
+    authz = AuthorizationService(session)
+    access = authz.serialize_effective_access(
+        UUID(str(user["tenant_id"])),
+        UUID(str(user["id"])),
+    )
+    return {**user, **access}
 
 
 class LoginBody(BaseModel):
@@ -136,6 +147,7 @@ def signup(
         raise _auth_http(exc) from exc
 
     _set_session_cookie(response, settings, result["user"])
+    result["user"] = _enrich_user_session(session, result["user"])
     return result
 
 
@@ -156,7 +168,7 @@ def login(
         raise _auth_http(exc) from exc
 
     _set_session_cookie(response, settings, user)
-    return {"user": user}
+    return {"user": _enrich_user_session(session, user)}
 
 
 @router.post("/logout")
@@ -176,8 +188,22 @@ def logout(
 
 
 @router.get("/me")
-def me(user: CurrentUser = Depends(require_tenant_user)) -> dict[str, Any]:
-    return {"user": user.as_dict()}
+def me(
+    user: CurrentUser = Depends(require_tenant_user),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    return {"user": _enrich_user_session(session, user.as_dict())}
+
+
+@router.get("/me/permissions")
+def me_permissions(
+    user: CurrentUser = Depends(require_tenant_user),
+    session: Session = Depends(db_dep),
+) -> dict[str, Any]:
+    """Effective permissions for the authenticated session user only."""
+    return AuthorizationService(session).serialize_effective_access(
+        user.tenant_id, user.user_id
+    )
 
 
 @router.put("/me")
@@ -205,7 +231,7 @@ def update_me(
         )
     except Exception as exc:
         raise _auth_http(exc) from exc
-    return {"user": updated}
+    return {"user": _enrich_user_session(session, updated)}
 
 
 @router.post("/bootstrap", dependencies=[Depends(require_internal_token)])

@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session, joinedload
 
 from callbot_platform.rbac.catalog import (
     AI_TOOL_PERMISSIONS,
-    LEGACY_ROLE_MAP,
     SCOPE_ALL,
     SCOPE_ASSIGNED,
     SCOPE_OWN,
@@ -52,7 +51,13 @@ class ResourceContext:
 class AuthorizationService:
     def __init__(self, session: Session) -> None:
         self._session = session
-        self._cache: dict[tuple[UUID, UUID], frozenset[GrantedPermission]] = {}
+        # Request/session-scoped shared cache so invalidate_* from repos applies
+        # to every AuthorizationService bound to this Session.
+        cache = session.info.get("rbac_authz_cache")
+        if cache is None:
+            cache = {}
+            session.info["rbac_authz_cache"] = cache
+        self._cache: dict[tuple[UUID, UUID], frozenset[GrantedPermission]] = cache
 
     def invalidate_member(self, tenant_user_id: UUID) -> None:
         keys = [k for k in self._cache if k[1] == tenant_user_id]
@@ -122,31 +127,8 @@ class AuthorizationService:
             scope = rp.scope if rp.scope in VALID_SCOPES else SCOPE_ALL
             granted.add(GrantedPermission(key=rp.permission.key, scope=scope))
 
-        # Compatibility: if no member_roles yet, map legacy string role.
-        if not granted and user.role:
-            system_name = LEGACY_ROLE_MAP.get(user.role)
-            if system_name:
-                ensure_system_roles_for_tenant(self._session, tenant_id)
-                role = self._session.scalar(
-                    select(OrganizationRole).where(
-                        OrganizationRole.tenant_id == tenant_id,
-                        OrganizationRole.name == system_name,
-                        OrganizationRole.is_active.is_(True),
-                    )
-                )
-                if role is not None:
-                    for rp in self._session.scalars(
-                        select(RolePermission)
-                        .where(RolePermission.role_id == role.id)
-                        .options(joinedload(RolePermission.permission))
-                    ).all():
-                        if rp.permission is None:
-                            continue
-                        scope = rp.scope if rp.scope in VALID_SCOPES else SCOPE_ALL
-                        granted.add(
-                            GrantedPermission(key=rp.permission.key, scope=scope)
-                        )
-
+        # Authorization is member_roles → role_permissions only.
+        # tenant_users.role / JWT role are compatibility/display — never authoritative.
         result = frozenset(granted)
         self._cache[cache_key] = result
         return result
@@ -243,6 +225,11 @@ class AuthorizationService:
         return False
 
     def member_role_names(self, tenant_id: UUID, tenant_user_id: UUID) -> list[str]:
+        return [r["name"] for r in self.list_member_roles(tenant_id, tenant_user_id)]
+
+    def list_member_roles(
+        self, tenant_id: UUID, tenant_user_id: UUID
+    ) -> list[dict[str, Any]]:
         rows = self._session.scalars(
             select(OrganizationRole)
             .join(MemberRole, MemberRole.role_id == OrganizationRole.id)
@@ -253,7 +240,33 @@ class AuthorizationService:
             )
             .order_by(OrganizationRole.name)
         ).all()
-        return [r.name for r in rows]
+        return [
+            {
+                "id": str(r.id),
+                "name": r.name,
+                "system": bool(r.is_system),
+            }
+            for r in rows
+        ]
+
+    def serialize_effective_access(
+        self, tenant_id: UUID, tenant_user_id: UUID
+    ) -> dict[str, Any]:
+        """Payload for session/me — UX only; backend remains authoritative."""
+        grants = self.resolve_member_permissions(tenant_id, tenant_user_id)
+        permissions = [
+            {
+                "key": g.key,
+                "resource": g.key.split(".", 1)[0],
+                "action": g.key.split(".", 1)[1] if "." in g.key else "",
+                "scope": g.scope,
+            }
+            for g in sorted(grants, key=lambda x: (x.key, x.scope))
+        ]
+        return {
+            "roles": self.list_member_roles(tenant_id, tenant_user_id),
+            "permissions": permissions,
+        }
 
     def primary_legacy_role(self, tenant_id: UUID, tenant_user_id: UUID) -> str | None:
         """Best-effort legacy string for JWT / UI during compatibility period."""

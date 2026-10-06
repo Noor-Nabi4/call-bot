@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 from callbot_platform.rbac.catalog import (
     LEGACY_ROLE_MAP,
     PERMISSION_CATALOG,
+    SOURCE_SYSTEM_DEFAULT,
     SYSTEM_ROLE_ADMIN,
     SYSTEM_ROLE_NAMES,
     SYSTEM_ROLE_OWNER,
@@ -80,7 +81,12 @@ def ensure_system_roles_for_tenant(
                 if perm is None:
                     continue
                 session.add(
-                    RolePermission(role_id=role.id, permission_id=perm.id, scope=scope)
+                    RolePermission(
+                        role_id=role.id,
+                        permission_id=perm.id,
+                        scope=scope,
+                        source=SOURCE_SYSTEM_DEFAULT,
+                    )
                 )
             session.flush()
         elif newly_created:
@@ -102,7 +108,12 @@ def ensure_system_roles_for_tenant(
                 if perm is None:
                     continue
                 session.add(
-                    RolePermission(role_id=role.id, permission_id=perm.id, scope=scope)
+                    RolePermission(
+                        role_id=role.id,
+                        permission_id=perm.id,
+                        scope=scope,
+                        source=SOURCE_SYSTEM_DEFAULT,
+                    )
                 )
                 added = True
             if added:
@@ -248,6 +259,9 @@ def backfill_tenant_rbac(session: Session, tenant_id: UUID) -> None:
         )
     # Ensure AI Agent system role exists even with no members.
     ensure_system_roles_for_tenant(session, tenant_id)
+    from callbot_platform.rbac.reconcile import reconcile_system_roles_for_tenant
+
+    reconcile_system_roles_for_tenant(session, tenant_id, actor="rbac_backfill")
     logger.info(
         "rbac_backfill_complete tenant_id=%s members=%s owner_assigned=%s",
         tenant_id,
