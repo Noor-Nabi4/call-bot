@@ -10,15 +10,27 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from callbot_platform.admin.repos import AdminError, AdminRepository
-from callbot_platform.api.deps import CurrentUser, db_dep, require_entitled_ops_roles
+from callbot_platform.api.deps import CurrentUser, db_dep, require_entitled_permission
 from callbot_platform.auth.repos import AuthError, AuthRepository
-from callbot_platform.security.session import (
-    ROLE_ADMIN,
-    ROLE_DISPATCHER,
-    VALID_ROLES,
-)
+from callbot_platform.security.session import VALID_ROLES
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+_require_customers_read = require_entitled_permission("customers.read")
+_require_calls_read = require_entitled_permission("calls.read")
+_require_calls_update = require_entitled_permission("calls.update")
+_require_appointments_read = require_entitled_permission("appointments.read")
+_require_analytics_read = require_entitled_permission("analytics.read")
+_require_billing_read = require_entitled_permission("billing.read")
+_require_handoff_read = require_entitled_permission("handoff.read")
+_require_handoff_manage = require_entitled_permission("handoff.manage")
+_require_team_read = require_entitled_permission("team.read")
+_require_team_manage = require_entitled_permission("team.manage")
+_require_org_update = require_entitled_permission("organization.update")
+_require_org_read = require_entitled_permission("organization.read")
+_require_ai_read = require_entitled_permission("ai.read")
+_require_ai_configure = require_entitled_permission("ai.configure")
+
 
 
 class InviteUserBody(BaseModel):
@@ -54,20 +66,16 @@ class CallQualityBody(BaseModel):
 
 @router.get("/customers")
 def customers(
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_customers_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     return {"customers": AdminRepository(session).list_customers(user.tenant_id)}
 
 
 @router.get("/calls")
 def calls(
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_calls_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
     status: str | None = Query(
         default=None,
         max_length=32,
@@ -91,10 +99,8 @@ def calls(
 def review_call_quality(
     call_id: UUID,
     body: CallQualityBody,
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_calls_update),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         call = AdminRepository(session).review_call_quality(
@@ -115,10 +121,8 @@ def review_call_quality(
 
 @router.get("/appointments")
 def appointments(
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_appointments_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     return {"appointments": AdminRepository(session).list_appointments(user.tenant_id)}
 
@@ -126,10 +130,8 @@ def appointments(
 @router.get("/metrics")
 def metrics(
     days: int = 30,
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_analytics_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     return {
         "metrics": AdminRepository(session).metrics_summary(user.tenant_id, days=days)
@@ -138,8 +140,8 @@ def metrics(
 
 @router.get("/cogs/summary")
 def cogs_summary(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
     period: str = Query(default="this_month", max_length=32),
     start: str | None = Query(default=None, max_length=64),
     end: str | None = Query(default=None, max_length=64),
@@ -171,8 +173,8 @@ def cogs_summary(
 
 @router.get("/cogs/scenarios")
 def cogs_scenarios(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     """Modeled 1k/10k/100k + OpenAI sensitivity + Ship vs Scale (config rates only)."""
     from callbot_platform.billing.cogs.service import CogsService
@@ -182,8 +184,8 @@ def cogs_scenarios(
 
 @router.get("/cogs/calls")
 def cogs_calls(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
     period: str = Query(default="this_month", max_length=32),
     start: str | None = Query(default=None, max_length=64),
     end: str | None = Query(default=None, max_length=64),
@@ -226,8 +228,8 @@ def cogs_calls(
 @router.get("/cogs/calls/{call_id}")
 def cogs_call_detail(
     call_id: UUID,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     """Single-call estimated COGS detail."""
     from callbot_platform.billing.cogs.service import CogsService
@@ -243,10 +245,8 @@ def cogs_call_detail(
 
 @router.get("/supervisor")
 def supervisor(
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_calls_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
     recent_limit: int = Query(default=20, ge=1, le=50),
 ) -> dict[str, Any]:
     """Supervisor read-only snapshot: live calls, recent history, handoff attention."""
@@ -266,10 +266,8 @@ class QueueCompleteBody(BaseModel):
 
 @router.get("/queue")
 def list_queue(
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_handoff_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
     status: str | None = Query(default=None, max_length=32),
     limit: int = Query(default=50, ge=1, le=100),
 ) -> dict[str, Any]:
@@ -290,10 +288,8 @@ def list_queue(
 @router.post("/queue/{item_id}/claim")
 def claim_queue_item(
     item_id: UUID,
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_handoff_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     from callbot_platform.queue import CallQueueRepository, QueueError
 
@@ -313,10 +309,8 @@ def claim_queue_item(
 def complete_queue_item(
     item_id: UUID,
     body: QueueCompleteBody,
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_handoff_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     from callbot_platform.queue import CallQueueRepository, QueueError
 
@@ -338,16 +332,16 @@ def complete_queue_item(
 
 @router.get("/audit")
 def audit(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_org_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     return {"events": AdminRepository(session).list_audit(user.tenant_id)}
 
 
 @router.get("/users")
 def users(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_team_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     return {"users": AdminRepository(session).list_users(user.tenant_id)}
 
@@ -355,8 +349,8 @@ def users(
 @router.post("/users")
 def invite_user(
     body: InviteUserBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_team_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     if body.role not in VALID_ROLES:
         raise HTTPException(status_code=400, detail="Invalid role")
@@ -381,8 +375,8 @@ def invite_user(
 def update_user(
     user_id: str,
     body: UpdateUserBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_team_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     if body.role is not None and body.role not in VALID_ROLES:
         raise HTTPException(status_code=400, detail="Invalid role")
@@ -411,8 +405,8 @@ def update_user(
 
 @router.get("/retention")
 def get_retention(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_org_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     return {"settings": AdminRepository(session).get_retention(user.tenant_id)}
 
@@ -420,8 +414,8 @@ def get_retention(
 @router.put("/retention")
 def put_retention(
     body: RetentionBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_org_update),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     settings = AdminRepository(session).upsert_retention(
         user.tenant_id,
@@ -457,8 +451,8 @@ class AgentSettingsUpdateBody(BaseModel):
 
 @router.get("/agent-settings")
 def get_agent_settings(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_ai_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     from callbot_platform.crm.repos import AgentSettingsRepository
 
@@ -472,8 +466,8 @@ def get_agent_settings(
 @router.put("/agent-settings")
 def put_agent_settings(
     body: AgentSettingsUpdateBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_ai_configure),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     """Admin-only. Always scoped to the session tenant — never path/body tenant_id."""
     from callbot_platform.api.crm_routes import (

@@ -34,7 +34,7 @@ class MembershipRepository:
             .where(TenantUser.tenant_id == organization_id)
             .order_by(TenantUser.created_at.desc())
         ).all()
-        return [serialize_membership(row) for row in rows]
+        return [self._with_roles(organization_id, row) for row in rows]
 
     def get(self, organization_id: UUID, member_id: UUID) -> dict[str, Any]:
         row = self._session.scalar(
@@ -45,7 +45,20 @@ class MembershipRepository:
         )
         if row is None:
             raise OrganizationError("member_not_found", "Member not found")
-        return serialize_membership(row)
+        return self._with_roles(organization_id, row)
+
+    def _with_roles(self, organization_id: UUID, row: TenantUser) -> dict[str, Any]:
+        from callbot_platform.rbac.errors import RbacError
+        from callbot_platform.rbac.repos import RoleRepository
+
+        try:
+            payload = RoleRepository(self._session).list_member_roles(
+                organization_id, row.id
+            )
+            roles = payload.get("roles") or []
+        except RbacError:
+            roles = []
+        return serialize_membership(row, roles=roles)
 
     def create(
         self,

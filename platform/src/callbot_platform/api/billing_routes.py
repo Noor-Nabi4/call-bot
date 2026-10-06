@@ -12,17 +12,19 @@ from sqlalchemy.orm import Session
 from callbot_platform.api.deps import (
     CurrentUser,
     db_dep,
-    require_ops_roles,
+    require_permission,
     settings_dep,
 )
 from callbot_platform.billing.errors import BillingError
 from callbot_platform.billing.service import BillingService
 from callbot_platform.config import Settings
-from callbot_platform.security.session import ROLE_ADMIN
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/billing", tags=["billing"])
+
+_require_billing_read = require_permission("billing.read")
+_require_billing_manage = require_permission("billing.manage")
 
 
 class CheckoutBody(BaseModel):
@@ -51,8 +53,8 @@ def _billing_http(exc: Exception) -> HTTPException:
 @router.get("/plans")
 def list_plans(
     enrich: bool = False,
-    session: Session = Depends(db_dep),
-    settings: Settings = Depends(settings_dep),
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
 ) -> dict[str, Any]:
     service = BillingService(session, settings)
     return service.pricing_catalog(enrich_from_stripe=enrich)
@@ -60,9 +62,9 @@ def list_plans(
 
 @router.get("/subscription")
 def get_subscription(
-    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
-    settings: Settings = Depends(settings_dep),
+    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
 ) -> dict[str, Any]:
     service = BillingService(session, settings)
     sub = service.get_subscription(user.tenant_id)
@@ -73,9 +75,9 @@ def get_subscription(
 
 @router.get("/usage")
 def get_usage(
-    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
-    settings: Settings = Depends(settings_dep),
+    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
 ) -> dict[str, Any]:
     service = BillingService(session, settings)
     return {"usage": service.get_usage(user.tenant_id)}
@@ -84,9 +86,9 @@ def get_usage(
 @router.post("/checkout")
 def create_checkout(
     body: CheckoutBody,
-    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
-    settings: Settings = Depends(settings_dep),
+    user: CurrentUser = Depends(_require_billing_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         from uuid import UUID
@@ -115,9 +117,9 @@ def create_checkout(
 
 @router.post("/portal")
 def create_portal(
-    user: CurrentUser = Depends(require_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
-    settings: Settings = Depends(settings_dep),
+    user: CurrentUser = Depends(_require_billing_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
 ) -> dict[str, str]:
     try:
         url = BillingService(session, settings).create_portal_session(
@@ -131,8 +133,8 @@ def create_portal(
 @router.post("/webhooks/stripe")
 async def stripe_webhook(
     request: Request,
-    session: Session = Depends(db_dep),
-    settings: Settings = Depends(settings_dep),
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
 ) -> dict[str, Any]:
     payload = await request.body()
     signature = request.headers.get("Stripe-Signature")

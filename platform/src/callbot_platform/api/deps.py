@@ -183,9 +183,15 @@ def require_api_key(
 
 
 def require_ops_roles(*roles: str) -> Callable[..., CurrentUser]:
+    """Deprecated legacy JWT-role gate.
+
+    Task 1.3.1: do not use for authorization. Prefer
+    ``require_permission`` / ``require_entitled_permission``.
+    Kept only so accidental imports fail loudly at review time via audit docs.
+    """
     allowed = frozenset(roles)
 
-    def _dep(user: CurrentUser = Depends(require_tenant_user)) -> CurrentUser:
+    def _dep(user: CurrentUser = Depends(require_tenant_user)) -> CurrentUser:  # noqa: B008
         if user.role not in allowed:
             raise HTTPException(status_code=403, detail="Insufficient role")
         return user
@@ -193,17 +199,64 @@ def require_ops_roles(*roles: str) -> Callable[..., CurrentUser]:
     return _dep
 
 
+def require_permission(permission_key: str) -> Callable[..., CurrentUser]:
+    """Session-scoped permission check (RBAC). Entitlement not required here."""
+
+    def _dep(
+        user: CurrentUser = Depends(require_tenant_user),  # noqa: B008
+        session: Session = Depends(db_dep),  # noqa: B008
+    ) -> CurrentUser:
+        from callbot_platform.rbac.errors import RbacError
+        from callbot_platform.rbac.service import AuthorizationService
+
+        try:
+            AuthorizationService(session).require_permission(
+                user.tenant_id, user.user_id, permission_key
+            )
+        except RbacError as exc:
+            raise HTTPException(
+                status_code=403,
+                detail={"code": exc.code, "message": str(exc)},
+            ) from exc
+        return user
+
+    return _dep
+
+
+def require_entitled_permission(permission_key: str) -> Callable[..., CurrentUser]:
+    perm_dep = require_permission(permission_key)
+
+    def _dep(
+        user: CurrentUser = Depends(perm_dep),  # noqa: B008
+        session: Session = Depends(db_dep),  # noqa: B008
+        settings: Settings = Depends(settings_dep),  # noqa: B008
+    ) -> CurrentUser:
+        from callbot_platform.billing.service import BillingService
+
+        if not BillingService(session, settings).tenant_is_entitled(user.tenant_id):
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "code": "subscription_required",
+                    "message": "An active subscription is required. Complete billing setup.",
+                },
+            )
+        return user
+
+    return _dep
+
+
 def require_entitled_ops_roles(*roles: str) -> Callable[..., CurrentUser]:
-    """Ops role check that also requires an active/trialing SaaS subscription.
+    """Deprecated. Prefer ``require_entitled_permission``.
 
     Legacy tenants with no subscription row remain entitled when tenant.status is active.
     """
     role_dep = require_ops_roles(*roles)
 
     def _dep(
-        user: CurrentUser = Depends(role_dep),
-        session: Session = Depends(db_dep),
-        settings: Settings = Depends(settings_dep),
+        user: CurrentUser = Depends(role_dep),  # noqa: B008
+        session: Session = Depends(db_dep),  # noqa: B008
+        settings: Settings = Depends(settings_dep),  # noqa: B008
     ) -> CurrentUser:
         from callbot_platform.billing.service import BillingService
 

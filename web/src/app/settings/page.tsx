@@ -390,12 +390,20 @@ export default function SettingsPage() {
                 <p className="text-sm text-text-secondary">{copy.teamLinkHint}</p>
               </div>
             </div>
-            <Link
-              href="/settings/team"
-              className="rounded-[10px] border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-2"
-            >
-              Open
-            </Link>
+            <div className="flex gap-2">
+              <Link
+                href="/settings/roles"
+                className="rounded-[10px] border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-2"
+              >
+                Roles
+              </Link>
+              <Link
+                href="/settings/team"
+                className="rounded-[10px] border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-2"
+              >
+                Open
+              </Link>
+            </div>
           </Surface>
           <Surface className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div>

@@ -86,7 +86,15 @@ Organization membership (same `tenant_users` rows; no duplicate members table):
 - `GET|POST /api/admin/organization/members`
 - `GET|PATCH /api/admin/organization/members/{id}`
 
-Session-scoped. Status: `active` | `invited` | `disabled` (synced with `is_active` for login). Role remains a string until Task 1.3 RBAC.
+Session-scoped. Status: `active` | `invited` | `disabled` (synced with `is_active` for login).
+
+Organization RBAC (Task 1.3 — see `docs/RBAC_ARCHITECTURE.md`):
+
+- `GET /api/admin/organization/permissions`
+- `GET|POST /api/admin/organization/roles`, `GET|PATCH|DELETE .../roles/{id}`
+- `GET|POST /api/admin/organization/members/{id}/roles`, `DELETE .../roles/{role_id}`
+
+`tenant_users.role` remains for JWT/UI compatibility; `member_roles` is authoritative for permissions. Scoped grants fail closed without `ResourceContext`. Route gates use `require_permission` / `require_entitled_permission`. AI voice tools require the org **AI Agent** role permissions.
 
 Plans are **not** registered as Stripe Products/Prices. Checkout uses inline `price_data` from `billing/plans.py`. Only `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` are required.
 

@@ -22,6 +22,7 @@ from callbot_platform.crm.repos import (
 )
 from callbot_platform.db.models import Tenant
 from callbot_platform.domain.phone import PhoneNumberError
+from callbot_platform.rbac.ai_auth import require_ai_tool_permission
 from callbot_platform.security.call_scope import (
     CallScope,
     CallScopeSigner,
@@ -155,6 +156,7 @@ def lookup_customer(
 ) -> dict:
     if scope is not None:
         enforce_body_tenant(scope, body.tenant_id)
+    require_ai_tool_permission(session, body.tenant_id, "crm")
     try:
         result = CustomerRepository(session).lookup_by_phone(body.tenant_id, body.phone)
         if result is None:
@@ -172,6 +174,7 @@ def upsert_customer(
 ) -> dict:
     if scope is not None:
         enforce_body_tenant(scope, body.tenant_id)
+    require_ai_tool_permission(session, body.tenant_id, "crm")
     try:
         customer = CustomerRepository(session).upsert(
             body.tenant_id,
@@ -195,6 +198,7 @@ def create_lead(
         enforce_body_tenant(scope, body.tenant_id)
         if body.call_id is not None:
             enforce_body_call(scope, body.call_id)
+    require_ai_tool_permission(session, body.tenant_id, "crm")
     try:
         lead = LeadRepository(session).create(
             body.tenant_id,

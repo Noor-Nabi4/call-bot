@@ -12,16 +12,16 @@ from sqlalchemy.orm import Session
 from callbot_platform.api.deps import (
     CurrentUser,
     db_dep,
-    require_entitled_ops_roles,
+    require_entitled_permission,
     require_internal_token,
 )
 from callbot_platform.knowledge.repos import KnowledgeError, KnowledgeRepository
+from callbot_platform.rbac.ai_auth import require_ai_tool_permission
 from callbot_platform.security.call_scope import (
     CallScope,
     enforce_body_tenant,
     optional_or_required_call_scope,
 )
-from callbot_platform.security.session import ROLE_ADMIN, ROLE_DISPATCHER
 
 internal_router = APIRouter(
     prefix="/internal/knowledge",
@@ -30,6 +30,9 @@ internal_router = APIRouter(
 )
 
 ops_router = APIRouter(prefix="/api/knowledge", tags=["knowledge-ops"])
+
+_require_knowledge_read = require_entitled_permission("knowledge.read")
+_require_knowledge_manage = require_entitled_permission("knowledge.manage")
 
 
 class SearchBody(BaseModel):
@@ -72,11 +75,12 @@ def _http(exc: Exception) -> HTTPException:
 @internal_router.post("/search")
 def internal_search(
     body: SearchBody,
-    session: Session = Depends(db_dep),
-    scope: CallScope | None = Depends(optional_or_required_call_scope),
+    session: Session = Depends(db_dep),  # noqa: B008
+    scope: CallScope | None = Depends(optional_or_required_call_scope),  # noqa: B008
 ) -> dict[str, Any]:
     if scope is not None:
         enforce_body_tenant(scope, body.tenant_id)
+    require_ai_tool_permission(session, body.tenant_id, "knowledge")
     try:
         hits = KnowledgeRepository(session).search(
             body.tenant_id,
@@ -93,10 +97,8 @@ def internal_search(
 def list_articles(
     limit: int = 200,
     offset: int = 0,
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_knowledge_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     return {
         "articles": KnowledgeRepository(session).list(
@@ -108,10 +110,8 @@ def list_articles(
 @ops_router.post("/search")
 def ops_search(
     body: OpsSearchBody,
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_knowledge_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     """Preview the same ranked search the voice agent uses (session-scoped)."""
     try:
@@ -129,10 +129,8 @@ def ops_search(
 @ops_router.post("")
 def create_article(
     body: ArticleBody,
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_knowledge_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         article = KnowledgeRepository(session).create(
@@ -153,10 +151,8 @@ def create_article(
 def update_article(
     article_id: UUID,
     body: ArticleBody,
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_knowledge_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         article = KnowledgeRepository(session).update(
@@ -178,10 +174,8 @@ def update_article(
 @ops_router.delete("/{article_id}")
 def delete_article(
     article_id: UUID,
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_knowledge_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, bool]:
     try:
         KnowledgeRepository(session).delete(

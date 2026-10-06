@@ -390,17 +390,28 @@ class AdminRepository:
             .where(TenantUser.tenant_id == tenant_id)
             .order_by(TenantUser.created_at.desc())
         ).all()
-        return [
-            {
-                "id": str(u.id),
-                "email": u.email,
-                "name": u.name,
-                "role": u.role,
-                "status": u.status,
-                "is_active": u.is_active,
-            }
-            for u in rows
-        ]
+        from callbot_platform.rbac.errors import RbacError
+        from callbot_platform.rbac.repos import RoleRepository
+
+        role_repo = RoleRepository(self._session)
+        result: list[dict[str, Any]] = []
+        for u in rows:
+            try:
+                roles = role_repo.list_member_roles(tenant_id, u.id).get("roles") or []
+            except RbacError:
+                roles = []
+            result.append(
+                {
+                    "id": str(u.id),
+                    "email": u.email,
+                    "name": u.name,
+                    "role": u.role,
+                    "status": u.status,
+                    "is_active": u.is_active,
+                    "roles": roles,
+                }
+            )
+        return result
 
     def get_retention(self, tenant_id: UUID) -> dict[str, Any]:
         row = self._session.scalar(

@@ -80,6 +80,9 @@ class OrganizationRepository:
         )
         self._session.add(tenant)
         self._session.flush()
+        from callbot_platform.rbac.seed import ensure_system_roles_for_tenant
+
+        ensure_system_roles_for_tenant(self._session, tenant.id)
         write_audit(
             self._session,
             tenant_id=tenant.id,

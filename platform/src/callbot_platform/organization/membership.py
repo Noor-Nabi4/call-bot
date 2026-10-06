@@ -27,8 +27,8 @@ def status_for_is_active(is_active: bool) -> str:
     return MEMBERSHIP_ACTIVE if is_active else MEMBERSHIP_DISABLED
 
 
-def serialize_membership(user: TenantUser) -> dict[str, Any]:
-    return {
+def serialize_membership(user: TenantUser, *, roles: list[dict] | None = None) -> dict[str, Any]:
+    payload = {
         "id": str(user.id),
         "organization_id": str(user.tenant_id),
         "tenant_id": str(user.tenant_id),
@@ -40,3 +40,6 @@ def serialize_membership(user: TenantUser) -> dict[str, Any]:
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "updated_at": user.updated_at.isoformat() if user.updated_at else None,
     }
+    if roles is not None:
+        payload["roles"] = roles
+    return payload

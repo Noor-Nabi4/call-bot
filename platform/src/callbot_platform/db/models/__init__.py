@@ -42,6 +42,12 @@ from callbot_platform.db.models.tenant import (
     TenantPhoneNumber,
     TenantTwilioSubaccount,
 )
+from callbot_platform.rbac.models import (
+    MemberRole,
+    OrganizationRole,
+    Permission,
+    RolePermission,
+)
 
 __all__ = [
     "AgentProfile",
@@ -59,8 +65,12 @@ __all__ = [
     "JsonType",
     "KnowledgeArticle",
     "Lead",
+    "MemberRole",
     "NotificationOutbox",
+    "OrganizationRole",
+    "Permission",
     "RecordingObject",
+    "RolePermission",
     "StripeWebhookEvent",
     "Technician",
     "TelephonyAuditEvent",

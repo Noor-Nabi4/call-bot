@@ -105,6 +105,15 @@ class AuthRepository:
         )
         self._session.add(user)
         self._session.flush()
+        from callbot_platform.rbac.catalog import SYSTEM_ROLE_OWNER
+        from callbot_platform.rbac.seed import assign_member_system_role
+
+        assign_member_system_role(
+            self._session,
+            tenant_id=tenant_id,
+            tenant_user_id=user.id,
+            system_role_name=SYSTEM_ROLE_OWNER,
+        )
         write_audit(
             self._session,
             tenant_id=tenant_id,
@@ -167,6 +176,17 @@ class AuthRepository:
         )
         self._session.add(user)
         self._session.flush()
+        from callbot_platform.rbac.catalog import LEGACY_ROLE_MAP
+        from callbot_platform.rbac.seed import assign_member_system_role
+
+        system_name = LEGACY_ROLE_MAP.get(role)
+        if system_name:
+            assign_member_system_role(
+                self._session,
+                tenant_id=tenant_id,
+                tenant_user_id=user.id,
+                system_role_name=system_name,
+            )
         tech = None
         if role == ROLE_TECHNICIAN:
             tech = Technician(
@@ -247,48 +267,28 @@ class AuthRepository:
                 "You cannot deactivate your own account",
             )
 
-        if is_active is False and user.role == ROLE_ADMIN and user.is_active:
-            active_admins = int(
-                self._session.scalar(
-                    select(func.count())
-                    .select_from(TenantUser)
-                    .where(
-                        TenantUser.tenant_id == tenant_id,
-                        TenantUser.role == ROLE_ADMIN,
-                        TenantUser.is_active.is_(True),
-                    )
-                )
-                or 0
+        if (
+            is_active is False
+            and user.is_active
+            and self._is_privileged_member(tenant_id, user.id)
+            and self._count_privileged_members(tenant_id) <= 1
+        ):
+            raise AuthError(
+                "last_admin",
+                "Cannot deactivate the last active Owner/Admin",
             )
-            if active_admins <= 1:
-                raise AuthError(
-                    "last_admin",
-                    "Cannot deactivate the last active admin",
-                )
 
         if (
             role is not None
-            and user.role == ROLE_ADMIN
             and role != ROLE_ADMIN
             and user.is_active
+            and self._is_privileged_member(tenant_id, user.id)
+            and self._count_privileged_members(tenant_id) <= 1
         ):
-            active_admins = int(
-                self._session.scalar(
-                    select(func.count())
-                    .select_from(TenantUser)
-                    .where(
-                        TenantUser.tenant_id == tenant_id,
-                        TenantUser.role == ROLE_ADMIN,
-                        TenantUser.is_active.is_(True),
-                    )
-                )
-                or 0
+            raise AuthError(
+                "last_admin",
+                "Cannot demote the last active Owner/Admin",
             )
-            if active_admins <= 1:
-                raise AuthError(
-                    "last_admin",
-                    "Cannot demote the last active admin",
-                )
 
         if is_active is True and not user.is_active:
             try:
@@ -309,6 +309,18 @@ class AuthRepository:
                 changed.append("name")
 
         if role is not None and role != user.role:
+            from callbot_platform.rbac.errors import RbacError
+            from callbot_platform.rbac.seed import sync_legacy_primary_role
+
+            try:
+                sync_legacy_primary_role(
+                    self._session,
+                    tenant_id=tenant_id,
+                    tenant_user_id=user.id,
+                    legacy_role=role,
+                )
+            except RbacError as exc:
+                raise AuthError(exc.code, str(exc)) from exc
             user.role = role
             changed.append("role")
             if role == ROLE_TECHNICIAN:
@@ -464,3 +476,42 @@ class AuthRepository:
             "is_active": user.is_active,
             "created_at": user.created_at.isoformat() if user.created_at else None,
         }
+
+    def _is_privileged_member(self, tenant_id: UUID, user_id: UUID) -> bool:
+        from callbot_platform.rbac.catalog import SYSTEM_ROLE_ADMIN, SYSTEM_ROLE_OWNER
+        from callbot_platform.rbac.models import MemberRole, OrganizationRole
+
+        return (
+            self._session.scalar(
+                select(MemberRole.id)
+                .join(OrganizationRole, MemberRole.role_id == OrganizationRole.id)
+                .where(
+                    MemberRole.tenant_user_id == user_id,
+                    OrganizationRole.tenant_id == tenant_id,
+                    OrganizationRole.name.in_([SYSTEM_ROLE_OWNER, SYSTEM_ROLE_ADMIN]),
+                    OrganizationRole.is_active.is_(True),
+                )
+                .limit(1)
+            )
+            is not None
+        )
+
+    def _count_privileged_members(self, tenant_id: UUID) -> int:
+        from callbot_platform.rbac.catalog import SYSTEM_ROLE_ADMIN, SYSTEM_ROLE_OWNER
+        from callbot_platform.rbac.models import MemberRole, OrganizationRole
+
+        return int(
+            self._session.scalar(
+                select(func.count(func.distinct(MemberRole.tenant_user_id)))
+                .select_from(MemberRole)
+                .join(OrganizationRole, MemberRole.role_id == OrganizationRole.id)
+                .join(TenantUser, MemberRole.tenant_user_id == TenantUser.id)
+                .where(
+                    OrganizationRole.tenant_id == tenant_id,
+                    OrganizationRole.name.in_([SYSTEM_ROLE_OWNER, SYSTEM_ROLE_ADMIN]),
+                    OrganizationRole.is_active.is_(True),
+                    TenantUser.is_active.is_(True),
+                )
+            )
+            or 0
+        )

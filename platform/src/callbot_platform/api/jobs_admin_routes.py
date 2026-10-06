@@ -9,13 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from callbot_platform.api.deps import CurrentUser, db_dep, require_entitled_ops_roles
+from callbot_platform.api.deps import CurrentUser, db_dep, require_entitled_permission
 from callbot_platform.async_jobs.service import AsyncJobError, AsyncJobService
-from callbot_platform.security.session import ROLE_ADMIN
 
 router = APIRouter(prefix="/api/admin/jobs", tags=["async-jobs"])
 
-_require_admin = require_entitled_ops_roles(ROLE_ADMIN)
+_require_admin = require_entitled_permission("automations.manage")
 
 
 class RetryBatchBody(BaseModel):

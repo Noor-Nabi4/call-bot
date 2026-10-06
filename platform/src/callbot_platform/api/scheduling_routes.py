@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from callbot_platform.api.deps import db_dep, require_internal_token
+from callbot_platform.rbac.ai_auth import require_ai_tool_permission
 from callbot_platform.scheduling.repos import AppointmentRepository, SchedulingError
 from callbot_platform.security.call_scope import (
     CallScope,
@@ -75,6 +76,7 @@ def list_slots(
 ) -> dict[str, Any]:
     if scope is not None:
         enforce_body_tenant(scope, body.tenant_id)
+    require_ai_tool_permission(session, body.tenant_id, "scheduling")
     try:
         return AppointmentRepository(session).list_available_slots(
             body.tenant_id,
@@ -94,6 +96,7 @@ def book_appointment(
 ) -> dict[str, Any]:
     if scope is not None:
         enforce_body_tenant(scope, body.tenant_id)
+    require_ai_tool_permission(session, body.tenant_id, "scheduling")
     try:
         appointment = AppointmentRepository(session).book(
             body.tenant_id,
@@ -140,6 +143,7 @@ def reschedule_appointment(
 ) -> dict[str, Any]:
     if scope is not None:
         enforce_body_tenant(scope, body.tenant_id)
+    require_ai_tool_permission(session, body.tenant_id, "scheduling")
     try:
         appointment = AppointmentRepository(session).reschedule(
             body.tenant_id,
@@ -160,6 +164,7 @@ def cancel_appointment(
 ) -> dict[str, Any]:
     if scope is not None:
         enforce_body_tenant(scope, body.tenant_id)
+    require_ai_tool_permission(session, body.tenant_id, "scheduling")
     try:
         appointment = AppointmentRepository(session).cancel(
             body.tenant_id,

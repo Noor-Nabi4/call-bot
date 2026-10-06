@@ -21,7 +21,7 @@ from callbot_platform.api.deps import (
     connect_service,
     db_dep,
     purchase_service,
-    require_entitled_ops_roles,
+    require_entitled_permission,
     settings_dep,
     signer_dep,
     verification_service,
@@ -34,7 +34,6 @@ from callbot_platform.security.rate_limit import (
     AGENT_SETTINGS_RATE_LIMITER,
     RateLimitExceeded,
 )
-from callbot_platform.security.session import ROLE_ADMIN
 from callbot_platform.telephony.adapters.livekit_sip import LiveKitSipService
 from callbot_platform.telephony.services.connect_existing import (
     ConnectExistingError,
@@ -54,6 +53,11 @@ from callbot_platform.telephony.services.verification import (
 )
 
 router = APIRouter(prefix="/api/admin", tags=["admin-agents-phones"])
+
+_require_agents_read = require_entitled_permission("ai.read")
+_require_agents_manage = require_entitled_permission("agents.manage")
+_require_phones = require_entitled_permission("phones.manage")
+_require_ai_configure = require_entitled_permission("ai.configure")
 
 
 class CreateProfileBody(BaseModel):
@@ -181,7 +185,7 @@ def _rate_limit(user: CurrentUser) -> None:
 
 @router.get("/industry-templates")
 def industry_templates(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
+    user: CurrentUser = Depends(_require_agents_read),  # noqa: B008
 ) -> dict[str, Any]:
     _ = user
     return {"templates": list_templates()}
@@ -189,7 +193,7 @@ def industry_templates(
 
 @router.get("/marketplace")
 def marketplace_catalog(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
+    user: CurrentUser = Depends(_require_agents_read),  # noqa: B008
 ) -> dict[str, Any]:
     _ = user
     return list_marketplace_catalog()
@@ -198,8 +202,8 @@ def marketplace_catalog(
 @router.post("/marketplace/install")
 def marketplace_install(
     body: MarketplaceInstallBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_agents_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     _rate_limit(user)
     try:
@@ -219,8 +223,8 @@ def marketplace_install(
 @router.get("/agent-profiles")
 def list_agent_profiles(
     include_archived: bool = False,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_agents_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     profiles = AgentProfileRepository(session).list(
         user.tenant_id, include_archived=include_archived
@@ -231,8 +235,8 @@ def list_agent_profiles(
 @router.post("/agent-profiles")
 def create_agent_profile(
     body: CreateProfileBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_agents_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     _rate_limit(user)
     try:
@@ -265,8 +269,8 @@ def create_agent_profile(
 @router.get("/agent-profiles/{profile_id}")
 def get_agent_profile(
     profile_id: UUID,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_agents_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     profile = AgentProfileRepository(session).get(user.tenant_id, profile_id)
     if profile is None:
@@ -281,8 +285,8 @@ def get_agent_profile(
 def update_agent_profile(
     profile_id: UUID,
     body: UpdateProfileBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_agents_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     _rate_limit(user)
     try:
@@ -300,8 +304,8 @@ def update_agent_profile(
 @router.delete("/agent-profiles/{profile_id}")
 def archive_agent_profile(
     profile_id: UUID,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_agents_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     _rate_limit(user)
     try:
@@ -316,8 +320,8 @@ def archive_agent_profile(
 @router.post("/agent-profiles/{profile_id}/set-default")
 def set_default_profile(
     profile_id: UUID,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_agents_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         profile = AgentProfileRepository(session).set_default(
@@ -332,8 +336,8 @@ def set_default_profile(
 def apply_template(
     profile_id: UUID,
     body: ApplyTemplateBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_agents_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     _rate_limit(user)
     try:
@@ -350,9 +354,9 @@ def apply_template(
 
 
 def _phone_service(
-    session: Session = Depends(db_dep),
-    settings: Settings = Depends(settings_dep),
-    signer: MetadataSigner = Depends(signer_dep),
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
+    signer: MetadataSigner = Depends(signer_dep),  # noqa: B008
 ) -> PhoneAssignmentService:
     livekit = LiveKitSipService(
         url=settings.livekit_url,
@@ -366,8 +370,8 @@ def _phone_service(
 
 @router.get("/phone-numbers")
 def list_phone_numbers(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    service: PhoneAssignmentService = Depends(_phone_service),
+    user: CurrentUser = Depends(_require_phones),  # noqa: B008
+    service: PhoneAssignmentService = Depends(_phone_service),  # noqa: B008
 ) -> dict[str, Any]:
     return {"items": service.list_phones(user.tenant_id)}
 
@@ -376,8 +380,8 @@ def list_phone_numbers(
 def assign_phone_profile(
     phone_number_id: UUID,
     body: AssignPhoneProfileBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    service: PhoneAssignmentService = Depends(_phone_service),
+    user: CurrentUser = Depends(_require_phones),  # noqa: B008
+    service: PhoneAssignmentService = Depends(_phone_service),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         item = service.assign_profile(
@@ -394,8 +398,8 @@ def assign_phone_profile(
 @router.post("/phone-numbers/connect")
 def connect_phone(
     body: ConnectPhoneBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    service: ConnectExistingService = Depends(connect_service),
+    user: CurrentUser = Depends(_require_phones),  # noqa: B008
+    service: ConnectExistingService = Depends(connect_service),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         return service.start(
@@ -421,8 +425,8 @@ class ConfirmTrunkBody(BaseModel):
 def confirm_trunk(
     phone_number_id: UUID,
     body: ConfirmTrunkBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    service: ConnectExistingService = Depends(connect_service),
+    user: CurrentUser = Depends(_require_phones),  # noqa: B008
+    service: ConnectExistingService = Depends(connect_service),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         return service.confirm_trunk(
@@ -441,8 +445,8 @@ def confirm_trunk(
 @router.post("/phone-numbers/{phone_number_id}/verification/start")
 def start_verification(
     phone_number_id: UUID,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    service: DbNumberVerificationService = Depends(verification_service),
+    user: CurrentUser = Depends(_require_phones),  # noqa: B008
+    service: DbNumberVerificationService = Depends(verification_service),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         return service.start_verification(
@@ -456,8 +460,8 @@ def start_verification(
 
 @router.post("/twilio/subaccount")
 def ensure_subaccount(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    service: PlatformPurchaseService = Depends(purchase_service),
+    user: CurrentUser = Depends(_require_phones),  # noqa: B008
+    service: PlatformPurchaseService = Depends(purchase_service),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         return service.ensure_subaccount(tenant_id=user.tenant_id, actor=user.email)
@@ -473,9 +477,9 @@ def search_inventory(
     area_code: str | None = None,
     number_type: str = "local",
     limit: int = 20,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
-    service: PlatformPurchaseService = Depends(purchase_service),
+    user: CurrentUser = Depends(_require_phones),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+    service: PlatformPurchaseService = Depends(purchase_service),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         service.ensure_subaccount(tenant_id=user.tenant_id, actor=user.email)
@@ -497,8 +501,8 @@ def search_inventory(
 @router.post("/phone-numbers/purchase")
 def purchase_phone(
     body: PurchasePhoneBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    service: PlatformPurchaseService = Depends(purchase_service),
+    user: CurrentUser = Depends(_require_phones),  # noqa: B008
+    service: PlatformPurchaseService = Depends(purchase_service),  # noqa: B008
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict[str, Any]:
     try:
@@ -524,10 +528,10 @@ def purchase_phone(
 def release_phone(
     phone_number_id: UUID,
     body: ReleasePhoneBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
-    settings: Settings = Depends(settings_dep),
-    service: PlatformPurchaseService = Depends(purchase_service),
+    user: CurrentUser = Depends(_require_phones),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
+    service: PlatformPurchaseService = Depends(purchase_service),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         from callbot_platform.async_jobs.handlers.telephony import (
@@ -578,10 +582,10 @@ def release_phone(
 @router.post("/test-call")
 def create_test_call(
     body: TestCallBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
-    settings: Settings = Depends(settings_dep),
-    signer: MetadataSigner = Depends(signer_dep),
+    user: CurrentUser = Depends(_require_ai_configure),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
+    signer: MetadataSigner = Depends(signer_dep),  # noqa: B008
 ) -> dict[str, Any]:
     """Issue a LiveKit browser token with signed tenant + agent_profile metadata."""
     profiles = AgentProfileRepository(session)

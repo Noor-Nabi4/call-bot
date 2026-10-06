@@ -723,19 +723,57 @@ Never log secrets.
 
 ### Checklist
 
-- [ ] Platform permission catalog (`resource.action`)
-- [ ] Organization-scoped system roles (Owner protected)
-- [ ] Custom organization roles
-- [ ] Normalized role ↔ permission assignments with scope
-- [ ] Member ↔ role assignments
-- [ ] Safe delegation (no privilege escalation)
-- [ ] Server-side authorization (API + AI tools)
-- [ ] Ops UI: Team & Permissions (UX only; backend authoritative)
-- [ ] RBAC audit events
-- [ ] Tenant isolation tests
-- [ ] Privilege escalation tests
-- [ ] AI/tool authorization tests
-- [ ] Direct API bypass tests
+- [x] Platform permission catalog (`resource.action`)
+- [x] Organization-scoped system roles (Owner protected)
+- [x] Custom organization roles
+- [x] Normalized role ↔ permission assignments with scope
+- [x] Member ↔ role assignments
+- [x] Safe delegation (no privilege escalation)
+- [x] Server-side authorization (API + AI tools)
+- [x] Ops UI: Team & Permissions (UX only; backend authoritative)
+- [x] RBAC audit events
+- [x] Tenant isolation tests
+- [x] Privilege escalation tests
+- [x] AI/tool authorization tests
+- [x] Direct API bypass tests
+
+See also: [`docs/RBAC_ARCHITECTURE.md`](./docs/RBAC_ARCHITECTURE.md)
+
+---
+
+## TASK 1.3.1 — Migrate Legacy Authorization to RBAC
+
+### Description
+
+Replace remaining `require_ops_roles` / `user.role` security gates with capability permissions. Keep `tenant_users.role` as a compatibility field only.
+
+### Checklist
+
+- [x] Repository-wide legacy auth audit (`docs/RBAC_LEGACY_AUTH_AUDIT.md`)
+- [x] Jobs routes migrated to permissions + ResourceContext
+- [x] Billing routes migrated (`billing.read` / `billing.manage`)
+- [x] Admin / knowledge / handoff / automation / branding / API keys / agents / phones migrated
+- [x] Deprecated `require_ops_roles` unused by routes
+- [x] Legacy role string not authoritative when `member_roles` present
+- [x] Regression tests for migrated domains
+
+---
+
+## TASK 1.3.2 — Fail-Closed Scoped Authorization
+
+### Description
+
+Scoped permissions (`OWN`, `ASSIGNED`, `TEAM`) must deny when `ResourceContext` is missing or incomplete. Organization-wide grants remain usable for list/create without a resource.
+
+### Checklist
+
+- [x] `AuthorizationService.has_permission` fail-closed for scoped grants
+- [x] List access via `list_access_mode` (all / assigned / deny)
+- [x] Jobs get/update/checklist/notes load resource then authorize
+- [x] Cross-tenant resource tenant mismatch denied
+- [x] Scope regression tests (ASSIGNED / OWN / TEAM / missing context)
+
+See also: [`docs/RBAC_LEGACY_AUTH_AUDIT.md`](./docs/RBAC_LEGACY_AUTH_AUDIT.md)
 
 ---
 
@@ -2756,15 +2794,17 @@ The following must be completed before the first serious production release:
 
 ## Foundation
 
-- [ ] Multi-tenancy
-- [ ] Organization-managed RBAC
-- [ ] Platform-defined permissions
-- [ ] System roles
-- [ ] Custom organization roles
-- [ ] Role assignments
-- [ ] Permission scopes
-- [ ] AI/tool authorization
-- [ ] RBAC audit logs
+- [x] Multi-tenancy
+- [x] Organization-managed RBAC
+- [x] Platform-defined permissions
+- [x] System roles
+- [x] Custom organization roles
+- [x] Role assignments
+- [x] Permission scopes
+- [x] Legacy auth migrated to permissions (1.3.1)
+- [x] Fail-closed scoped authorization (1.3.2)
+- [x] AI/tool authorization
+- [x] RBAC audit logs
 - [ ] Tenant isolation
 - [ ] Business onboarding
 

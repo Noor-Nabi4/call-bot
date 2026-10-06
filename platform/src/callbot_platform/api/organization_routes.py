@@ -12,17 +12,19 @@ from sqlalchemy.orm import Session
 from callbot_platform.api.deps import (
     CurrentUser,
     db_dep,
-    require_entitled_ops_roles,
-    require_ops_roles,
+    require_entitled_permission,
+    require_permission,
 )
 from callbot_platform.organization import OrganizationError, OrganizationService
 from callbot_platform.organization.membership import VALID_MEMBERSHIP_STATUSES
-from callbot_platform.security.session import ROLE_ADMIN, VALID_ROLES
+from callbot_platform.security.session import VALID_ROLES
 
 router = APIRouter(prefix="/api/admin/organization", tags=["organization"])
 
-_require_admin = require_ops_roles(ROLE_ADMIN)
-_require_entitled_admin = require_entitled_ops_roles(ROLE_ADMIN)
+_require_org_read = require_permission("organization.read")
+_require_org_update = require_permission("organization.update")
+_require_team_read = require_entitled_permission("team.read")
+_require_team_manage = require_entitled_permission("team.manage")
 
 
 class OrganizationBody(BaseModel):
@@ -69,6 +71,8 @@ def _http(exc: OrganizationError) -> HTTPException:
         status = 409
     elif exc.code == "plan_limit_exceeded":
         status = 402
+    elif exc.code in {"owner_protected", "privilege_escalation", "last_admin"}:
+        status = 403
     return HTTPException(
         status_code=status,
         detail={"code": exc.code, "message": str(exc)},
@@ -77,7 +81,7 @@ def _http(exc: OrganizationError) -> HTTPException:
 
 @router.get("")
 def get_organization(
-    user: CurrentUser = Depends(_require_admin),  # noqa: B008
+    user: CurrentUser = Depends(_require_org_read),  # noqa: B008
     session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
@@ -89,7 +93,7 @@ def get_organization(
 @router.patch("")
 def patch_organization(
     body: OrganizationBody,
-    user: CurrentUser = Depends(_require_admin),  # noqa: B008
+    user: CurrentUser = Depends(_require_org_update),  # noqa: B008
     session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     fields = body.model_dump(exclude_unset=True)
@@ -114,7 +118,7 @@ def patch_organization(
 
 @router.get("/members")
 def list_members(
-    user: CurrentUser = Depends(_require_entitled_admin),  # noqa: B008
+    user: CurrentUser = Depends(_require_team_read),  # noqa: B008
     session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     members = OrganizationService(session).memberships.list(user.tenant_id)
@@ -124,7 +128,7 @@ def list_members(
 @router.post("/members")
 def create_member(
     body: CreateMemberBody,
-    user: CurrentUser = Depends(_require_entitled_admin),  # noqa: B008
+    user: CurrentUser = Depends(_require_team_manage),  # noqa: B008
     session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     if body.role not in VALID_ROLES:
@@ -159,7 +163,7 @@ def create_member(
 @router.get("/members/{member_id}")
 def get_member(
     member_id: UUID,
-    user: CurrentUser = Depends(_require_entitled_admin),  # noqa: B008
+    user: CurrentUser = Depends(_require_team_read),  # noqa: B008
     session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
@@ -173,7 +177,7 @@ def get_member(
 def patch_member(
     member_id: UUID,
     body: UpdateMemberBody,
-    user: CurrentUser = Depends(_require_entitled_admin),  # noqa: B008
+    user: CurrentUser = Depends(_require_team_manage),  # noqa: B008
     session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     if body.role is not None and body.role not in VALID_ROLES:

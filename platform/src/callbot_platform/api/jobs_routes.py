@@ -8,23 +8,26 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from callbot_platform.api.deps import (
     CurrentUser,
     db_dep,
-    require_entitled_ops_roles,
+    require_entitled_permission,
     require_entitled_tenant_user,
 )
+from callbot_platform.db.models.jobs import Technician
 from callbot_platform.jobs.repos import JobRepository, JobsError, TechnicianRepository
-from callbot_platform.security.session import (
-    OPS_ROLES,
-    ROLE_ADMIN,
-    ROLE_DISPATCHER,
-    ROLE_TECHNICIAN,
-)
+from callbot_platform.rbac.errors import RbacError
+from callbot_platform.rbac.service import AuthorizationService, ResourceContext
 
 router = APIRouter(prefix="/api", tags=["ops"])
+
+_require_tech_read = require_entitled_permission("technicians.read")
+_require_tech_manage = require_entitled_permission("technicians.manage")
+_require_jobs_create = require_entitled_permission("jobs.create")
+_require_jobs_assign = require_entitled_permission("jobs.assign")
 
 
 class CreateTechnicianBody(BaseModel):
@@ -77,10 +80,58 @@ def _jobs_http(exc: Exception) -> HTTPException:
     )
 
 
+def _rbac_http(exc: RbacError) -> HTTPException:
+    return HTTPException(
+        status_code=403, detail={"code": exc.code, "message": str(exc)}
+    )
+
+
+def _assigned_user_id(
+    session: Session, tenant_id: UUID, job: dict[str, Any]
+) -> UUID | None:
+    tech_id = job.get("assigned_technician_id")
+    if not tech_id:
+        return None
+    tech = session.scalar(
+        select(Technician).where(
+            Technician.id == UUID(str(tech_id)),
+            Technician.tenant_id == tenant_id,
+        )
+    )
+    return tech.user_id if tech is not None else None
+
+
+def _job_resource(
+    session: Session, tenant_id: UUID, job: dict[str, Any]
+) -> ResourceContext:
+    return ResourceContext(
+        tenant_id=tenant_id,
+        assigned_technician_user_id=_assigned_user_id(session, tenant_id, job),
+    )
+
+
+def _require_job_permission(
+    session: Session,
+    user: CurrentUser,
+    permission_key: str,
+    *,
+    resource: ResourceContext | None = None,
+) -> None:
+    try:
+        AuthorizationService(session).require_permission(
+            user.tenant_id,
+            user.user_id,
+            permission_key,
+            resource=resource,
+        )
+    except RbacError as exc:
+        raise _rbac_http(exc) from exc
+
+
 @router.get("/technicians")
 def list_technicians(
-    user: CurrentUser = Depends(require_entitled_ops_roles(*OPS_ROLES)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_tech_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     techs = TechnicianRepository(session).list(user.tenant_id)
     return {"technicians": techs}
@@ -89,10 +140,8 @@ def list_technicians(
 @router.post("/technicians")
 def create_technician(
     body: CreateTechnicianBody,
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_tech_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         tech = TechnicianRepository(session).create(
@@ -118,11 +167,22 @@ def create_technician(
 def list_jobs(
     status: str | None = None,
     technician_id: UUID | None = None,
-    user: CurrentUser = Depends(require_entitled_tenant_user),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(require_entitled_tenant_user),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
+    mode = AuthorizationService(session).list_access_mode(
+        user.tenant_id, user.user_id, "jobs.read"
+    )
+    if mode is None:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "permission_denied",
+                "message": "Missing permission: jobs.read",
+            },
+        )
     tech_filter = technician_id
-    if user.role == ROLE_TECHNICIAN:
+    if mode == "assigned":
         if not user.technician_id:
             return {"jobs": []}
         tech_filter = user.technician_id
@@ -135,10 +195,8 @@ def list_jobs(
 @router.post("/jobs")
 def create_job(
     body: CreateJobBody,
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_jobs_create),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         job = JobRepository(session).create(
@@ -158,8 +216,8 @@ def create_job(
 @router.get("/jobs/{job_id}")
 def get_job(
     job_id: UUID,
-    user: CurrentUser = Depends(require_entitled_tenant_user),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(require_entitled_tenant_user),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     job = JobRepository(session).get(user.tenant_id, job_id)
     if job is None:
@@ -167,11 +225,12 @@ def get_job(
             status_code=404,
             detail={"code": "job_not_found", "message": "Job not found"},
         )
-    if user.role == ROLE_TECHNICIAN:
-        if job.get("assigned_technician_id") != (
-            str(user.technician_id) if user.technician_id else None
-        ):
-            raise HTTPException(status_code=403, detail="Not assigned to this job")
+    _require_job_permission(
+        session,
+        user,
+        "jobs.read",
+        resource=_job_resource(session, user.tenant_id, job),
+    )
     return {"job": job}
 
 
@@ -179,10 +238,8 @@ def get_job(
 def assign_job(
     job_id: UUID,
     body: AssignBody,
-    user: CurrentUser = Depends(
-        require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)
-    ),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_jobs_assign),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         job = JobRepository(session).assign(
@@ -200,22 +257,38 @@ def assign_job(
 def transition_job(
     job_id: UUID,
     body: TransitionBody,
-    user: CurrentUser = Depends(require_entitled_tenant_user),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(require_entitled_tenant_user),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
-    # Technicians may start/complete; dispatchers/admins may dispatch/cancel/etc.
-    if user.role == ROLE_TECHNICIAN:
+    job = JobRepository(session).get(user.tenant_id, job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "job_not_found", "message": "Job not found"},
+        )
+    resource = _job_resource(session, user.tenant_id, job)
+    _require_job_permission(session, user, "jobs.update", resource=resource)
+
+    # Field techs with ASSIGNED-only access may only start/complete.
+    mode = AuthorizationService(session).list_access_mode(
+        user.tenant_id, user.user_id, "jobs.update"
+    )
+    grants = AuthorizationService(session).resolve_member_permissions(
+        user.tenant_id, user.user_id
+    )
+    has_org_wide_update = any(
+        g.key == "jobs.update" and g.scope == "ALL_ORGANIZATION" for g in grants
+    )
+    if not has_org_wide_update and mode == "assigned":
         allowed = {"in_progress", "completed"}
         if body.status not in allowed:
             raise HTTPException(
                 status_code=403,
-                detail="Technicians may only start or complete jobs",
+                detail={
+                    "code": "permission_denied",
+                    "message": "Assigned scope may only start or complete jobs",
+                },
             )
-        job = JobRepository(session).get(user.tenant_id, job_id)
-        if job is None or job.get("assigned_technician_id") != (
-            str(user.technician_id) if user.technician_id else None
-        ):
-            raise HTTPException(status_code=403, detail="Not assigned to this job")
     try:
         job = JobRepository(session).transition(
             user.tenant_id,
@@ -234,15 +307,21 @@ def transition_job(
 def update_checklist(
     job_id: UUID,
     body: ChecklistBody,
-    user: CurrentUser = Depends(require_entitled_tenant_user),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(require_entitled_tenant_user),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
-    if user.role == ROLE_TECHNICIAN:
-        job = JobRepository(session).get(user.tenant_id, job_id)
-        if job is None or job.get("assigned_technician_id") != (
-            str(user.technician_id) if user.technician_id else None
-        ):
-            raise HTTPException(status_code=403, detail="Not assigned to this job")
+    job = JobRepository(session).get(user.tenant_id, job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "job_not_found", "message": "Job not found"},
+        )
+    _require_job_permission(
+        session,
+        user,
+        "jobs.update",
+        resource=_job_resource(session, user.tenant_id, job),
+    )
     try:
         job = JobRepository(session).update_checklist(
             user.tenant_id,
@@ -259,9 +338,21 @@ def update_checklist(
 def add_note(
     job_id: UUID,
     body: NoteBody,
-    user: CurrentUser = Depends(require_entitled_tenant_user),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(require_entitled_tenant_user),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
+    job = JobRepository(session).get(user.tenant_id, job_id)
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "job_not_found", "message": "Job not found"},
+        )
+    _require_job_permission(
+        session,
+        user,
+        "jobs.update",
+        resource=_job_resource(session, user.tenant_id, job),
+    )
     try:
         job = JobRepository(session).add_note(
             user.tenant_id,
@@ -278,11 +369,27 @@ def add_note(
 @router.post("/tech/location")
 def update_location(
     body: LocationBody,
-    user: CurrentUser = Depends(require_entitled_tenant_user),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(require_entitled_tenant_user),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
-    if user.role != ROLE_TECHNICIAN or not user.technician_id:
-        raise HTTPException(status_code=403, detail="Technician role required")
+    if not user.technician_id:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "permission_denied",
+                "message": "Technician profile required",
+            },
+        )
+    # Treat self-location as an ASSIGNED self-resource (fail-closed without identity).
+    _require_job_permission(
+        session,
+        user,
+        "jobs.update",
+        resource=ResourceContext(
+            tenant_id=user.tenant_id,
+            assigned_technician_user_id=user.user_id,
+        ),
+    )
     try:
         tech = TechnicianRepository(session).update_location(
             user.tenant_id,
