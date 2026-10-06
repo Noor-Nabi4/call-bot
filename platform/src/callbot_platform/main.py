@@ -49,6 +49,9 @@ from callbot_platform.api.knowledge_routes import (
 from callbot_platform.api.organization_routes import (  # noqa: E402
     router as organization_router,
 )
+from callbot_platform.api.onboarding_routes import (  # noqa: E402
+    router as onboarding_router,
+)
 from callbot_platform.api.rbac_routes import (  # noqa: E402
     router as rbac_router,
 )
@@ -93,6 +96,7 @@ app.include_router(auth_router)
 app.include_router(billing_router)
 app.include_router(branding_router)
 app.include_router(organization_router)
+app.include_router(onboarding_router)
 app.include_router(rbac_router)
 app.include_router(jobs_router)
 app.include_router(jobs_admin_router)

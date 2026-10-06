@@ -900,13 +900,15 @@ Create a persistent onboarding process.
 
 ### Checklist
 
-- [ ] Onboarding status
-- [ ] Current step
-- [ ] Completed steps
-- [ ] Progress
-- [ ] Resume onboarding
-- [ ] Skip optional steps
-- [ ] Save partial progress
+- [x] Onboarding status
+- [x] Current step
+- [x] Completed steps
+- [x] Progress
+- [x] Resume onboarding
+- [x] Skip optional steps
+- [x] Save partial progress
+
+Docs: `docs/ONBOARDING_ARCHITECTURE.md`
 
 ---
 

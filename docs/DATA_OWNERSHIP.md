@@ -30,7 +30,7 @@ Full table-by-table isolation status: `docs/TENANT_ISOLATION_AUDIT.md`.
 ## Identity
 
 **Package:** `auth`, `organization`, `api_keys`, `branding`, `security`  
-**Tables:** `tenants`, `tenant_users`, `tenant_api_keys`, `tenant_branding`
+**Tables:** `tenants`, `tenant_users`, `tenant_api_keys`, `tenant_branding`, `organization_onboarding`
 
 Owns:
 
@@ -38,6 +38,7 @@ Owns:
 - User membership and roles
 - Session/API-key authentication artifacts
 - White-label branding
+- Organization onboarding workflow state (`organization_onboarding` — see `docs/ONBOARDING_ARCHITECTURE.md`)
 
 Does **not** own: customers, calls, jobs, Stripe subscription lifecycle details beyond linking.
 

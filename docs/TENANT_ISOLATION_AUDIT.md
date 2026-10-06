@@ -36,6 +36,7 @@ Missing context: **fail closed** via `require_tenant_context()` → `RuntimeErro
 | Identity | `tenant_users` | Yes | `tenant_id` | PASS |
 | Identity | `tenant_api_keys` | Yes | `tenant_id` + revoke by `(tenant_id, id)` | PASS |
 | Identity | `tenant_branding` | Yes | `tenant_id` | PASS |
+| Identity | `organization_onboarding` | Yes | `UNIQUE(tenant_id)` + session scope | PASS |
 | RBAC | `permissions` | No (platform) | Global catalog | PASS (global) |
 | RBAC | `organization_roles` | Yes | `tenant_id` | PASS |
 | RBAC | `role_permissions` | Hybrid | Via role → tenant | PASS |

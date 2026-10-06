@@ -27,6 +27,7 @@ from callbot_platform.db.models.handoff import (
 )
 from callbot_platform.db.models.jobs import Job, JobNote, Technician, TenantUser
 from callbot_platform.db.models.knowledge import KnowledgeArticle
+from callbot_platform.db.models.onboarding import OrganizationOnboarding
 from callbot_platform.db.models.queue import CallQueueItem
 from callbot_platform.db.models.recordings import RecordingObject
 from callbot_platform.db.models.scheduling import (
@@ -68,6 +69,7 @@ __all__ = [
     "Lead",
     "MemberRole",
     "NotificationOutbox",
+    "OrganizationOnboarding",
     "OrganizationRole",
     "Permission",
     "RecordingObject",
