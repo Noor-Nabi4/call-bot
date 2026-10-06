@@ -1754,12 +1754,12 @@ Calculate real availability instead of relying on static calendar slots.
 
 ### Checklist
 
-- [ ] Technician profile
-- [ ] Skills
-- [ ] Service categories
-- [ ] Service areas
-- [ ] Schedule
-- [ ] Status
+- [x] Technician profile (reuse `technicians`)
+- [x] Skills (Phase 11)
+- [x] Service categories (via service required skills)
+- [x] Service areas (Phase 11)
+- [x] Schedule (Phase 11)
+- [x] Status (operational status model)
 
 ---
 
@@ -1767,15 +1767,15 @@ Calculate real availability instead of relying on static calendar slots.
 
 ### Checklist
 
-- [ ] Today's jobs
-- [ ] Technician columns
-- [ ] Unassigned jobs
-- [ ] Assign job
-- [ ] Reassign job
-- [ ] Drag/drop
-- [ ] Job priority
-- [ ] Status
-- [ ] ETA
+- [x] Today's jobs
+- [x] Technician columns
+- [x] Unassigned jobs
+- [x] Assign job
+- [x] Reassign job
+- [x] Drag/drop
+- [x] Job priority
+- [x] Status
+- [x] ETA (nullable + SCHEDULE/MANUAL sources)
 
 ---
 
@@ -1792,10 +1792,21 @@ OFFLINE
 
 ### Checklist
 
-- [ ] Status API
-- [ ] Status history
-- [ ] Real-time updates
-- [ ] Authorization
+- [x] Status API
+- [x] Status history
+- [x] Real-time updates (`dispatch_events` polling)
+- [x] Authorization
+
+### Hardening (post-12.3)
+
+- [x] Assignment eligibility + history + idempotency
+- [x] PostgreSQL concurrency (assign + status)
+- [x] HTTP RBAC / IDOR
+- [x] Board N+1 bound
+- [x] Final consolidation: legacy `/api/jobs/{id}/assign` → `DispatchAssignmentService`
+- [x] Local production-scale PostgreSQL EXPLAIN (synthetic dataset)
+- [ ] Staging verification
+- [ ] Production verification
 
 ---
 

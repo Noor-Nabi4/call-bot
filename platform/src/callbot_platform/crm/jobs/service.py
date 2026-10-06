@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session, selectinload
 
 from callbot_platform.crm.errors import CrmError
 from callbot_platform.crm.jobs.constants import (
-    ASSIGNABLE_STATUSES,
     DEFAULT_CHECKLIST,
     DESCRIPTION_MAX_LEN,
     EDITABLE_STATUSES,
@@ -261,7 +260,7 @@ class JobService:
                     appointment_id=appointment_id,
                     lead_id=lead_id,
                     call_id=call_id,
-                    assigned_technician_id=tech_id,
+                    assigned_technician_id=None,
                     status=initial,
                     priority=prio,
                     service_type=stype,
@@ -317,6 +316,20 @@ class JobService:
                 "job_number": job.job_number,
             },
         )
+        # Initial technician on create goes through the same assignment service
+        # so history, audit, eligibility, and dispatch_events stay consistent.
+        if tech_id is not None:
+            from callbot_platform.crm.dispatch.assignment import (
+                DispatchAssignmentService,
+            )
+
+            return DispatchAssignmentService(self._session).assign(
+                tenant_id,
+                job.id,
+                technician_id=tech_id,
+                actor=actor,
+                reason="created_with_technician",
+            )
         return self.get(tenant_id, job.id)
 
     def update(
@@ -436,36 +449,22 @@ class JobService:
         *,
         technician_id: UUID | None,
         actor: str,
+        reason: str | None = None,
+        idempotency_key: str | None = None,
+        skip_eligibility: bool = False,
     ) -> dict[str, Any]:
-        job = self._load(tenant_id, job_id, for_update=True, require_active=True)
-        if job.status not in ASSIGNABLE_STATUSES:
-            raise CrmError(
-                "invalid_transition",
-                f"Cannot assign/unassign technician while job is {job.status}",
-            )
-        prev = job.assigned_technician_id
-        if technician_id is None:
-            job.assigned_technician_id = None
-            action = "job_unassigned"
-        else:
-            self._require_technician(tenant_id, technician_id)
-            job.assigned_technician_id = technician_id
-            action = "job_assigned"
-        job.updated_by = actor
-        job.updated_at = datetime.now(UTC)
-        self._session.flush()
-        write_audit(
-            self._session,
-            tenant_id=tenant_id,
+        """Assign via DispatchAssignmentService (history + eligibility + events)."""
+        from callbot_platform.crm.dispatch.assignment import DispatchAssignmentService
+
+        return DispatchAssignmentService(self._session).assign(
+            tenant_id,
+            job_id,
+            technician_id=technician_id,
             actor=actor,
-            action=action,
-            resource_ids={
-                "job_id": str(job.id),
-                "technician_id": str(technician_id) if technician_id else None,
-                "previous_technician_id": str(prev) if prev else None,
-            },
+            reason=reason,
+            idempotency_key=idempotency_key,
+            skip_eligibility=skip_eligibility,
         )
-        return self.get(tenant_id, job_id)
 
     def transition(
         self, tenant_id: UUID, job_id: UUID, **kwargs: Any

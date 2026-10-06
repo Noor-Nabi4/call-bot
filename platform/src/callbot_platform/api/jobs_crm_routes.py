@@ -73,6 +73,12 @@ def _http(exc: Exception) -> HTTPException:
             "technician_required",
             "idempotency_conflict",
             "job_immutable",
+            "job_not_assignable",
+            "technician_unavailable",
+            "skill_mismatch",
+            "service_area_mismatch",
+            "schedule_conflict",
+            "time_off_conflict",
         }:
             status = 409
         return HTTPException(

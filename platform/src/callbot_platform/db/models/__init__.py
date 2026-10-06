@@ -66,6 +66,12 @@ from callbot_platform.db.models.inventory import (
     InventoryOutboxEvent,
     InventoryTransaction,
 )
+from callbot_platform.db.models.dispatch import (
+    DispatchEvent,
+    JobAssignmentHistory,
+    TechnicianOperationalStatus,
+    TechnicianStatusHistory,
+)
 from callbot_platform.db.models.jobs import (
     Job,
     JobAttachment,
@@ -146,6 +152,7 @@ __all__ = [
     "CustomerPhone",
     "CustomerTag",
     "CustomerTagLink",
+    "DispatchEvent",
     "InventoryAlertConfiguration",
     "InventoryAlertEvent",
     "InventoryBalance",
@@ -154,6 +161,7 @@ __all__ = [
     "InventoryOutboxEvent",
     "InventoryTransaction",
     "Job",
+    "JobAssignmentHistory",
     "JobAttachment",
     "JobNote",
     "JobNumberCounter",
@@ -205,9 +213,11 @@ __all__ = [
     "StripeWebhookEvent",
     "Technician",
     "TechnicianBreak",
+    "TechnicianOperationalStatus",
     "TechnicianSchedulePeriod",
     "TechnicianServiceArea",
     "TechnicianSkill",
+    "TechnicianStatusHistory",
     "TechnicianTimeOff",
     "TelephonyAuditEvent",
     "TelephonyIdempotencyKey",

@@ -97,3 +97,17 @@ STAGING Appointments migration/RBAC/smoke: NOT EXECUTED
 PRODUCTION Appointments migration/smoke: NOT EXECUTED
 Appointments production readiness: BLOCKED (staging/prod not executed)
 ```
+
+### Phase 12 Dispatch (2026-10-07) — final consolidation
+
+```text
+LOCAL Dispatch implementation: VERIFIED
+LOCAL PostgreSQL concurrency + EXPLAIN (synthetic scale): VERIFIED (local PG only)
+Production-scale EXPLAIN (local synthetic dataset): VERIFIED
+STAGING Dispatch migration/RBAC/smoke: NOT EXECUTED
+PRODUCTION Dispatch migration/smoke: NOT EXECUTED
+Repo Alembic head (workspace): 0042_dispatch
+Assignment architecture: all paths → DispatchAssignmentService
+Realtime: polling dispatch_events (not WebSocket)
+Dispatch production readiness: BLOCKED (staging/prod not executed)
+```

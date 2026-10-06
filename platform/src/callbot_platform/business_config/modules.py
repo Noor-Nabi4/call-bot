@@ -325,8 +325,8 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         icon="map",
         category="operations",
         default_order=47,
-        read_permission="jobs.read",
-        href="/dispatch",
+        read_permission="dispatch.read",
+        href="/crm/dispatch",
         supports_custom_fields=False,
     ),
     _m(

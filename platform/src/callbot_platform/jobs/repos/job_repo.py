@@ -17,10 +17,8 @@ from callbot_platform.db.models import (
     Job,
     JobNote,
     JobStatusHistory,
-    Technician,
 )
 from callbot_platform.jobs.errors import (
-    ASSIGNABLE_STATUSES,
     DEFAULT_CHECKLIST,
     JobsError,
     checklist_item_id,
@@ -209,42 +207,33 @@ class JobRepository:
         *,
         technician_id: UUID,
         actor: str = "dispatcher",
+        reason: str | None = None,
+        idempotency_key: str | None = None,
     ) -> dict[str, Any]:
-        job = self._session.scalar(
-            select(Job)
-            .where(Job.id == job_id, Job.tenant_id == tenant_id)
-            .with_for_update()
-        )
-        if job is None:
-            raise JobsError("job_not_found", "Job not found for tenant")
-        if job.archived_at is not None:
-            raise JobsError("job_archived", "Cannot assign an archived job")
-        if job.status not in ASSIGNABLE_STATUSES:
-            raise JobsError(
-                "invalid_transition",
-                f"Cannot assign technician while job is {job.status}",
+        """Legacy ops assign — delegates to DispatchAssignmentService.
+
+        Preserves the `/api/jobs/{id}/assign` contract and legacy job
+        serialisation shape while sharing eligibility, history, audit, and
+        dispatch_events with CRM dispatch.
+        """
+        from callbot_platform.crm.dispatch.assignment import DispatchAssignmentService
+        from callbot_platform.crm.errors import CrmError
+
+        try:
+            DispatchAssignmentService(self._session).assign(
+                tenant_id,
+                job_id,
+                technician_id=technician_id,
+                actor=actor,
+                reason=reason,
+                idempotency_key=idempotency_key,
             )
-        tech = self._session.scalar(
-            select(Technician).where(
-                Technician.id == technician_id, Technician.tenant_id == tenant_id
-            )
+        except CrmError as exc:
+            code = "job_not_found" if exc.code == "not_found" else exc.code
+            raise JobsError(code, str(exc)) from exc
+        return self.get(tenant_id, job_id) or self._serialize(
+            self._get(tenant_id, job_id)
         )
-        if tech is None or not tech.is_active:
-            raise JobsError("technician_not_found", "Technician not found")
-        job.assigned_technician_id = technician_id
-        job.updated_at = datetime.now(UTC)
-        self._session.flush()
-        write_audit(
-            self._session,
-            tenant_id=tenant_id,
-            actor=actor,
-            action="job_assigned",
-            resource_ids={
-                "job_id": str(job.id),
-                "technician_id": str(technician_id),
-            },
-        )
-        return self.get(tenant_id, job_id) or self._serialize(job)
 
     def transition(
         self,

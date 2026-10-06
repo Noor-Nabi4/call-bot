@@ -4,7 +4,7 @@ import { safeUserError } from "@/lib/safe-error";
 import { errors } from "@/lib/ops-copy";
 import { ApiError } from "./api-error";
 
-export { ApiError, isBookingConflict } from "./api-error";
+export { ApiError, isAssignmentConflict, isBookingConflict } from "./api-error";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||

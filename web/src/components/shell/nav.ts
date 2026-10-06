@@ -133,6 +133,13 @@ const STATIC_WORK_NAV: NavItem[] = [
 /** Legacy hardcoded CRM paths — used only when effective config is unavailable. */
 const FALLBACK_CRM_NAV: NavItem[] = [
   {
+    href: "/crm/dispatch",
+    label: "Dispatch board",
+    icon: LayoutGrid,
+    permission: "dispatch.read",
+    section: "work",
+  },
+  {
     href: "/dispatch",
     label: "Dispatch",
     icon: LayoutGrid,
@@ -329,6 +336,9 @@ export function navFor(
 
 export function isActivePath(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
+  if (href === "/crm/dispatch") {
+    return pathname === "/crm/dispatch" || pathname.startsWith("/crm/dispatch/");
+  }
   if (href === "/dispatch") {
     return pathname === "/dispatch" || pathname === "/board";
   }

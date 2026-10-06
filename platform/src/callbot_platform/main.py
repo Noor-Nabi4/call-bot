@@ -20,6 +20,9 @@ from callbot_platform.api.api_key_admin_routes import (
 from callbot_platform.api.appointments_crm_routes import (  # noqa: E402
     router as appointments_crm_router,
 )
+from callbot_platform.api.dispatch_crm_routes import (  # noqa: E402
+    router as dispatch_crm_router,
+)
 from callbot_platform.api.auth_routes import router as auth_router  # noqa: E402
 from callbot_platform.api.automation_routes import (
     router as automation_router,
@@ -140,6 +143,7 @@ app.include_router(jobs_router)
 app.include_router(jobs_crm_router)
 app.include_router(jobs_admin_router)
 app.include_router(appointments_crm_router)
+app.include_router(dispatch_crm_router)
 app.include_router(knowledge_internal_router)
 app.include_router(knowledge_ops_router)
 app.include_router(handoff_internal_router)

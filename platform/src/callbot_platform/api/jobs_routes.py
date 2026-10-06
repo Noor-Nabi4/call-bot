@@ -70,13 +70,26 @@ class LocationBody(BaseModel):
 def _jobs_http(exc: Exception) -> HTTPException:
     if isinstance(exc, JobsError):
         status = 404 if "not_found" in exc.code else 400
-        if exc.code == "invalid_transition":
+        if exc.code in {
+            "invalid_transition",
+            "job_archived",
+            "idempotency_conflict",
+            "assignment_conflict",
+            "technician_unavailable",
+            "technician_ineligible",
+            "skill_mismatch",
+            "service_area_mismatch",
+            "schedule_conflict",
+            "time_off_conflict",
+            "job_not_assignable",
+            "status_transition_invalid",
+        }:
             status = 409
         return HTTPException(
             status_code=status, detail={"code": exc.code, "message": str(exc)}
         )
     return HTTPException(
-        status_code=500, detail={"code": "internal", "message": str(exc)}
+        status_code=500, detail={"code": "internal", "message": "Internal error"}
     )
 
 

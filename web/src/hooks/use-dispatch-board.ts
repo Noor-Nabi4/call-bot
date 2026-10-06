@@ -11,6 +11,7 @@ import {
   listTechnicians,
   transitionJob,
 } from "@/lib/api";
+import { isAssignmentConflict } from "@/lib/api/api-error";
 import { deriveUrgency } from "@/lib/schedule";
 import { errors } from "@/lib/ops-copy";
 import { safeUserError } from "@/lib/safe-error";
@@ -214,7 +215,19 @@ export function useDispatchBoard(user: OpsUser | null) {
       await refresh();
       onSuccess("Technician assigned");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Assign failed");
+      // Authoritative assign failed — reconcile so UI cannot stay wrong.
+      try {
+        await refresh();
+      } catch {
+        /* keep assign error */
+      }
+      const msg =
+        isAssignmentConflict(e) && e instanceof Error
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Assign failed";
+      setError(msg);
     }
   }
 

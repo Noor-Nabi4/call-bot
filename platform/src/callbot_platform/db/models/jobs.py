@@ -209,6 +209,15 @@ class Job(Base):
         ForeignKey("technicians.id", ondelete="SET NULL"),
         nullable=True,
     )
+    assigned_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    assigned_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    eta: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    eta_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    eta_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="NEW")
     priority: Mapped[str] = mapped_column(String(16), nullable=False, default="MEDIUM")
     service_type: Mapped[str] = mapped_column(String(128), nullable=False)
