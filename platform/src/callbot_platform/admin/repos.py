@@ -7,7 +7,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from callbot_platform.billing.usage import (
     compute_billable_seconds,
@@ -39,23 +39,23 @@ class AdminRepository:
     def list_customers(
         self, tenant_id: UUID, *, limit: int = 100
     ) -> list[dict[str, Any]]:
-        rows = self._session.scalars(
-            select(Customer)
-            .where(Customer.tenant_id == tenant_id)
-            .options(selectinload(Customer.phones))
-            .order_by(Customer.updated_at.desc())
-            .limit(max(1, min(limit, 200)))
-        ).all()
+        from callbot_platform.crm.customers import CustomerService
+
+        page = CustomerService(self._session).list(
+            tenant_id, include_archived=False, limit=max(1, min(limit, 200))
+        )
+        # Preserve legacy admin/v1 shape used by pickers and older clients.
         return [
             {
-                "id": str(c.id),
-                "name": c.name,
-                "email": c.email,
-                "address": c.address,
-                "phones": [p.e164 for p in (c.phones or [])],
-                "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+                "id": c["id"],
+                "name": c["name"],
+                "email": c.get("email"),
+                "address": c.get("address"),
+                "phones": c.get("phones") or [],
+                "status": c.get("status"),
+                "updated_at": c.get("updated_at"),
             }
-            for c in rows
+            for c in page.get("customers") or []
         ]
 
     def list_calls(

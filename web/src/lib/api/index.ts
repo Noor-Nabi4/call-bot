@@ -64,6 +64,30 @@ export {
 } from "./phones";
 export { listAppointments, listCalls, reviewCallQuality, listCustomers, listTeamUsers, inviteTeamUser, updateTeamUser, getSupervisorSnapshot, listQueue, claimQueueItem, completeQueueItem, type TeamUser, type SupervisorSnapshot, type QueueItem } from "./admin";
 export {
+  listCrmCustomers,
+  searchCrmCustomers,
+  getCrmCustomer,
+  createCrmCustomer,
+  updateCrmCustomer,
+  archiveCrmCustomer,
+  restoreCrmCustomer,
+  listCrmCustomerLocations,
+  createCrmCustomerLocation,
+  updateCrmCustomerLocation,
+  setPrimaryCrmCustomerLocation,
+  archiveCrmCustomerLocation,
+  addCrmCustomerTag,
+  removeCrmCustomerTag,
+  addCrmCustomerNote,
+  getCrmCustomerTimeline,
+  type Customer,
+  type CustomerLocation,
+  type CustomerTag,
+  type CustomerNote,
+  type CustomerTimelineEvent,
+  type CustomerStatus,
+} from "./customers";
+export {
   getSubscription,
   getUsage,
   createCheckout,

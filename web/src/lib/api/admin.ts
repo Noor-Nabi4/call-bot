@@ -106,15 +106,18 @@ export function completeQueueItem(
   });
 }
 
+/** Picker-friendly customer list (id + name). Prefers CRM customers API. */
 export function listCustomers() {
-  return api<{ customers: CustomerOption[] }>("/api/admin/customers").then(
-    (d) => ({
-      customers: (d.customers || []).map((c) => ({
+  return api<{ customers: Array<{ id: string; name: string }> }>(
+    "/api/admin/crm/customers?limit=200",
+  ).then((d) => ({
+    customers: (d.customers || []).map(
+      (c): CustomerOption => ({
         id: c.id,
         name: c.name,
-      })),
-    }),
-  );
+      }),
+    ),
+  }));
 }
 
 export function listTeamUsers() {

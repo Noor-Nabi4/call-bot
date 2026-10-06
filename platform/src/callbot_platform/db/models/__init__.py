@@ -17,7 +17,11 @@ from callbot_platform.db.models.cogs import CallCogs
 from callbot_platform.db.models.crm import (
     Call,
     Customer,
+    CustomerLocation,
+    CustomerNote,
     CustomerPhone,
+    CustomerTag,
+    CustomerTagLink,
     Lead,
     TenantAgentSettings,
 )
@@ -76,7 +80,11 @@ __all__ = [
     "CallQueueItem",
     "CrmCustomFieldValue",
     "Customer",
+    "CustomerLocation",
+    "CustomerNote",
     "CustomerPhone",
+    "CustomerTag",
+    "CustomerTagLink",
     "Job",
     "JobNote",
     "JsonType",

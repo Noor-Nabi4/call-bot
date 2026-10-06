@@ -438,7 +438,11 @@ export const customers = {
   title: "Customers",
   description: "Customer records from calls, appointments, and jobs.",
   empty: "No customers yet",
-  emptyHint: "Customers appear when calls and jobs are created.",
+  emptyHint: "Create a customer or wait for calls and jobs to add records.",
+  create: "New customer",
+  notFound: "Customer not found",
+  timelineEmpty: "No timeline events yet",
+  timelineEmptyHint: "Calls, jobs, appointments, and notes appear here.",
 } as const;
 
 export const appointments = {

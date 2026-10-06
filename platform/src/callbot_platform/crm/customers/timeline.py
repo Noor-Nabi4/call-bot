@@ -1,0 +1,402 @@
+"""Customer timeline aggregation from authoritative domain tables."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from callbot_platform.crm.customers.cursors import TimelineCursor, parse_timeline_page
+from callbot_platform.crm.errors import CrmError
+from callbot_platform.db.models import (
+    Appointment,
+    Call,
+    Customer,
+    CustomerNote,
+    Job,
+    Lead,
+    NotificationOutbox,
+)
+
+# Controlled event types — only domains that exist today.
+TIMELINE_EVENT_TYPES = frozenset(
+    {"CALL", "LEAD", "JOB", "APPOINTMENT", "NOTE", "SMS", "EMAIL"}
+)
+
+# Permission keys required per event type (fail closed when denied by caller).
+TIMELINE_PERMISSIONS: dict[str, str] = {
+    "CALL": "calls.read",
+    "LEAD": "leads.read",
+    "JOB": "jobs.read",
+    "APPOINTMENT": "appointments.read",
+    "NOTE": "customers.read",
+    "SMS": "appointments.read",
+    "EMAIL": "appointments.read",
+}
+
+
+class CustomerTimelineService:
+    """Aggregates existing domain rows; does not invent commerce events."""
+
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def get_timeline(
+        self,
+        tenant_id: UUID,
+        customer_id: UUID,
+        *,
+        allowed_types: frozenset[str],
+        event_type: str | None = None,
+        limit: int | None = 50,
+        cursor: str | None = None,
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> dict[str, Any]:
+        customer = self._session.scalar(
+            select(Customer).where(
+                Customer.id == customer_id, Customer.tenant_id == tenant_id
+            )
+        )
+        if customer is None:
+            raise CrmError("not_found", "Customer not found for tenant")
+
+        try:
+            page, decoded = parse_timeline_page(limit=limit, cursor=cursor)
+        except ValueError as exc:
+            raise CrmError("invalid_cursor", "Invalid pagination cursor") from exc
+
+        types = set(allowed_types) & TIMELINE_EVENT_TYPES
+        if event_type is not None:
+            normalized = event_type.strip().upper()
+            if normalized not in TIMELINE_EVENT_TYPES:
+                raise CrmError("invalid_event_type", "Unknown timeline event type")
+            if normalized not in types:
+                return {"items": [], "next_cursor": None, "limit": page.limit}
+            types = {normalized}
+
+        # Bound each source query; merge in memory for the page window only.
+        fetch_n = page.limit + 1
+        events: list[dict[str, Any]] = []
+
+        if "CALL" in types:
+            events.extend(
+                self._calls(tenant_id, customer_id, fetch_n, since=since, until=until)
+            )
+        if "LEAD" in types:
+            events.extend(
+                self._leads(tenant_id, customer_id, fetch_n, since=since, until=until)
+            )
+        if "JOB" in types:
+            events.extend(
+                self._jobs(tenant_id, customer_id, fetch_n, since=since, until=until)
+            )
+        if "APPOINTMENT" in types:
+            events.extend(
+                self._appointments(
+                    tenant_id, customer_id, fetch_n, since=since, until=until
+                )
+            )
+        if "NOTE" in types:
+            events.extend(
+                self._notes(tenant_id, customer_id, fetch_n, since=since, until=until)
+            )
+        if "SMS" in types or "EMAIL" in types:
+            events.extend(
+                self._notifications(
+                    tenant_id,
+                    customer_id,
+                    fetch_n,
+                    channels={
+                        *(["sms"] if "SMS" in types else []),
+                        *(["email"] if "EMAIL" in types else []),
+                    },
+                    since=since,
+                    until=until,
+                )
+            )
+
+        events.sort(
+            key=lambda e: (e["_occurred_at"], e["source_key"]),
+            reverse=True,
+        )
+
+        if decoded is not None:
+            filtered: list[dict[str, Any]] = []
+            for ev in events:
+                if ev["_occurred_at"] < decoded.occurred_at or (
+                    ev["_occurred_at"] == decoded.occurred_at
+                    and ev["source_key"] < decoded.source_key
+                ):
+                    filtered.append(ev)
+            events = filtered
+
+        page_items = events[: page.limit]
+        next_cursor = None
+        if len(events) > page.limit and page_items:
+            last = page_items[-1]
+            next_cursor = TimelineCursor(
+                occurred_at=last["_occurred_at"],
+                source_key=last["source_key"],
+            ).encode()
+
+        for item in page_items:
+            item.pop("_occurred_at", None)
+
+        return {
+            "items": page_items,
+            "next_cursor": next_cursor,
+            "limit": page.limit,
+        }
+
+    def _calls(
+        self,
+        tenant_id: UUID,
+        customer_id: UUID,
+        limit: int,
+        *,
+        since: datetime | None,
+        until: datetime | None,
+    ) -> list[dict[str, Any]]:
+        q = select(Call).where(
+            Call.tenant_id == tenant_id, Call.customer_id == customer_id
+        )
+        if since is not None:
+            q = q.where(Call.started_at >= since)
+        if until is not None:
+            q = q.where(Call.started_at <= until)
+        q = q.order_by(Call.started_at.desc(), Call.id.desc()).limit(limit)
+        out: list[dict[str, Any]] = []
+        for row in self._session.scalars(q).all():
+            out.append(
+                {
+                    "type": "CALL",
+                    "id": str(row.id),
+                    "timestamp": row.started_at.isoformat(),
+                    "title": "Call",
+                    "summary": f"Status: {row.status}"
+                    + (f" · {row.disposition_code}" if row.disposition_code else ""),
+                    "source": "calls",
+                    "source_key": f"call:{row.id}",
+                    "metadata": {
+                        "status": row.status,
+                        "caller_number": row.caller_number,
+                    },
+                    "_occurred_at": row.started_at,
+                }
+            )
+        return out
+
+    def _leads(
+        self,
+        tenant_id: UUID,
+        customer_id: UUID,
+        limit: int,
+        *,
+        since: datetime | None,
+        until: datetime | None,
+    ) -> list[dict[str, Any]]:
+        q = select(Lead).where(
+            Lead.tenant_id == tenant_id, Lead.customer_id == customer_id
+        )
+        if since is not None:
+            q = q.where(Lead.created_at >= since)
+        if until is not None:
+            q = q.where(Lead.created_at <= until)
+        q = q.order_by(Lead.created_at.desc(), Lead.id.desc()).limit(limit)
+        out: list[dict[str, Any]] = []
+        for row in self._session.scalars(q).all():
+            out.append(
+                {
+                    "type": "LEAD",
+                    "id": str(row.id),
+                    "timestamp": row.created_at.isoformat(),
+                    "title": f"Lead · {row.service_type}",
+                    "summary": row.notes or f"Status: {row.status}",
+                    "source": "leads",
+                    "source_key": f"lead:{row.id}",
+                    "metadata": {
+                        "status": row.status,
+                        "reference_code": row.reference_code,
+                    },
+                    "_occurred_at": row.created_at,
+                }
+            )
+        return out
+
+    def _jobs(
+        self,
+        tenant_id: UUID,
+        customer_id: UUID,
+        limit: int,
+        *,
+        since: datetime | None,
+        until: datetime | None,
+    ) -> list[dict[str, Any]]:
+        q = select(Job).where(
+            Job.tenant_id == tenant_id, Job.customer_id == customer_id
+        )
+        if since is not None:
+            q = q.where(Job.created_at >= since)
+        if until is not None:
+            q = q.where(Job.created_at <= until)
+        q = q.order_by(Job.created_at.desc(), Job.id.desc()).limit(limit)
+        out: list[dict[str, Any]] = []
+        for row in self._session.scalars(q).all():
+            out.append(
+                {
+                    "type": "JOB",
+                    "id": str(row.id),
+                    "timestamp": row.created_at.isoformat(),
+                    "title": f"Job · {row.service_type}",
+                    "summary": f"Status: {row.status}",
+                    "source": "jobs",
+                    "source_key": f"job:{row.id}",
+                    "metadata": {"status": row.status},
+                    "_occurred_at": row.created_at,
+                }
+            )
+        return out
+
+    def _appointments(
+        self,
+        tenant_id: UUID,
+        customer_id: UUID,
+        limit: int,
+        *,
+        since: datetime | None,
+        until: datetime | None,
+    ) -> list[dict[str, Any]]:
+        q = select(Appointment).where(
+            Appointment.tenant_id == tenant_id,
+            Appointment.customer_id == customer_id,
+        )
+        if since is not None:
+            q = q.where(Appointment.starts_at >= since)
+        if until is not None:
+            q = q.where(Appointment.starts_at <= until)
+        q = q.order_by(Appointment.starts_at.desc(), Appointment.id.desc()).limit(limit)
+        out: list[dict[str, Any]] = []
+        for row in self._session.scalars(q).all():
+            out.append(
+                {
+                    "type": "APPOINTMENT",
+                    "id": str(row.id),
+                    "timestamp": row.starts_at.isoformat(),
+                    "title": f"Appointment · {row.service_type}",
+                    "summary": f"Status: {row.status}",
+                    "source": "appointments",
+                    "source_key": f"appointment:{row.id}",
+                    "metadata": {
+                        "status": row.status,
+                        "confirmation_code": row.confirmation_code,
+                    },
+                    "_occurred_at": row.starts_at,
+                }
+            )
+        return out
+
+    def _notes(
+        self,
+        tenant_id: UUID,
+        customer_id: UUID,
+        limit: int,
+        *,
+        since: datetime | None,
+        until: datetime | None,
+    ) -> list[dict[str, Any]]:
+        q = select(CustomerNote).where(
+            CustomerNote.tenant_id == tenant_id,
+            CustomerNote.customer_id == customer_id,
+        )
+        if since is not None:
+            q = q.where(CustomerNote.created_at >= since)
+        if until is not None:
+            q = q.where(CustomerNote.created_at <= until)
+        q = q.order_by(CustomerNote.created_at.desc(), CustomerNote.id.desc()).limit(
+            limit
+        )
+        out: list[dict[str, Any]] = []
+        for row in self._session.scalars(q).all():
+            body = row.body.strip()
+            summary = body if len(body) <= 160 else body[:157] + "..."
+            out.append(
+                {
+                    "type": "NOTE",
+                    "id": str(row.id),
+                    "timestamp": row.created_at.isoformat(),
+                    "title": "Note",
+                    "summary": summary,
+                    "source": "customer_notes",
+                    "source_key": f"note:{row.id}",
+                    "metadata": {},
+                    "_occurred_at": row.created_at,
+                }
+            )
+        return out
+
+    def _notifications(
+        self,
+        tenant_id: UUID,
+        customer_id: UUID,
+        limit: int,
+        *,
+        channels: set[str],
+        since: datetime | None,
+        until: datetime | None,
+    ) -> list[dict[str, Any]]:
+        if not channels:
+            return []
+        appt_ids = self._session.scalars(
+            select(Appointment.id).where(
+                Appointment.tenant_id == tenant_id,
+                Appointment.customer_id == customer_id,
+            )
+        ).all()
+        if not appt_ids:
+            return []
+        q = select(NotificationOutbox).where(
+            NotificationOutbox.tenant_id == tenant_id,
+            NotificationOutbox.appointment_id.in_(list(appt_ids)),
+            NotificationOutbox.channel.in_(list(channels)),
+        )
+        if since is not None:
+            q = q.where(NotificationOutbox.created_at >= since)
+        if until is not None:
+            q = q.where(NotificationOutbox.created_at <= until)
+        q = q.order_by(
+            NotificationOutbox.created_at.desc(), NotificationOutbox.id.desc()
+        ).limit(limit)
+        out: list[dict[str, Any]] = []
+        for row in self._session.scalars(q).all():
+            channel = (row.channel or "").lower()
+            etype = (
+                "SMS" if channel == "sms" else "EMAIL" if channel == "email" else None
+            )
+            if etype is None:
+                continue
+            body = (row.body or "").strip()
+            summary = body if len(body) <= 160 else body[:157] + "..."
+            out.append(
+                {
+                    "type": etype,
+                    "id": str(row.id),
+                    "timestamp": row.created_at.isoformat(),
+                    "title": f"{etype.title()} notification",
+                    "summary": summary,
+                    "source": "notification_outbox",
+                    "source_key": f"notification:{row.id}",
+                    "metadata": {
+                        "status": row.status,
+                        "channel": row.channel,
+                        "appointment_id": str(row.appointment_id)
+                        if row.appointment_id
+                        else None,
+                    },
+                    "_occurred_at": row.created_at,
+                }
+            )
+        return out
