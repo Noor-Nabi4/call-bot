@@ -434,8 +434,13 @@ class PlatformPurchaseService:
         return tenant
 
     def _owned(self, tenant_id: UUID, phone_number_id: UUID) -> TenantPhoneNumber:
-        row = self._session.get(TenantPhoneNumber, phone_number_id)
-        if row is None or row.tenant_id != tenant_id:
+        row = self._session.scalar(
+            select(TenantPhoneNumber).where(
+                TenantPhoneNumber.id == phone_number_id,
+                TenantPhoneNumber.tenant_id == tenant_id,
+            )
+        )
+        if row is None:
             raise PurchaseError("not_found", "Phone number not found for tenant")
         return row
 

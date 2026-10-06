@@ -156,4 +156,4 @@ Integration tests (real DB) must prove:
 - Redis profile cache rejects cross-tenant payloads
 - Voice tools ignore client `tenant_id` overrides
 
-See `platform/tests/test_tenant_isolation.py` and existing CRM/jobs/scheduling isolation cases.
+See `platform/tests/test_tenant_isolation.py` and the full ownership matrix in `docs/TENANT_ISOLATION_AUDIT.md`. Also: existing CRM/jobs/scheduling isolation cases.

@@ -115,7 +115,9 @@ class CallQueueRepository:
             action="call_queue_claimed",
             resource_ids={"queue_item_id": str(item.id), "call_id": str(item.call_id)},
         )
-        call = self._session.get(Call, item.call_id)
+        call = self._session.scalar(
+            select(Call).where(Call.id == item.call_id, Call.tenant_id == tenant_id)
+        )
         return self._serialize(item, call)
 
     def complete(
@@ -146,7 +148,9 @@ class CallQueueRepository:
             resource_ids={"queue_item_id": str(item.id), "call_id": str(item.call_id)},
             payload_summary={"status": item.status},
         )
-        call = self._session.get(Call, item.call_id)
+        call = self._session.scalar(
+            select(Call).where(Call.id == item.call_id, Call.tenant_id == tenant_id)
+        )
         return self._serialize(item, call)
 
     def _get(self, tenant_id: UUID, item_id: UUID) -> CallQueueItem:

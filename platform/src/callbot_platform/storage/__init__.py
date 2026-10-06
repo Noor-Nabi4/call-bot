@@ -212,3 +212,52 @@ class RecordingStorageService:
                 row.updated_at = now
         self._session.flush()
         return deleted
+
+    def get_recording(
+        self, tenant_id: UUID, recording_id: UUID
+    ) -> dict[str, Any] | None:
+        """Tenant-scoped recording metadata lookup (IDOR-safe)."""
+        row = self._session.scalar(
+            select(RecordingObject).where(
+                RecordingObject.id == recording_id,
+                RecordingObject.tenant_id == tenant_id,
+                RecordingObject.deleted_at.is_(None),
+            )
+        )
+        if row is None:
+            return None
+        return {
+            "id": str(row.id),
+            "tenant_id": str(row.tenant_id),
+            "call_id": str(row.call_id) if row.call_id else None,
+            "object_key": row.object_key,
+            "mime_type": row.mime_type,
+            "size_bytes": row.size_bytes,
+            "status": row.status,
+            "retention_until": row.retention_until.isoformat()
+            if row.retention_until
+            else None,
+        }
+
+    def presign_download(
+        self,
+        tenant_id: UUID,
+        recording_id: UUID,
+        *,
+        ttl_seconds: int | None = None,
+    ) -> dict[str, Any] | None:
+        """Issue a short-lived download URL only after tenant ownership is verified."""
+        meta = self.get_recording(tenant_id, recording_id)
+        if meta is None:
+            return None
+        ttl = int(
+            ttl_seconds
+            if ttl_seconds is not None
+            else self._settings.object_storage_signed_url_ttl_seconds
+        )
+        url = self._storage.create_download_url(
+            tenant_id=tenant_id,
+            object_key=meta["object_key"],
+            ttl_seconds=ttl,
+        )
+        return {**meta, "download_url": url, "ttl_seconds": ttl}

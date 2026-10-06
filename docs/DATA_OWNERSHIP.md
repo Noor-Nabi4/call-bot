@@ -23,6 +23,8 @@ Knowledge  → owns curated KB articles
 
 Canonical tenant root (`tenants`) is owned by **Identity / Organization**. Other domains reference `tenant_id` but do not own the tenant row.
 
+Full table-by-table isolation status: `docs/TENANT_ISOLATION_AUDIT.md`.
+
 ---
 
 ## Identity

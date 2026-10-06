@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, Depends, Header, HTTPException
 from livekit import api
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from callbot_platform.agent_templates import (
@@ -563,7 +564,12 @@ def release_phone(
                 settings=settings,
                 telephony_handler=handler,
             )
-            phone = session.get(TenantPhoneNumber, phone_number_id)
+            phone = session.scalar(
+                select(TenantPhoneNumber).where(
+                    TenantPhoneNumber.id == phone_number_id,
+                    TenantPhoneNumber.tenant_id == user.tenant_id,
+                )
+            )
             if phone is not None:
                 session.refresh(phone)
                 result = {

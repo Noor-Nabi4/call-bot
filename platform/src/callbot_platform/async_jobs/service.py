@@ -79,12 +79,13 @@ class AsyncJobService:
         return row
 
     def get(self, job_id: UUID, *, tenant_id: UUID | None = None) -> AsyncJob | None:
-        row = self._session.get(AsyncJob, job_id)
-        if row is None:
-            return None
-        if tenant_id is not None and row.tenant_id != tenant_id:
-            return None
-        return row
+        if tenant_id is not None:
+            return self._session.scalar(
+                select(AsyncJob).where(
+                    AsyncJob.id == job_id, AsyncJob.tenant_id == tenant_id
+                )
+            )
+        return self._session.get(AsyncJob, job_id)
 
     def serialize(self, row: AsyncJob) -> dict[str, Any]:
         return {

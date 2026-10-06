@@ -811,16 +811,82 @@ Every business must only access its own data.
 
 ### Checklist
 
-- [ ] Organization filtering
-- [ ] Customer isolation
-- [ ] Product isolation
-- [ ] Job isolation
-- [ ] Call isolation
-- [ ] Invoice isolation
-- [ ] Payment isolation
-- [ ] File isolation
-- [ ] Audit isolation
-- [ ] Cross-tenant security tests
+- [x] Organization filtering
+- [x] Customer isolation
+- [x] Product isolation (N/A — not shipped)
+- [x] Job isolation
+- [x] Call isolation
+- [x] Invoice isolation (N/A — customer invoices not shipped; SaaS Stripe scoped)
+- [x] Payment isolation (N/A — customer payments not shipped; SaaS Stripe scoped)
+- [x] File isolation
+- [x] Audit isolation
+- [x] Cross-tenant security tests
+
+Audit: `docs/TENANT_ISOLATION_AUDIT.md`
+
+---
+
+## TASK 1.4.1 — Internal Service Tenant Boundary Hardening
+
+### Description
+
+Close the remaining Task 1.4 risk: a shared `INTERNAL_SERVICE_TOKEN` must not act as unrestricted cross-tenant authority.
+
+Today, call-originated CRM/scheduling/knowledge/handoff paths can require `X-Call-Scope` (see `docs/CALL_AUTHORIZATION.md`). Legacy telephony `/tenants/{tenant_id}/…`, resolve, and some pre-call internals still trust path/body `tenant_id` when only the shared token is present.
+
+### Goal
+
+- Eliminate unrestricted `tenant_id` trust when only `INTERNAL_SERVICE_TOKEN` is supplied
+- Require a stronger call- or service-scoped credential wherever tenant context matters
+- Ensure internal routes cannot switch tenants by modifying path/body/query `tenant_id`
+- Add cross-tenant internal-service IDOR tests
+- Preserve the existing `X-Call-Scope` mechanism
+- Do **not** redesign session JWT, API keys, or RBAC
+
+### Inventory (current token-only surfaces)
+
+Classify every `require_internal_token` route before changing behavior:
+
+| Class | Examples | Target |
+|-------|----------|--------|
+| Call-originated | CRM tools, scheduling, knowledge search, handoff | Keep/require `X-Call-Scope`; body/path tenant must match claim |
+| Pre-call bootstrap | `POST /internal/telephony/resolve`, inbound observed | May issue tenant-only scope; after issue, subsequent calls use that scope |
+| Legacy telephony provision | `/tenants/{tenant_id}/phone-numbers/…` | Replace path-tenant trust with scoped credential or ops session; fail closed on mismatch |
+| Platform bootstrap / rare admin | auth bootstrap, explicit super-admin overrides | Document + separate capability; never usable as default voice/worker auth |
+
+### Approach (minimal)
+
+1. Extend or reuse `CallScope` / HMAC scope family for **service scopes** where needed (e.g. `source=sip_resolve|worker|provision`), without a second tenant-context system.
+2. For tenant-owned internal mutations/reads: require scope (or ops session) such that authenticated `tenant_id` is authoritative; path/body `tenant_id` is only accepted when it matches.
+3. Keep `REQUIRE_CALL_SCOPE=true` as production default; tighten non-call internals that still bypass it.
+4. Do not remove `INTERNAL_SERVICE_TOKEN` — treat it as transport auth only, not tenant selection.
+
+### Checklist
+
+- [ ] Inventory all `require_internal_token` routes and classify (call / pre-call / provision / platform)
+- [ ] Call-originated routes: shared token alone cannot select arbitrary tenant
+- [ ] Path/body/query `tenant_id` cannot escalate across tenants when scope is present
+- [ ] Legacy `/tenants/{tenant_id}/…` telephony mutations cannot be switched by path alone
+- [ ] Preserve `X-Call-Scope` issuance from resolve + call start
+- [ ] Cross-tenant internal-service IDOR tests (token + wrong tenant_id → DENIED)
+- [ ] Docs: update `docs/CALL_AUTHORIZATION.md` + `docs/TENANT_ISOLATION_AUDIT.md`
+- [ ] No production changes in this task without staged rollout notes
+
+### Out of scope
+
+- New IdP / mTLS mesh / per-tenant service accounts redesign
+- Postgres RLS
+- Frontend auth changes
+- Phase 2 onboarding
+
+### Acceptance
+
+```text
+INTERNAL_SERVICE_TOKEN alone ≠ tenant authority
+Scoped credential (or ops session) binds tenant
+Cross-tenant internal IDOR tests PASS
+Existing call-scope behavior intact
+```
 
 ---
 

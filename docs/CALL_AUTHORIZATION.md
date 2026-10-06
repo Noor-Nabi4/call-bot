@@ -44,6 +44,8 @@ Production startup (`require_production_settings`) **requires** `REQUIRE_CALL_SC
 - Agent profile fetch at worker startup (pre-call)
 - Ops session cookie APIs
 
+**Follow-up:** Task 1.4.1 (Internal Service Tenant Boundary Hardening) — treat shared token as transport auth only; bind tenant via scope or ops session so path/body `tenant_id` cannot switch tenants.
+
 ## Voice agent
 
 All call-originated platform clients (`PlatformCrmClient`, `PlatformSchedulingClient`, `PlatformKnowledgeClient`, `PlatformHandoffClient`) send `X-Call-Scope` after resolve/start. Agent wires the same scope token into every client.
