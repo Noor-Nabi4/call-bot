@@ -53,6 +53,10 @@ from callbot_platform.db.models.dynamic_crm import (
     OrganizationCustomObjectDefinition,
     OrganizationCustomObjectRecord,
 )
+from callbot_platform.db.models.handoff import (
+    TenantHandoffSettings,
+    TenantRetentionSettings,
+)
 from callbot_platform.db.models.inventory import (
     InventoryAlertConfiguration,
     InventoryAlertEvent,
@@ -61,24 +65,6 @@ from callbot_platform.db.models.inventory import (
     InventoryLocation,
     InventoryOutboxEvent,
     InventoryTransaction,
-)
-from callbot_platform.db.models.orders import (
-    Order,
-    OrderItem,
-    OrderNumberCounter,
-    OrderStatusHistory,
-)
-from callbot_platform.db.models.services import (
-    Pricebook,
-    PricebookItem,
-    PricebookItemComponent,
-    PricebookOverride,
-    Service,
-    ServiceCategory,
-)
-from callbot_platform.db.models.handoff import (
-    TenantHandoffSettings,
-    TenantRetentionSettings,
 )
 from callbot_platform.db.models.jobs import (
     Job,
@@ -91,13 +77,39 @@ from callbot_platform.db.models.jobs import (
 )
 from callbot_platform.db.models.knowledge import KnowledgeArticle
 from callbot_platform.db.models.onboarding import OrganizationOnboarding
+from callbot_platform.db.models.orders import (
+    Order,
+    OrderItem,
+    OrderNumberCounter,
+    OrderStatusHistory,
+)
 from callbot_platform.db.models.queue import CallQueueItem
 from callbot_platform.db.models.recordings import RecordingObject
 from callbot_platform.db.models.scheduling import (
     Appointment,
+    AppointmentNumberCounter,
+    AppointmentStatusHistory,
+    BusinessHoliday,
     NotificationOutbox,
+    ServiceArea,
+    ServiceRequiredSkill,
+    Skill,
+    TechnicianBreak,
+    TechnicianSchedulePeriod,
+    TechnicianServiceArea,
+    TechnicianSkill,
+    TechnicianTimeOff,
     TenantScheduleSettings,
+    default_emergency_hours,
     default_weekly_hours,
+)
+from callbot_platform.db.models.services import (
+    Pricebook,
+    PricebookItem,
+    PricebookItemComponent,
+    PricebookOverride,
+    Service,
+    ServiceCategory,
 )
 from callbot_platform.db.models.tenant import (
     TelephonyAuditEvent,
@@ -117,9 +129,12 @@ from callbot_platform.rbac.models import (
 __all__ = [
     "AgentProfile",
     "Appointment",
+    "AppointmentNumberCounter",
+    "AppointmentStatusHistory",
     "AsyncJob",
     "AutomationRule",
     "Base",
+    "BusinessHoliday",
     "Call",
     "CallCogs",
     "CallQueueItem",
@@ -131,11 +146,6 @@ __all__ = [
     "CustomerPhone",
     "CustomerTag",
     "CustomerTagLink",
-    "Job",
-    "JobAttachment",
-    "JobNote",
-    "JobNumberCounter",
-    "JobStatusHistory",
     "InventoryAlertConfiguration",
     "InventoryAlertEvent",
     "InventoryBalance",
@@ -143,6 +153,11 @@ __all__ = [
     "InventoryLocation",
     "InventoryOutboxEvent",
     "InventoryTransaction",
+    "Job",
+    "JobAttachment",
+    "JobNote",
+    "JobNumberCounter",
+    "JobStatusHistory",
     "JsonType",
     "KnowledgeArticle",
     "Lead",
@@ -183,9 +198,17 @@ __all__ = [
     "RolePermission",
     "RolePermissionTombstone",
     "Service",
+    "ServiceArea",
     "ServiceCategory",
+    "ServiceRequiredSkill",
+    "Skill",
     "StripeWebhookEvent",
     "Technician",
+    "TechnicianBreak",
+    "TechnicianSchedulePeriod",
+    "TechnicianServiceArea",
+    "TechnicianSkill",
+    "TechnicianTimeOff",
     "TelephonyAuditEvent",
     "TelephonyIdempotencyKey",
     "Tenant",
@@ -202,6 +225,7 @@ __all__ = [
     "_utcnow",
     "_uuid",
     "default_business_hours",
+    "default_emergency_hours",
     "default_enabled_tools",
     "default_weekly_hours",
 ]

@@ -87,3 +87,13 @@ Orders production readiness: BLOCKED
 Do **not** implement Orders / Inventory ledger / Shipping / Estimates / Invoices / Payments / Memberships or other remaining Phase 4+ commerce domains until the staging gate closes (Customer CRM and Product Catalog foundations already landed under the override — see `docs/CUSTOMER_CRM.md` and `docs/PRODUCT_CATALOG.md`).
 
 Note: Phase 9 Orders code exists locally under the same development override. **Orders is not staging-verified and not production-ready.**
+
+### Phase 11 Appointments hardening (2026-10-07)
+
+```text
+LOCAL Appointments hardening: VERIFIED (505 pytest passed / 1 skipped; PG concurrency + EXPLAIN local)
+Repo Alembic head (workspace): 0041_appointments_scheduling
+STAGING Appointments migration/RBAC/smoke: NOT EXECUTED
+PRODUCTION Appointments migration/smoke: NOT EXECUTED
+Appointments production readiness: BLOCKED (staging/prod not executed)
+```

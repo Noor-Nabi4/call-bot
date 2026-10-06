@@ -2,6 +2,9 @@
 
 import { safeUserError } from "@/lib/safe-error";
 import { errors } from "@/lib/ops-copy";
+import { ApiError } from "./api-error";
+
+export { ApiError, isBookingConflict } from "./api-error";
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
@@ -57,7 +60,7 @@ async function handleApiResponse<T>(res: Response): Promise<T> {
         window.location.assign("/settings/billing");
       }
     }
-    throw new Error(safeUserError(message, errors.generic));
+    throw new ApiError(safeUserError(message, errors.generic), res.status, code);
   }
   if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;

@@ -1674,12 +1674,12 @@ NO_SHOW
 
 ### Checklist
 
-- [ ] Working days
-- [ ] Opening time
-- [ ] Closing time
-- [ ] Holidays
-- [ ] Timezone
-- [ ] Emergency hours
+- [x] Working days
+- [x] Opening time
+- [x] Closing time
+- [x] Holidays
+- [x] Timezone
+- [x] Emergency hours
 
 ---
 
@@ -1687,12 +1687,12 @@ NO_SHOW
 
 ### Checklist
 
-- [ ] Working schedule
-- [ ] Breaks
-- [ ] Vacation
-- [ ] Days off
-- [ ] Skills
-- [ ] Service areas
+- [x] Working schedule
+- [x] Breaks
+- [x] Vacation
+- [x] Days off
+- [x] Skills
+- [x] Service areas
 
 ---
 
@@ -1700,15 +1700,15 @@ NO_SHOW
 
 ### Checklist
 
-- [ ] Appointment model
-- [ ] Start time
-- [ ] End time
-- [ ] Duration
-- [ ] Customer
-- [ ] Job
-- [ ] Technician
-- [ ] Status
-- [ ] Timezone
+- [x] Appointment model
+- [x] Start time
+- [x] End time
+- [x] Duration
+- [x] Customer
+- [x] Job
+- [x] Technician
+- [x] Status
+- [x] Timezone
 
 ---
 
@@ -1720,16 +1720,31 @@ Calculate real availability instead of relying on static calendar slots.
 
 ### Checklist
 
-- [ ] Business hours
-- [ ] Technician schedule
-- [ ] Existing appointments
-- [ ] Appointment duration
-- [ ] Skills
-- [ ] Service area
-- [ ] Emergency priority
-- [ ] Timezone
-- [ ] Double-booking prevention
-- [ ] Race-condition protection
+- [x] Business hours
+- [x] Technician schedule
+- [x] Existing appointments
+- [x] Appointment duration
+- [x] Skills
+- [x] Service area
+- [x] Emergency priority
+- [x] Timezone
+- [x] Double-booking prevention
+- [x] Race-condition protection
+
+### Hardening (post-11.4)
+
+- [x] PostgreSQL exclusion + concurrent booking / adjacent / multi-tech races
+- [x] Availability-then-book race (advisory vs authoritative)
+- [x] Reschedule / assign / cancel-vs-reschedule / status races
+- [x] Full status transition matrix
+- [x] Idempotency + appointment numbering concurrency
+- [x] Business hours (adjacent/overlap/overnight reject) + emergency isolation
+- [x] DST spring-forward / fall-back + IANA timezone matrix
+- [x] Skills / service areas / customer-job integrity
+- [x] Availability + list N+1 bounds; local EXPLAIN ANALYZE evidence
+- [x] HTTP RBAC + IDOR; frontend booking conflict refresh
+- [ ] Staging verification
+- [ ] Production verification
 
 ---
 

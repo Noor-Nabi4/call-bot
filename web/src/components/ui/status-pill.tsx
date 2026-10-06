@@ -5,6 +5,7 @@ import { deriveUrgency } from "@/lib/schedule";
 
 const tones: Record<string, string> = {
   new: "bg-surface-muted text-text-secondary",
+  tentative: "bg-surface-muted text-text-secondary",
   scheduled: "bg-brand-soft text-brand",
   confirmed: "bg-brand-soft text-brand",
   dispatched: "bg-warn-soft text-warn",

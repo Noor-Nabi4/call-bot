@@ -526,6 +526,14 @@ class CustomerTimelineService:
                     "metadata": {
                         "status": row.status,
                         "confirmation_code": row.confirmation_code,
+                        "appointment_number": row.appointment_number,
+                        "priority": row.priority,
+                        "is_emergency": row.is_emergency,
+                        "assigned_technician_id": (
+                            str(row.assigned_technician_id)
+                            if row.assigned_technician_id
+                            else None
+                        ),
                     },
                     "_occurred_at": row.starts_at,
                 }

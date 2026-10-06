@@ -235,8 +235,10 @@ def test_timeline_aggregates_existing_domains(session: Session, tenant: Tenant) 
         Appointment(
             tenant_id=tenant.id,
             customer_id=cid,
+            appointment_number="APT-000001",
             starts_at=now + timedelta(days=1),
             ends_at=now + timedelta(days=1, hours=1),
+            duration_minutes=60,
             service_type="Tune-up",
             confirmation_code="CNF1",
         )

@@ -191,7 +191,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         read_permission="appointments.read",
         create_permission="appointments.create",
         update_permission="appointments.update",
-        href="/appointments",
+        href="/crm/appointments",
     ),
     _m(
         "ESTIMATES",

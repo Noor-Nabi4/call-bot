@@ -137,7 +137,7 @@ def test_book_and_double_book_rejected(session: Session, tenant: Tenant) -> None
         idempotency_key="book-1",
     )
     assert first["confirmation_code"].startswith("APT-")
-    assert first["status"] == "scheduled"
+    assert first["status"] == "SCHEDULED"
 
     with pytest.raises(SchedulingError) as exc:
         repo.book(
