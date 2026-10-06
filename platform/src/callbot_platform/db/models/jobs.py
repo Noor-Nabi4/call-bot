@@ -30,6 +30,7 @@ class TenantUser(Base):
     __table_args__ = (
         UniqueConstraint("tenant_id", "email", name="uq_tenant_users_tenant_email"),
         Index("ix_tenant_users_tenant_id", "tenant_id"),
+        Index("ix_tenant_users_tenant_status", "tenant_id", "status"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -42,6 +43,7 @@ class TenantUser(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

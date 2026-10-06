@@ -396,6 +396,7 @@ class AdminRepository:
                 "email": u.email,
                 "name": u.name,
                 "role": u.role,
+                "status": u.status,
                 "is_active": u.is_active,
             }
             for u in rows

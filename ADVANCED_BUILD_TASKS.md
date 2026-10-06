@@ -157,16 +157,18 @@ Create the main business/tenant entity.
 
 Connect users with businesses.
 
+Reuse `tenant_users` as the organization membership table (unique `tenant_id` + `email`). Do not create a parallel `organization_members` table. Role remains a string until Task 1.3.
+
 ### Checklist
 
-- [ ] Membership table
-- [ ] User relationship
-- [ ] Organization relationship
-- [ ] Role
-- [ ] Status
-- [ ] Unique constraint
-- [ ] API
-- [ ] Authorization tests
+- [x] Membership table
+- [x] User relationship
+- [x] Organization relationship
+- [x] Role
+- [x] Status
+- [x] Unique constraint
+- [x] API
+- [x] Authorization tests
 
 ---
 

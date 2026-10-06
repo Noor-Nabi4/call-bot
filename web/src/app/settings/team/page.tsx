@@ -188,7 +188,7 @@ export default function TeamPage() {
               : "font-mono text-xs uppercase text-text-muted"
           }
         >
-          {u.is_active ? "active" : "inactive"}
+          {u.status ?? (u.is_active ? "active" : "inactive")}
         </span>
       ),
       className: "w-24",

@@ -7,6 +7,7 @@ export type TeamUser = {
   name: string;
   role: string;
   is_active: boolean;
+  status?: string;
 };
 
 export function listAppointments() {

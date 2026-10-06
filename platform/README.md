@@ -81,6 +81,13 @@ Rates are configured via `COGS_*` env vars (see `.env.example`). OpenAI cost pre
 
 Ops: `/settings/billing` shows usage; `/settings/team` manages invite / role / deactivate.
 
+Organization membership (same `tenant_users` rows; no duplicate members table):
+
+- `GET|POST /api/admin/organization/members`
+- `GET|PATCH /api/admin/organization/members/{id}`
+
+Session-scoped. Status: `active` | `invited` | `disabled` (synced with `is_active` for login). Role remains a string until Task 1.3 RBAC.
+
 Plans are **not** registered as Stripe Products/Prices. Checkout uses inline `price_data` from `billing/plans.py`. Only `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` are required.
 
 Set `SESSION_SECRET` and `OPS_CORS_ORIGINS` (local `http://localhost:3002`; production `https://callandflow.com,https://www.callandflow.com`).

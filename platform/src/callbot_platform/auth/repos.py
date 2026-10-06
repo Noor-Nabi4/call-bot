@@ -11,6 +11,12 @@ from sqlalchemy.orm import Session
 
 from callbot_platform.billing.entitlements import EntitlementError, EntitlementGuard
 from callbot_platform.db.models import Technician, Tenant, TenantUser
+from callbot_platform.organization.membership import (
+    MEMBERSHIP_ACTIVE,
+    VALID_MEMBERSHIP_STATUSES,
+    is_active_for_status,
+    status_for_is_active,
+)
 from callbot_platform.security.session import (
     ROLE_ADMIN,
     ROLE_TECHNICIAN,
@@ -94,6 +100,7 @@ class AuthRepository:
             password_hash=hash_password(password),
             name=name.strip(),
             role=ROLE_ADMIN,
+            status=MEMBERSHIP_ACTIVE,
             is_active=True,
         )
         self._session.add(user)
@@ -117,10 +124,17 @@ class AuthRepository:
         role: str,
         phone: str | None = None,
         actor: str = "admin",
+        status: str | None = None,
     ) -> dict[str, Any]:
         if role not in VALID_ROLES:
             raise AuthError(
                 "invalid_role", f"Role must be one of {sorted(VALID_ROLES)}"
+            )
+        membership_status = (status or MEMBERSHIP_ACTIVE).strip().lower()
+        if membership_status not in VALID_MEMBERSHIP_STATUSES:
+            raise AuthError(
+                "invalid_membership_status",
+                f"Status must be one of {sorted(VALID_MEMBERSHIP_STATUSES)}",
             )
         if len(password) < 8:
             raise AuthError("weak_password", "Password must be at least 8 characters")
@@ -135,17 +149,21 @@ class AuthRepository:
         )
         if existing is not None:
             raise AuthError("email_taken", "A user with that email already exists")
-        try:
-            EntitlementGuard(self._session).require_capacity(tenant_id, "team_users")
-        except EntitlementError as exc:
-            raise AuthError(exc.code, str(exc)) from exc
+        if is_active_for_status(membership_status):
+            try:
+                EntitlementGuard(self._session).require_capacity(
+                    tenant_id, "team_users"
+                )
+            except EntitlementError as exc:
+                raise AuthError(exc.code, str(exc)) from exc
         user = TenantUser(
             tenant_id=tenant_id,
             email=email.strip().lower(),
             password_hash=hash_password(password),
             name=name.strip(),
             role=role,
-            is_active=True,
+            status=membership_status,
+            is_active=is_active_for_status(membership_status),
         )
         self._session.add(user)
         self._session.flush()
@@ -183,8 +201,9 @@ class AuthRepository:
         is_active: bool | None = None,
         name: str | None = None,
         password: str | None = None,
+        status: str | None = None,
     ) -> dict[str, Any]:
-        """Admin update: role, active flag, name, or temporary password reset."""
+        """Admin update: role, membership status, name, or temporary password reset."""
         user = self._session.scalar(
             select(TenantUser).where(
                 TenantUser.id == user_id, TenantUser.tenant_id == tenant_id
@@ -201,8 +220,26 @@ class AuthRepository:
                 "invalid_role",
                 f"Role must be one of {sorted(VALID_ROLES)}",
             )
+        if status is not None and status not in VALID_MEMBERSHIP_STATUSES:
+            raise AuthError(
+                "invalid_membership_status",
+                f"Status must be one of {sorted(VALID_MEMBERSHIP_STATUSES)}",
+            )
+        if (
+            status is not None
+            and is_active is not None
+            and is_active_for_status(status) != is_active
+        ):
+            raise AuthError(
+                "status_conflict",
+                "status and is_active disagree; send only one",
+            )
 
         changed: list[str] = []
+        if status is not None:
+            is_active = is_active_for_status(status)
+        elif is_active is not None:
+            status = status_for_is_active(is_active)
 
         if is_active is False and user.id == actor_user_id:
             raise AuthError(
@@ -298,6 +335,10 @@ class AuthRepository:
             if tech is not None:
                 tech.is_active = is_active
                 changed.append("technician_is_active")
+
+        if status is not None and status != user.status:
+            user.status = status
+            changed.append("status")
 
         if password is not None:
             if len(password) < 8:
@@ -412,11 +453,13 @@ class AuthRepository:
         return {
             "id": str(user.id),
             "tenant_id": str(user.tenant_id),
+            "organization_id": str(user.tenant_id),
             "tenant_slug": tenant.slug,
             "tenant_name": tenant.name,
             "email": user.email,
             "name": user.name,
             "role": user.role,
+            "status": user.status,
             "technician_id": tech_id,
             "is_active": user.is_active,
             "created_at": user.created_at.isoformat() if user.created_at else None,
