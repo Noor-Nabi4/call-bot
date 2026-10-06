@@ -53,14 +53,19 @@ class UpsertCustomerBody(BaseModel):
 
 
 class CreateLeadBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
     tenant_id: UUID
-    customer_id: UUID
     service_type: str
+    customer_id: UUID | None = None
     urgency: str = "normal"
     notes: str | None = None
     preferred_time_window: str | None = None
     call_id: UUID | None = None
     idempotency_key: str | None = None
+    prospect_name: str | None = None
+    prospect_phone: str | None = None
+    prospect_email: str | None = None
 
 
 class CallStartBody(BaseModel):
@@ -209,6 +214,9 @@ def create_lead(
             preferred_time_window=body.preferred_time_window,
             call_id=body.call_id,
             idempotency_key=body.idempotency_key,
+            prospect_name=body.prospect_name,
+            prospect_phone=body.prospect_phone,
+            prospect_email=body.prospect_email,
         )
         return {"lead": lead}
     except Exception as exc:

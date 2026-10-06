@@ -154,7 +154,9 @@ class Customer(Base):
     customer_notes: Mapped[list[CustomerNote]] = relationship(
         back_populates="customer", cascade="all, delete-orphan"
     )
-    leads: Mapped[list[Lead]] = relationship(back_populates="customer")
+    leads: Mapped[list[Lead]] = relationship(
+        back_populates="customer", foreign_keys="Lead.customer_id"
+    )
     calls: Mapped[list[Call]] = relationship(back_populates="customer")
     appointments: Mapped[list[Appointment]] = relationship(back_populates="customer")
     jobs: Mapped[list[Job]] = relationship(back_populates="customer")
@@ -427,6 +429,8 @@ class Call(Base):
 
 
 class Lead(Base):
+    """First-class Lead CRM row (Phase 8). Voice create path remains supported."""
+
     __tablename__ = "leads"
     __table_args__ = (
         UniqueConstraint(
@@ -435,6 +439,28 @@ class Lead(Base):
         Index("ix_leads_tenant_id", "tenant_id"),
         Index("ix_leads_customer_id", "customer_id"),
         Index("ix_leads_tenant_status_created", "tenant_id", "status", "created_at"),
+        Index("ix_leads_tenant_status", "tenant_id", "status"),
+        Index("ix_leads_tenant_owner", "tenant_id", "owner_user_id"),
+        Index("ix_leads_tenant_source", "tenant_id", "source"),
+        Index("ix_leads_tenant_priority", "tenant_id", "priority"),
+        Index("ix_leads_tenant_service", "tenant_id", "service_id"),
+        Index("ix_leads_tenant_product", "tenant_id", "product_id"),
+        Index("ix_leads_tenant_archived", "tenant_id", "archived_at"),
+        Index("ix_leads_tenant_updated", "tenant_id", "updated_at"),
+        Index("ix_leads_tenant_created", "tenant_id", "created_at"),
+        CheckConstraint(
+            "status IN ('NEW', 'QUALIFIED', 'CONTACTED', 'BOOKED', 'WON', 'LOST')",
+            name="ck_leads_status",
+        ),
+        CheckConstraint(
+            "priority IN ('LOW', 'MEDIUM', 'HIGH', 'URGENT')",
+            name="ck_leads_priority",
+        ),
+        CheckConstraint(
+            "source IN ('PHONE', 'WEBSITE', 'REFERRAL', 'SOCIAL', 'EMAIL', "
+            "'AD', 'WALK_IN', 'AI_AGENT', 'OTHER')",
+            name="ck_leads_source",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -443,23 +469,65 @@ class Lead(Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
     )
-    customer_id: Mapped[uuid.UUID] = mapped_column(
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("customers.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("customers.id", ondelete="SET NULL"),
+        nullable=True,
     )
     call_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("calls.id", ondelete="SET NULL"), nullable=True
     )
-    service_type: Mapped[str] = mapped_column(String(128), nullable=False)
+    # Legacy voice fields (kept for AI/voice compatibility).
+    service_type: Mapped[str] = mapped_column(String(128), nullable=False, default="")
     urgency: Mapped[str] = mapped_column(String(32), nullable=False, default="normal")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     preferred_time_window: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="new")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="NEW")
     idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     reference_code: Mapped[str] = mapped_column(String(32), nullable=False)
+
+    # Phase 8 CRM fields
+    title: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="OTHER")
+    priority: Mapped[str] = mapped_column(String(32), nullable=False, default="MEDIUM")
+    service_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("services.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    product_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("products.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenant_users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    # Non-authoritative prospect contact when customer_id is null.
+    prospect_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    prospect_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    prospect_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    updated_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    converted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    converted_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    converted_customer_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("customers.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -474,6 +542,149 @@ class Lead(Base):
         server_default=func.now(),
     )
 
-    customer: Mapped[Customer] = relationship(back_populates="leads")
+    customer: Mapped[Customer | None] = relationship(
+        back_populates="leads", foreign_keys=[customer_id]
+    )
     call: Mapped[Call | None] = relationship(back_populates="leads")
     appointments: Mapped[list[Appointment]] = relationship(back_populates="lead")
+    lead_notes: Mapped[list[LeadNote]] = relationship(
+        back_populates="lead", cascade="all, delete-orphan"
+    )
+    activities: Mapped[list[LeadActivity]] = relationship(
+        back_populates="lead", cascade="all, delete-orphan"
+    )
+    conversion: Mapped[LeadConversion | None] = relationship(
+        back_populates="lead", uselist=False, cascade="all, delete-orphan"
+    )
+
+
+class LeadNote(Base):
+    __tablename__ = "lead_notes"
+    __table_args__ = (
+        Index("ix_lead_notes_tenant_id", "tenant_id"),
+        Index("ix_lead_notes_tenant_lead", "tenant_id", "lead_id"),
+        Index("ix_lead_notes_tenant_created", "tenant_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    lead_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False
+    )
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    updated_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        onupdate=_utcnow,
+        server_default=func.now(),
+    )
+
+    lead: Mapped[Lead] = relationship(back_populates="lead_notes")
+
+
+class LeadActivity(Base):
+    __tablename__ = "lead_activities"
+    __table_args__ = (
+        Index("ix_lead_activities_tenant_id", "tenant_id"),
+        Index("ix_lead_activities_tenant_lead", "tenant_id", "lead_id"),
+        Index("ix_lead_activities_tenant_created", "tenant_id", "created_at"),
+        Index("ix_lead_activities_tenant_type", "tenant_id", "activity_type"),
+        CheckConstraint(
+            "activity_type IN ("
+            "'CREATED', 'STATUS_CHANGED', 'NOTE_ADDED', 'NOTE_UPDATED', "
+            "'NOTE_DELETED', 'OWNER_CHANGED', 'CUSTOMER_LINKED', "
+            "'SERVICE_LINKED', 'PRODUCT_LINKED', 'CONTACTED', 'BOOKED', "
+            "'WON', 'LOST', 'CONVERTED', 'UPDATED', 'ARCHIVED', 'RESTORED'"
+            ")",
+            name="ck_lead_activities_type",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    lead_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False
+    )
+    activity_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenant_users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    actor: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    metadata_json: Mapped[dict[str, Any]] = mapped_column(
+        "metadata", JsonType, nullable=False, default=dict
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        server_default=func.now(),
+    )
+
+    lead: Mapped[Lead] = relationship(back_populates="activities")
+
+
+class LeadConversion(Base):
+    """Idempotent Lead → Customer conversion record. UNIQUE(tenant_id, lead_id)."""
+
+    __tablename__ = "lead_conversions"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "lead_id", name="uq_lead_conversions_tenant_lead"
+        ),
+        Index("ix_lead_conversions_tenant_id", "tenant_id"),
+        Index("ix_lead_conversions_tenant_customer", "tenant_id", "customer_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=_uuid
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
+    )
+    lead_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("leads.id", ondelete="CASCADE"), nullable=False
+    )
+    customer_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("customers.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_customer: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    converted_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    converted_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("tenant_users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        server_default=func.now(),
+    )
+
+    lead: Mapped[Lead] = relationship(back_populates="conversion")

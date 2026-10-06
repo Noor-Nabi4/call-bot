@@ -34,6 +34,9 @@ from callbot_platform.db.models.crm import (
     CustomerTag,
     CustomerTagLink,
     Lead,
+    LeadActivity,
+    LeadConversion,
+    LeadNote,
     TenantAgentSettings,
 )
 from callbot_platform.db.models.crm_config import (
@@ -126,6 +129,9 @@ __all__ = [
     "JsonType",
     "KnowledgeArticle",
     "Lead",
+    "LeadActivity",
+    "LeadConversion",
+    "LeadNote",
     "MemberRole",
     "NotificationOutbox",
     "OrganizationCrmConfiguration",

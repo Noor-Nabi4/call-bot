@@ -222,8 +222,12 @@ def test_timeline_aggregates_existing_domains(session: Session, tenant: Tenant) 
         Lead(
             tenant_id=tenant.id,
             customer_id=cid,
+            title="AC Repair",
             service_type="AC Repair",
             reference_code="JB-AAA111",
+            status="NEW",
+            source="PHONE",
+            priority="MEDIUM",
             created_at=now - timedelta(hours=1),
         )
     )

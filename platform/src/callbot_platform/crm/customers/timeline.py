@@ -18,6 +18,7 @@ from callbot_platform.db.models import (
     CustomerNote,
     Job,
     Lead,
+    LeadActivity,
     NotificationOutbox,
 )
 
@@ -89,6 +90,11 @@ class CustomerTimelineService:
         if "LEAD" in types:
             events.extend(
                 self._leads(tenant_id, customer_id, fetch_n, since=since, until=until)
+            )
+            events.extend(
+                self._lead_activities(
+                    tenant_id, customer_id, fetch_n, since=since, until=until
+                )
             )
         if "JOB" in types:
             events.extend(
@@ -214,13 +220,60 @@ class CustomerTimelineService:
                     "type": "LEAD",
                     "id": str(row.id),
                     "timestamp": row.created_at.isoformat(),
-                    "title": f"Lead · {row.service_type}",
+                    "title": f"Lead · {row.title or row.service_type}",
                     "summary": row.notes or f"Status: {row.status}",
                     "source": "leads",
                     "source_key": f"lead:{row.id}",
                     "metadata": {
                         "status": row.status,
                         "reference_code": row.reference_code,
+                        "source": row.source,
+                        "priority": row.priority,
+                    },
+                    "_occurred_at": row.created_at,
+                }
+            )
+        return out
+
+    def _lead_activities(
+        self,
+        tenant_id: UUID,
+        customer_id: UUID,
+        limit: int,
+        *,
+        since: datetime | None,
+        until: datetime | None,
+    ) -> list[dict[str, Any]]:
+        """Lead activities for leads linked to this customer (same LEAD RBAC)."""
+        lead_ids = select(Lead.id).where(
+            Lead.tenant_id == tenant_id, Lead.customer_id == customer_id
+        )
+        q = select(LeadActivity).where(
+            LeadActivity.tenant_id == tenant_id,
+            LeadActivity.lead_id.in_(lead_ids),
+        )
+        if since is not None:
+            q = q.where(LeadActivity.created_at >= since)
+        if until is not None:
+            q = q.where(LeadActivity.created_at <= until)
+        q = q.order_by(LeadActivity.created_at.desc(), LeadActivity.id.desc()).limit(
+            limit
+        )
+        out: list[dict[str, Any]] = []
+        for row in self._session.scalars(q).all():
+            out.append(
+                {
+                    "type": "LEAD",
+                    "id": str(row.id),
+                    "timestamp": row.created_at.isoformat(),
+                    "title": f"Lead · {row.activity_type}",
+                    "summary": row.actor or row.activity_type,
+                    "source": "lead_activities",
+                    "source_key": f"lead_activity:{row.id}",
+                    "metadata": {
+                        "activity_type": row.activity_type,
+                        "lead_id": str(row.lead_id),
+                        **dict(row.metadata_json or {}),
                     },
                     "_occurred_at": row.created_at,
                 }

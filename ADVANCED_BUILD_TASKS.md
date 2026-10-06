@@ -1521,15 +1521,15 @@ Never directly modify stock without creating an inventory transaction.
 
 ### Checklist
 
-- [ ] Lead model
-- [ ] Customer relation
-- [ ] Source
-- [ ] Service/product
-- [ ] Priority
-- [ ] Status
-- [ ] Owner
-- [ ] Notes
-- [ ] CRUD APIs
+- [x] Lead model
+- [x] Customer relation
+- [x] Source
+- [x] Service/product
+- [x] Priority
+- [x] Status
+- [x] Owner
+- [x] Notes
+- [x] CRUD APIs
 
 ---
 
@@ -1546,10 +1546,10 @@ NEW
 
 ### Checklist
 
-- [ ] Status transitions
-- [ ] Pipeline UI
-- [ ] Activity tracking
-- [ ] Conversion tracking
+- [x] Status transitions
+- [x] Pipeline UI
+- [x] Activity tracking
+- [x] Conversion tracking
 
 ---
 
