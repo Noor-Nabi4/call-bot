@@ -83,6 +83,13 @@ from callbot_platform.db.models.jobs import (
 )
 from callbot_platform.db.models.knowledge import KnowledgeArticle
 from callbot_platform.db.models.onboarding import OrganizationOnboarding
+from callbot_platform.db.models.estimates import (
+    Estimate,
+    EstimateConversion,
+    EstimateItem,
+    EstimateNumberCounter,
+    EstimateStatusHistory,
+)
 from callbot_platform.db.models.orders import (
     Order,
     OrderItem,
@@ -153,6 +160,11 @@ __all__ = [
     "CustomerTag",
     "CustomerTagLink",
     "DispatchEvent",
+    "Estimate",
+    "EstimateConversion",
+    "EstimateItem",
+    "EstimateNumberCounter",
+    "EstimateStatusHistory",
     "InventoryAlertConfiguration",
     "InventoryAlertEvent",
     "InventoryBalance",

@@ -2120,19 +2120,22 @@ Use database tools for:
 
 # PHASE 17 — ESTIMATES
 
+> Implemented on the tenancy branch as **Phase 13 Estimates** (migration `0043_estimates`).
+> Email/SMS delivery and customer portal approval remain future work.
+
 ## TASK 17.1 — Estimate
 
 ### Checklist
 
-- [ ] Estimate model
-- [ ] Customer
-- [ ] Job
-- [ ] Line items
-- [ ] Quantity
-- [ ] Unit price
-- [ ] Discount
-- [ ] Tax
-- [ ] Total
+- [x] Estimate model
+- [x] Customer
+- [x] Job (via conversion)
+- [x] Line items
+- [x] Quantity
+- [x] Unit price
+- [x] Discount
+- [x] Tax
+- [x] Total
 
 ---
 
@@ -2143,17 +2146,19 @@ DRAFT
 → SENT
 → VIEWED
 → APPROVED
-→ DECLINED
+→ REJECTED
 → EXPIRED
+→ CONVERTED
 ```
 
 ### Checklist
 
-- [ ] State machine
+- [x] State machine
 - [ ] Email
 - [ ] SMS
-- [ ] Customer approval
-- [ ] Convert to job
+- [x] Internal approval/rejection APIs
+- [x] Convert to job
+- [x] Convert to order
 
 ---
 

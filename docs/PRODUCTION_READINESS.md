@@ -111,3 +111,15 @@ Assignment architecture: all paths → DispatchAssignmentService
 Realtime: polling dispatch_events (not WebSocket)
 Dispatch production readiness: BLOCKED (staging/prod not executed)
 ```
+
+### Phase 13 Estimates (2026-10-07)
+
+```text
+LOCAL Estimates implementation: VERIFIED (focused + suite in report)
+LOCAL PostgreSQL concurrency + EXPLAIN (synthetic): VERIFIED when PG available
+STAGING Estimates migration/RBAC/smoke: NOT EXECUTED
+PRODUCTION Estimates migration/smoke: NOT EXECUTED
+Repo Alembic head (workspace): 0043_estimates
+Invoices/Payments: intentionally not implemented
+Estimates production readiness: BLOCKED (staging/prod not executed)
+```

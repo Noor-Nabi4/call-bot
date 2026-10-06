@@ -50,6 +50,9 @@ from callbot_platform.api.services_pricebook_routes import (  # noqa: E402
 from callbot_platform.api.orders_routes import (  # noqa: E402
     router as orders_router,
 )
+from callbot_platform.api.estimates_routes import (  # noqa: E402
+    router as estimates_router,
+)
 from callbot_platform.api.leads_routes import (  # noqa: E402
     router as leads_router,
 )
@@ -138,6 +141,7 @@ app.include_router(inventory_router)
 app.include_router(services_pricebook_router)
 app.include_router(leads_router)
 app.include_router(orders_router)
+app.include_router(estimates_router)
 app.include_router(rbac_router)
 app.include_router(jobs_router)
 app.include_router(jobs_crm_router)
