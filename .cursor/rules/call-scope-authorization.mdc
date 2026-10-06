@@ -1,0 +1,34 @@
+---
+description: Call-scoped internal auth for voice → platform APIs
+globs: "platform/src/callbot_platform/**/*.py,voice-agent/src/**/*.py,deploy/**/*,docker-compose*.yml"
+alwaysApply: false
+---
+
+# Call-Scope Authorization
+
+Internal voice/CRM/scheduling/knowledge/handoff APIs must not rely on a shared service token alone in production.
+
+## Production
+
+- `REQUIRE_CALL_SCOPE=true` (enforced by `require_production_settings`)
+- Installer and compose must write/pin this — never omit it from production env generation
+- Expiry rule: reject when `exp <= now` (RFC 7519)
+
+## Verify matrix (fail closed)
+
+| Case | Result |
+|------|--------|
+| Missing scope | 401 |
+| Tampered / bad sig | 401 |
+| Expired | 401 |
+| Wrong tenant | 403 |
+| Wrong call | 403 |
+| Valid scope | 200 |
+
+Body/query/headers must not override tenant or call identity from the verified scope.
+
+## Voice agent
+
+Send `X-Call-Scope` on platform tool calls. Do not invent tenant IDs in tool payloads.
+
+See: `docs/CALL_AUTHORIZATION.md`

@@ -1,0 +1,30 @@
+---
+description: Connection pool and worker fleet budget vs Postgres max_connections
+globs: "platform/src/callbot_platform/**/*.py,docs/PRODUCTION*.md,docs/DATABASE*.md,docker-compose*.yml"
+alwaysApply: false
+---
+
+# Database Connection Budget
+
+Defaults: `DB_POOL_SIZE=5` + `DB_MAX_OVERFLOW=10` → **15 connections per process**.
+
+## Formula
+
+```text
+total ≈
+  API_replicas × (pool + overflow)
++ job_worker_replicas × (pool + overflow)
++ outbox_worker_replicas × (pool + overflow)
++ admin / migration sessions
+```
+
+Keep `total` under Postgres `max_connections` with ≥20% headroom.
+
+## Rules
+
+- Do not raise pool sizes to hide connection exhaustion
+- Dedicated-tenant engines use smaller pools (`engine_cache`)
+- Document replica counts when changing deploy topology
+- Compose API health alone does not run workers — budget for `run_jobs` / `run_outbox` processes explicitly
+
+See: `docs/PRODUCTION_DEPLOYMENT.md`, `docs/DATABASE_SCALING.md`
