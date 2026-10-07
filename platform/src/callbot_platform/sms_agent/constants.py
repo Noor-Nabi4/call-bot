@@ -27,6 +27,12 @@ SMS_ALLOWED_TOOLS: frozenset[str] = frozenset(
         "send_payment_link_sms",
         "send_payment_link_email",
         "get_payment_status",
+        "list_membership_plans",
+        "get_customer_membership",
+        "subscribe_membership",
+        "cancel_membership",
+        "upgrade_membership",
+        "downgrade_membership",
     }
 )
 

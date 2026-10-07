@@ -357,3 +357,5 @@ SMS channel specifics (webhooks, conversations, outbound outbox, loop prevention
 Phase 16 adds `search_knowledge` (tool group `knowledge`) via `KnowledgeRetrievalService`. RAG answers informational FAQs/policies only — inventory, pricing, appointments, and orders remain domain tools. See `docs/KNOWLEDGE_BASE.md`.
 
 Phase 19 adds payment tools (`create_payment_link`, `send_payment_link_sms`, `send_payment_link_email`, `get_payment_status`) under tool group `payments`. Mutations require confirmation; money applies only through `InvoicePaymentService`. Never collect card data — use Stripe Checkout URLs. See `docs/PAYMENTS.md`.
+
+Phase 20 adds membership tools (`list_membership_plans`, `get_customer_membership`, `subscribe_membership`, `cancel_membership`, `upgrade_membership`, `downgrade_membership`) under tool group `memberships`. Mutations require confirmation. Current membership state never comes from RAG. See `docs/MEMBERSHIPS.md`.

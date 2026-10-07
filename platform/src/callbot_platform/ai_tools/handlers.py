@@ -13,6 +13,8 @@ from sqlalchemy.orm import Session
 from callbot_platform.ai_tools.booking import BookingOrchestrationService, _parse_aware
 from callbot_platform.ai_tools.registry import (
     CancelAppointmentArgs,
+    CancelMembershipArgs,
+    ChangeMembershipPlanArgs,
     CheckAvailabilityArgs,
     CheckInventoryArgs,
     CreateAppointmentArgs,
@@ -25,12 +27,14 @@ from callbot_platform.ai_tools.registry import (
     FindEstimatesArgs,
     FindOrdersArgs,
     GetCustomerContextArgs,
+    GetCustomerMembershipArgs,
     GetEstimateArgs,
     GetOrderStatusArgs,
     GetPaymentStatusArgs,
     GetProductArgs,
     GetProductPriceArgs,
     GetServicePriceArgs,
+    ListMembershipPlansArgs,
     RequestHumanArgs,
     RescheduleAppointmentArgs,
     SearchKnowledgeArgs,
@@ -39,6 +43,7 @@ from callbot_platform.ai_tools.registry import (
     SendPaymentLinkEmailArgs,
     SendPaymentLinkSmsArgs,
     SendSmsArgs,
+    SubscribeMembershipArgs,
     ToolSpec,
     UpdateCustomerArgs,
 )
@@ -51,6 +56,7 @@ from callbot_platform.crm.estimates.service import EstimateService
 from callbot_platform.crm.inventory.service import InventoryService
 from callbot_platform.crm.inventory.status import available_quantity, derive_status
 from callbot_platform.crm.jobs.service import JobService
+from callbot_platform.crm.memberships import MembershipService
 from callbot_platform.crm.orders.service import OrderService
 from callbot_platform.crm.payments import PaymentService
 from callbot_platform.crm.products.service import ProductCatalogService
@@ -1388,6 +1394,139 @@ class AIToolHandlers:
                 }
             )
         return tool_error("invalid_arguments")
+
+    def handle_list_membership_plans(
+        self, ctx: AIToolContext, args: ListMembershipPlansArgs
+    ) -> Any:
+        result = MembershipService(self._session).list_plans(
+            ctx.tenant_id,
+            status=args.status or "ACTIVE",
+            limit=20,
+        )
+        return ok_result(
+            {
+                "plans": [
+                    {
+                        "id": p["id"],
+                        "name": p["name"],
+                        "monthlyPrice": p["monthly_price"],
+                        "annualPrice": p["annual_price"],
+                        "currency": p["currency"],
+                        "priorityScheduling": p["priority_scheduling"],
+                        "discountType": p["discount_type"],
+                        "discountValue": p["discount_value"],
+                        "includedServices": p["included_services"],
+                        "status": p["status"],
+                    }
+                    for p in result["plans"]
+                ]
+            }
+        )
+
+    def handle_get_customer_membership(
+        self, ctx: AIToolContext, args: GetCustomerMembershipArgs
+    ) -> Any:
+        customer_id = _uuid(args.customer_id, field="customerId")
+        membership = MembershipService(self._session).get_customer_membership(
+            ctx.tenant_id, customer_id
+        )
+        entitlements = MembershipService(self._session).entitlements.resolve_for_customer(
+            ctx.tenant_id, customer_id
+        )
+        return ok_result(
+            {
+                "membership": membership,
+                "entitlements": entitlements,
+            }
+        )
+
+    def handle_subscribe_membership(
+        self, ctx: AIToolContext, args: SubscribeMembershipArgs
+    ) -> Any:
+        result = MembershipService(self._session).subscribe(
+            ctx.tenant_id,
+            customer_id=_uuid(args.customer_id, field="customerId"),
+            plan_id=_uuid(args.plan_id, field="planId"),
+            billing_interval=args.billing_interval,
+            actor=ctx.actor_type,
+            idempotency_key=str(ctx.operation_id) if ctx.operation_id else None,
+            create_payment_link=True,
+        )
+        payment = result.get("payment") or {}
+        return ok_result(
+            {
+                "membershipId": result["id"],
+                "status": result["status"],
+                "planId": result["plan_id"],
+                "billingInterval": result["billing_interval"],
+                "currentPeriodEnd": result["current_period_end"],
+                "invoiceId": result.get("last_invoice_id"),
+                "checkoutUrl": payment.get("checkout_url"),
+                "note": (
+                    "Membership stays PENDING until invoice payment succeeds. "
+                    "Send checkoutUrl via payment SMS/email tools. Never ask for cards."
+                ),
+            }
+        )
+
+    def handle_cancel_membership(
+        self, ctx: AIToolContext, args: CancelMembershipArgs
+    ) -> Any:
+        membership = MembershipService(self._session).cancel(
+            ctx.tenant_id,
+            _uuid(args.membership_id, field="membershipId"),
+            actor=ctx.actor_type,
+            immediate=bool(args.immediate),
+            idempotency_key=str(ctx.operation_id) if ctx.operation_id else None,
+        )
+        return ok_result(
+            {
+                "membershipId": membership["id"],
+                "status": membership["status"],
+                "cancelAtPeriodEnd": membership["cancel_at_period_end"],
+                "currentPeriodEnd": membership["current_period_end"],
+            }
+        )
+
+    def handle_upgrade_membership(
+        self, ctx: AIToolContext, args: ChangeMembershipPlanArgs
+    ) -> Any:
+        membership = MembershipService(self._session).upgrade(
+            ctx.tenant_id,
+            _uuid(args.membership_id, field="membershipId"),
+            target_plan_id=_uuid(args.target_plan_id, field="targetPlanId"),
+            actor=ctx.actor_type,
+            billing_interval=args.billing_interval,
+            idempotency_key=str(ctx.operation_id) if ctx.operation_id else None,
+        )
+        return ok_result(
+            {
+                "membershipId": membership["id"],
+                "planId": membership["plan_id"],
+                "pendingPlanId": membership["pending_plan_id"],
+                "effective": "next_period",
+            }
+        )
+
+    def handle_downgrade_membership(
+        self, ctx: AIToolContext, args: ChangeMembershipPlanArgs
+    ) -> Any:
+        membership = MembershipService(self._session).downgrade(
+            ctx.tenant_id,
+            _uuid(args.membership_id, field="membershipId"),
+            target_plan_id=_uuid(args.target_plan_id, field="targetPlanId"),
+            actor=ctx.actor_type,
+            billing_interval=args.billing_interval,
+            idempotency_key=str(ctx.operation_id) if ctx.operation_id else None,
+        )
+        return ok_result(
+            {
+                "membershipId": membership["id"],
+                "planId": membership["plan_id"],
+                "pendingPlanId": membership["pending_plan_id"],
+                "effective": "next_period",
+            }
+        )
 
 
 def load_caller_phone(session: Session, ctx_call_id: UUID | None) -> str | None:

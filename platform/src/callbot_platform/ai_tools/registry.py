@@ -209,6 +209,31 @@ class GetPaymentStatusArgs(StrictModel):
     invoice_id: str | None = Field(default=None, alias="invoiceId")
 
 
+class ListMembershipPlansArgs(StrictModel):
+    status: str | None = None
+
+
+class GetCustomerMembershipArgs(StrictModel):
+    customer_id: str = Field(alias="customerId")
+
+
+class SubscribeMembershipArgs(StrictModel):
+    customer_id: str = Field(alias="customerId")
+    plan_id: str = Field(alias="planId")
+    billing_interval: str = Field(alias="billingInterval")
+
+
+class CancelMembershipArgs(StrictModel):
+    membership_id: str = Field(alias="membershipId")
+    immediate: bool | None = False
+
+
+class ChangeMembershipPlanArgs(StrictModel):
+    membership_id: str = Field(alias="membershipId")
+    target_plan_id: str = Field(alias="targetPlanId")
+    billing_interval: str | None = Field(default=None, alias="billingInterval")
+
+
 class RequestHumanArgs(StrictModel):
     reason: str
     summary: str
@@ -532,6 +557,78 @@ TOOL_SPECS: dict[str, ToolSpec] = {
         idempotency_required=False,
         timeout_class=TimeoutClass.FAST_READ,
         description="Read payment status/amount for an invoice or payment id (no card data).",
+    ),
+    "list_membership_plans": ToolSpec(
+        name="list_membership_plans",
+        args_model=ListMembershipPlansArgs,
+        tool_group="memberships",
+        permissions=("memberships.read",),
+        mutation=False,
+        confirmation_required=False,
+        idempotency_required=False,
+        timeout_class=TimeoutClass.FAST_READ,
+        description="List membership plans (prices, included services, discounts).",
+    ),
+    "get_customer_membership": ToolSpec(
+        name="get_customer_membership",
+        args_model=GetCustomerMembershipArgs,
+        tool_group="memberships",
+        permissions=("memberships.read",),
+        mutation=False,
+        confirmation_required=False,
+        idempotency_required=False,
+        timeout_class=TimeoutClass.FAST_READ,
+        description="Get a customer's current open membership and benefits (not from RAG).",
+    ),
+    "subscribe_membership": ToolSpec(
+        name="subscribe_membership",
+        args_model=SubscribeMembershipArgs,
+        tool_group="memberships",
+        permissions=("memberships.create",),
+        mutation=True,
+        confirmation_required=True,
+        idempotency_required=True,
+        timeout_class=TimeoutClass.EXTERNAL_PROVIDER,
+        description=(
+            "Subscribe a customer to an ACTIVE plan. Creates invoice + optional "
+            "Stripe Checkout link. Never collect card data."
+        ),
+    ),
+    "cancel_membership": ToolSpec(
+        name="cancel_membership",
+        args_model=CancelMembershipArgs,
+        tool_group="memberships",
+        permissions=("memberships.update",),
+        mutation=True,
+        confirmation_required=True,
+        idempotency_required=True,
+        timeout_class=TimeoutClass.MUTATION,
+        description=(
+            "Cancel membership (default: at period end). Confirm with the customer "
+            "before executing."
+        ),
+    ),
+    "upgrade_membership": ToolSpec(
+        name="upgrade_membership",
+        args_model=ChangeMembershipPlanArgs,
+        tool_group="memberships",
+        permissions=("memberships.update",),
+        mutation=True,
+        confirmation_required=True,
+        idempotency_required=True,
+        timeout_class=TimeoutClass.MUTATION,
+        description="Schedule upgrade at next billing period (no proration).",
+    ),
+    "downgrade_membership": ToolSpec(
+        name="downgrade_membership",
+        args_model=ChangeMembershipPlanArgs,
+        tool_group="memberships",
+        permissions=("memberships.update",),
+        mutation=True,
+        confirmation_required=True,
+        idempotency_required=True,
+        timeout_class=TimeoutClass.MUTATION,
+        description="Schedule downgrade at next billing period (no proration).",
     ),
 }
 

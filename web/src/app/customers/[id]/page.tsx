@@ -24,6 +24,10 @@ import {
   type CustomerTimelineEvent,
   type LocationCreateBody,
 } from "@/lib/api/customers";
+import {
+  getCustomerMembership,
+  type CustomerMembership,
+} from "@/lib/api/memberships";
 import { useAuth } from "@/lib/use-auth";
 import { customers as copy, errors } from "@/lib/ops-copy";
 import { safeUserError } from "@/lib/safe-error";
@@ -162,6 +166,7 @@ export default function CustomerDetailPage() {
   const canDelete = can("customers.delete");
 
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [membership, setMembership] = useState<CustomerMembership | null>(null);
   const [timeline, setTimeline] = useState<CustomerTimelineEvent[]>([]);
   const [profile, setProfile] = useState<ProfileForm | null>(null);
   const [tagInput, setTagInput] = useState("");
@@ -187,13 +192,15 @@ export default function CustomerDetailPage() {
   const [locationArchiveBusy, setLocationArchiveBusy] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [custRes, timelineRes] = await Promise.all([
+    const [custRes, timelineRes, membershipRes] = await Promise.all([
       getCrmCustomer(params.id),
       getCrmCustomerTimeline(params.id, { limit: 50 }),
+      getCustomerMembership(params.id).catch(() => ({ membership: null })),
     ]);
     setCustomer(custRes.customer);
     setProfile(toProfileForm(custRes.customer));
     setTimeline(timelineRes.items || []);
+    setMembership(membershipRes.membership);
   }, [params.id]);
 
   useEffect(() => {
@@ -762,6 +769,30 @@ export default function CustomerDetailPage() {
           </Surface>
         </div>
       </div>
+
+      <Surface className="mt-4 p-4">
+        <h3 className="text-sm font-semibold text-text-primary">Membership</h3>
+        <div className="mt-3 text-sm">
+          {membership ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusPill status={membership.status} />
+              <span>{membership.plan?.name || membership.plan_id.slice(0, 8)}</span>
+              <span className="text-text-muted">{membership.billing_interval}</span>
+              <span className="text-text-muted">
+                through {new Date(membership.current_period_end).toLocaleDateString()}
+              </span>
+              <Link
+                href={`/crm/memberships/${membership.id}`}
+                className="underline-offset-2 hover:underline"
+              >
+                View
+              </Link>
+            </div>
+          ) : (
+            <p className="text-text-muted">No open membership.</p>
+          )}
+        </div>
+      </Surface>
 
       <Surface className="mt-4 p-4">
         <h3 className="text-sm font-semibold text-text-primary">Timeline</h3>

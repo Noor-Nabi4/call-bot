@@ -74,6 +74,14 @@ from callbot_platform.db.models.invoices import (
     InvoiceStatusHistory,
 )
 from callbot_platform.db.models.payments import Payment, PaymentRefund
+from callbot_platform.db.models.memberships import (
+    CustomerMembership,
+    MembershipBillingPeriod,
+    MembershipEntitlementUsage,
+    MembershipHistory,
+    MembershipPlan,
+    MembershipPlanService,
+)
 from callbot_platform.db.models.handoff import (
     TenantHandoffSettings,
     TenantRetentionSettings,
@@ -216,6 +224,12 @@ __all__ = [
     "OrderStatusHistory",
     "Payment",
     "PaymentRefund",
+    "CustomerMembership",
+    "MembershipBillingPeriod",
+    "MembershipEntitlementUsage",
+    "MembershipHistory",
+    "MembershipPlan",
+    "MembershipPlanService",
     "OrganizationCrmConfiguration",
     "OrganizationCrmField",
     "OrganizationCrmModule",

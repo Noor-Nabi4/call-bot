@@ -147,6 +147,13 @@ class InvoicePaymentService:
             idempotency_key=key,
             payload_summary={"amount": serialize_money(pay_amount)},
         )
+        if target == InvoiceStatus.PAID.value:
+            # Phase 20: activate/renew membership when membership invoice is paid.
+            from callbot_platform.crm.memberships.service import MembershipService
+
+            MembershipService(self._session).on_invoice_paid(
+                tenant_id, invoice.id, actor=actor
+            )
         inv = self._load(tenant_id, invoice.id)
         return serialize_invoice(inv, include_history=True, include_payments=True)
 

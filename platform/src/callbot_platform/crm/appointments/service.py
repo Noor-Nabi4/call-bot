@@ -268,6 +268,17 @@ class AppointmentService:
         except ValueError as exc:
             raise CrmError("invalid_priority", str(exc)) from exc
 
+        # Phase 20: membership priority may raise NORMAL → HIGH (never bypasses conflicts).
+        if not is_emergency and prio == "NORMAL":
+            from callbot_platform.crm.memberships.entitlements import (
+                MembershipEntitlementService,
+            )
+
+            if MembershipEntitlementService(self._session).has_priority_scheduling(
+                tenant_id, customer.id
+            ):
+                prio = "HIGH"
+
         initial = DEFAULT_APPOINTMENT_STATUS
         if status:
             try:
@@ -404,6 +415,25 @@ class AppointmentService:
             )
         )
         self._session.flush()
+        if service_id is not None:
+            from callbot_platform.crm.memberships.entitlements import (
+                MembershipEntitlementService,
+            )
+
+            try:
+                MembershipEntitlementService(self._session).consume_entitlement(
+                    tenant_id,
+                    customer_id=customer.id,
+                    service_id=service_id,
+                    appointment_id=appt.id,
+                    actor=actor,
+                )
+            except CrmError as exc:
+                if exc.code == "entitlement_exhausted":
+                    # Included allotment used up — appointment still books at normal price.
+                    pass
+                else:
+                    raise
         write_audit(
             self._session,
             tenant_id=tenant_id,

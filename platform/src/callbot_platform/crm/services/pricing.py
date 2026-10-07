@@ -55,11 +55,15 @@ class PricingService:
         pricebook_id: UUID | None = None,
         at: datetime | None = None,
         allow_archived_service: bool = False,
+        customer_id: UUID | None = None,
     ) -> dict[str, Any]:
         """Resolve effective price for a service.
 
         If pricebook_id is omitted, uses the tenant default pricebook when
         one exists and is effective; otherwise falls back to service base.
+
+        When customer_id is provided, an active membership discount (Phase 20)
+        may reduce the resolved unit price server-side.
         """
         at_time = at or datetime.now(UTC)
         if at_time.tzinfo is None:
@@ -80,18 +84,41 @@ class PricingService:
                 at=at_time,
             )
             if override is not None:
-                return self._from_override(service, pricebook, override, at_time)
+                payload = self._from_override(service, pricebook, override, at_time)
+            else:
+                item = self._find_item(
+                    tenant_id,
+                    pricebook_id=pricebook.id,
+                    service_id=service.id,
+                    at=at_time,
+                )
+                if item is not None:
+                    payload = self._from_item(service, pricebook, item, at_time)
+                else:
+                    payload = self._from_service_base(service, pricebook, at_time)
+        else:
+            payload = self._from_service_base(service, pricebook, at_time)
 
-            item = self._find_item(
-                tenant_id,
-                pricebook_id=pricebook.id,
-                service_id=service.id,
-                at=at_time,
+        if customer_id is not None and payload.get("price") is not None:
+            from callbot_platform.crm.memberships.entitlements import (
+                MembershipEntitlementService,
             )
-            if item is not None:
-                return self._from_item(service, pricebook, item, at_time)
 
-        return self._from_service_base(service, pricebook, at_time)
+            discounted = MembershipEntitlementService(
+                self._session
+            ).apply_service_discount(
+                tenant_id,
+                customer_id,
+                unit_price=payload["price"],
+            )
+            payload = {
+                **payload,
+                "list_price": payload["price"],
+                "membership_discount_amount": discounted["discount_amount"],
+                "price": discounted["final_unit_price"],
+                "membership_id": discounted.get("membership_id"),
+            }
+        return payload
 
     def _load_service(
         self, tenant_id: UUID, service_id: UUID, *, require_active: bool

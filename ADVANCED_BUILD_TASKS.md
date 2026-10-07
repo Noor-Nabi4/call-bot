@@ -2290,17 +2290,22 @@ DRAFT
 
 # PHASE 20 — MEMBERSHIPS
 
+> Application implementation frozen (migration `0048_memberships`).
+> Option A billing: Invoice + Phase 19 Checkout (not Stripe Subscriptions). See `docs/MEMBERSHIPS.md`.
+> Cancel: `cancel_at_period_end` by default. Upgrade/downgrade: next period, no proration.
+> Production gate: **PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN**.
+
 ## TASK 20.1 — Membership Plans
 
 ### Checklist
 
-- [ ] Plan
-- [ ] Monthly price
-- [ ] Annual price
-- [ ] Included services
-- [ ] Discounts
-- [ ] Priority scheduling
-- [ ] Status
+- [x] Plan
+- [x] Monthly price
+- [x] Annual price
+- [x] Included services
+- [x] Discounts
+- [x] Priority scheduling
+- [x] Status
 
 ---
 
@@ -2308,12 +2313,12 @@ DRAFT
 
 ### Checklist
 
-- [ ] Subscribe
-- [ ] Cancel
-- [ ] Renew
-- [ ] Upgrade
-- [ ] Downgrade
-- [ ] Membership history
+- [x] Subscribe
+- [x] Cancel
+- [x] Renew
+- [x] Upgrade
+- [x] Downgrade
+- [x] Membership history
 
 ---
 

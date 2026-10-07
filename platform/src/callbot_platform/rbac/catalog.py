@@ -183,6 +183,7 @@ PERMISSION_CATALOG: Final[tuple[tuple[str, str, str], ...]] = (
     ("ai", "tools_handoff", "AI may request human handoff"),
     ("ai", "tools_sms", "AI may trigger SMS notifications"),
     ("ai", "tools_payments", "AI may create payment links and check payment status"),
+    ("ai", "tools_memberships", "AI may look up and mutate memberships with confirmation"),
     ("organization", "read", "View organization profile"),
     ("organization", "update", "Update organization profile"),
     ("team", "read", "View organization members"),
@@ -262,6 +263,7 @@ AI_TOOL_PERMISSIONS: Final[dict[str, str]] = {
     "handoff": "ai.tools_handoff",
     "sms": "ai.tools_sms",
     "payments": "ai.tools_payments",
+    "memberships": "ai.tools_memberships",
 }
 
 
@@ -340,6 +342,10 @@ def default_role_permissions(role_name: str) -> list[tuple[str, str]]:
             "payments.delete",
             "payments.refund",
             "payments.manage",
+            "memberships.read",
+            "memberships.create",
+            "memberships.update",
+            "memberships.delete",
             "leads.read",
             "leads.create",
             "leads.update",
@@ -422,6 +428,10 @@ def default_role_permissions(role_name: str) -> list[tuple[str, str]]:
             "payments.delete",
             "payments.refund",
             "payments.manage",
+            "memberships.read",
+            "memberships.create",
+            "memberships.update",
+            "memberships.delete",
             "leads.read",
             "leads.create",
             "leads.update",
@@ -575,5 +585,9 @@ def default_role_permissions(role_name: str) -> list[tuple[str, str]]:
             ("ai.tools_handoff", SCOPE_ALL),
             ("ai.tools_sms", SCOPE_ALL),
             ("ai.tools_payments", SCOPE_ALL),
+            ("ai.tools_memberships", SCOPE_ALL),
+            ("memberships.read", SCOPE_ALL),
+            ("memberships.create", SCOPE_ALL),
+            ("memberships.update", SCOPE_ALL),
         ]
     return []

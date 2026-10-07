@@ -315,3 +315,38 @@ Remaining work:
 - production deployment
 - production smoke testing
 ```
+
+### Phase 20 Memberships — freeze / handoff
+
+```text
+Phase 20 Implementation: COMPLETE (application)
+Local Verification: COMPLETE with caveats (test_memberships_crm.py; Stripe mocked/skipped for links)
+Membership billing via Invoice + Checkout (Option A): application path VERIFIED in unit tests
+Stripe test-mode recurring / live Checkout for memberships: NOT EXECUTED
+SMS/Email membership notifications (live): NOT EXECUTED
+Staging Verification: NOT EXECUTED
+Production Verification: NOT EXECUTED
+Performance / EXPLAIN: NOT EXECUTED
+
+Overall Production Readiness: PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN
+```
+
+```text
+Repo Alembic head (workspace target): 0048_memberships
+Billing: Membership → Invoice → PaymentService (no second ledger; no Stripe Subscriptions)
+Cancel policy: cancel_at_period_end (default); upgrade/downgrade next period; no proration
+AI tools: list/get/subscribe/cancel/upgrade/downgrade (confirmation on mutations)
+PROVIDER VERIFICATION BLOCKED without Stripe test credentials + staging
+```
+
+See `docs/MEMBERSHIPS.md`.
+
+```text
+Phase 20 application implementation is frozen.
+
+Remaining work:
+- Stripe test-mode membership invoice Checkout verification
+- staging verification (migrate 0048)
+- production deployment
+- production smoke testing
+```
