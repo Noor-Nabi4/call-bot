@@ -354,32 +354,33 @@ Remaining work:
 ### Phase 21 Equipment / Assets — freeze / handoff
 
 ```text
-Phase 21 Implementation: COMPLETE (application)
+Phase 21 — APPLICATION COMPLETE / FROZEN
+Commit: a54f73a
+Production: BLOCKED pending staging/production verification
+
 Local Verification: COMPLETE
   - test_equipment_crm.py: PASS
-  - test_equipment_pg_concurrency.py: PASS (partial unique index + concurrent serial + cross-tenant serial)
-  - Full backend: 628 passed, 1 skipped (this verification pass)
-Migration 0049_equipment: VERIFIED locally on PostgreSQL (upgrade/downgrade/re-upgrade from stamped 0048)
-  - Full alembic chain from empty DB: BLOCKED at pre-existing 0024 (tenants.business_size ORM vs migration order) — NOT Phase 21
+  - test_equipment_pg_concurrency.py: PASS
+    (partial unique index on ORM + Alembic; 8-worker same-tenant serial → 1 success / 7 serial_conflict)
+  - Full backend: 628 passed, 1 skipped (verification pass)
+Migration 0049_equipment: VERIFIED on PostgreSQL
+  (0048→0049 upgrade, 0049→0048 downgrade, 0048→0049 re-upgrade)
+  - Full alembic chain from empty DB: BLOCKED at pre-existing 0024
+    (tenants.business_size ORM vs migration order) — NOT Phase 21; do not reopen in this freeze
 Performance / EXPLAIN: NOT EXECUTED
 Staging Verification: NOT EXECUTED
 Production Verification: NOT EXECUTED
 
-Overall Production Readiness: PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN
-```
-
-```text
-Repo Alembic head (workspace target): 0049_equipment
-History: derived from jobs, notes, orders/invoices, equipment attachments
-AI tools (find_equipment / get_equipment_history): NOT IMPLEMENTED (optional per spec)
+Out of freeze scope (future work only):
+  AI find_equipment / get_equipment_history, dedicated edit page, performance benchmarks
 ```
 
 See `docs/EQUIPMENT.md`.
 
 ```text
-Phase 21 application implementation is frozen.
+Phase 21 is frozen. Do not add Equipment features on this commit.
 
-Remaining work:
+Remaining work (ops only):
 - staging migration 0049
-- production deployment
+- production deployment / smoke
 ```
