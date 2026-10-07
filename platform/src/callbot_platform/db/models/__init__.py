@@ -124,6 +124,7 @@ from callbot_platform.db.models.services import (
     Service,
     ServiceCategory,
 )
+from callbot_platform.db.models.sms import SmsConversation, SmsMessage
 from callbot_platform.db.models.tenant import (
     TelephonyAuditEvent,
     TelephonyIdempotencyKey,
@@ -222,6 +223,8 @@ __all__ = [
     "ServiceCategory",
     "ServiceRequiredSkill",
     "Skill",
+    "SmsConversation",
+    "SmsMessage",
     "StripeWebhookEvent",
     "Technician",
     "TechnicianBreak",

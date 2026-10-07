@@ -430,6 +430,28 @@ class NotificationOutboxWorker:
             row.provider_ref = provider_ref
             row.error = None
             row.updated_at = datetime.now(UTC)
+            # Sync linked SMS agent outbound row (Phase 15) — SENT ≠ DELIVERED.
+            if row.channel == "sms" and provider_ref:
+                from sqlalchemy import select
+
+                from callbot_platform.db.models.sms import SmsMessage
+
+                sms = session.scalar(
+                    select(SmsMessage).where(
+                        SmsMessage.tenant_id == tenant_id,
+                        SmsMessage.outbox_id == row.id,
+                        SmsMessage.direction == "OUTBOUND",
+                    )
+                )
+                if sms is not None:
+                    sms.provider_message_id = provider_ref
+                    if sms.status in {"QUEUED", "SENT"}:
+                        sms.status = "SENT"
+                    logger.info(
+                        "sms.outbound.sent tenant_id=%s message_id=%s",
+                        tenant_id,
+                        sms.id,
+                    )
             session.commit()
         except Exception:
             session.rollback()

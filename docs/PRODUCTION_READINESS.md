@@ -157,7 +157,7 @@ LOCAL PostgreSQL performance / EXPLAIN / N+1 (tests/test_ai_tools_pg_perf.py): V
 LOCAL full backend regression: VERIFIED — 576 passed, 1 skipped
 LOCAL voice registration unit tests: VERIFIED
 LOCAL frontend: VERIFIED — TypeScript PASS, ESLint 0 errors / 3 warnings, 42 tests, build PASS
-Repo Alembic head (workspace): 0043_estimates (no Phase 14 migration)
+Repo Alembic head (workspace): 0043_estimates (no Phase 14 migration; Phase 15 adds 0044_sms_agent)
 Idempotency scope: tenant + tool + operation_id (not call-scoped)
 Phase 14 application freeze: AI Tool Executor, registry, booking orchestration, AI RBAC, confirmation, idempotency, voice registration
 ```
@@ -180,3 +180,37 @@ Audit: VERIFIED
 RBAC note: AI Agent permission checks use a session-scoped permission-key cache for performance. Role/permission updates via `RoleRepository` call `AuthorizationService.invalidate_tenant`, which clears the AI permission cache so revocations/grants are reflected on subsequent AI tool authorization.
 
 Performance note (LOCAL POSTGRESQL only): product_search p95 ≈ 127 ms while SQL EXPLAIN execution ≈ 0.031 ms — known optimization candidate in the ORM/app path; product dataset was 1,000 variants (not 10k). Estimate lookup EXPLAIN: NOT EXECUTED. See `docs/AI_TOOLS.md`.
+
+### Phase 15 AI SMS Agent — freeze / handoff
+
+```text
+Phase 15 Implementation: COMPLETE (application)
+Phase 15 Hardening: COMPLETE (local)
+Local Verification: COMPLETE
+PostgreSQL Concurrency/Perf: see test_sms_agent_pg.py (run when PG available)
+
+Twilio Provider Smoke: NOT EXECUTED
+Staging Verification: NOT EXECUTED
+Production Verification: NOT EXECUTED
+
+Overall Production Readiness: BLOCKED
+```
+
+Reason:
+
+```text
+Live Twilio inbound SMS → AI → tools → booking → outbound delivery has not been executed.
+Staging and production deployment verification have not been executed.
+```
+
+```text
+LOCAL SMS tests (tests/test_sms_agent.py): VERIFIED — 16 passed
+LOCAL PostgreSQL SMS concurrency + booking E2E (tests/test_sms_agent_pg.py): VERIFIED
+LOCAL PostgreSQL SMS perf: VERIFIED (local) — webhook p50≈7.55ms p95≈8.27ms; 10016 messages; index ix_sms_messages_tenant_conversation_created used; EXPLAIN execution≈0.019ms
+Repo Alembic head (workspace target): 0044_sms_agent
+Phase 15 reuses Phase 14 AIToolExecutor (no domain fork)
+Outbound: NotificationOutbox (QUEUED ≠ DELIVERED)
+PROVIDER VERIFICATION BLOCKED without Twilio credentials + staging
+```
+
+See `docs/AI_SMS_AGENT.md`.

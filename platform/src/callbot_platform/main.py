@@ -98,6 +98,9 @@ from callbot_platform.api.scheduling_routes import (
 from callbot_platform.api.services_pricebook_routes import (  # noqa: E402
     router as services_pricebook_router,
 )
+from callbot_platform.api.sms_webhook_routes import (  # noqa: E402
+    router as sms_webhook_router,
+)
 from callbot_platform.api.v1_routes import router as v1_router  # noqa: E402
 from callbot_platform.config import (  # noqa: E402
     get_settings,
@@ -130,6 +133,7 @@ if _settings.is_production:
 app.include_router(router)
 app.include_router(crm_router)
 app.include_router(ai_tools_router)
+app.include_router(sms_webhook_router)
 app.include_router(internal_tenant_router)
 app.include_router(scheduling_router)
 app.include_router(auth_router)

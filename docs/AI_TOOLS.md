@@ -1,22 +1,21 @@
 # AI Tool Layer (Phase 14)
 
-Typed, small-output, tenant-derived tools for the voice agent.
+Typed, small-output, tenant-derived tools for the voice agent and SMS agent.
 
 **Status:** Implementation and local verification complete; deployment verification pending.  
-**Phase freeze:** AI Tool Executor, tool registry, booking orchestration, AI RBAC, confirmation, idempotency, and voice tool registration are frozen. No additional Phase 14 application features.
+**Phase freeze:** AI Tool Executor, tool registry, booking orchestration, AI RBAC, confirmation, idempotency, and voice tool registration are frozen. No additional Phase 14 application features.  
+**Phase 15:** SMS channel adapter reuses this layer unchanged — see `docs/AI_SMS_AGENT.md`.
 
 ---
 
 ## Architecture
 
 ```text
-Caller
-  → Twilio / LiveKit
-  → Voice Agent
-  → AI Model
-  → LiveKit function_tool (registered Phase 14 tools)
-  → POST /internal/ai/tools/{name}
-  → AIToolExecutor
+Caller / SMS customer
+  → Voice Agent  OR  SMS Agent
+  → AI Model / RuleBasedSmsBrain
+  → LiveKit function_tool  OR  SmsToolBridge
+  → AIToolExecutor (shared)
   → Authorization (AI tool group + domain RBAC)
   → Existing domain service
   → PostgreSQL
@@ -352,3 +351,5 @@ Frozen for Phase 14:
 - Voice tool registration
 
 Future work (invoices, payments, subscriptions, advanced estimate workflows) belongs to a later phase — not Phase 14 feature development.
+
+SMS channel specifics (webhooks, conversations, outbound outbox, loop prevention) are documented in `docs/AI_SMS_AGENT.md` and must not fork domain logic.

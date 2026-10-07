@@ -2062,18 +2062,22 @@ These remain open until executed in a real environment:
 
 # PHASE 15 — AI SMS AGENT
 
+> Application implementation frozen on the tenancy branch (migration `0044_sms_agent`).
+> Reuses Phase 14 `AIToolExecutor` — no domain fork.
+> Production gate: **BLOCKED** until Twilio + staging smoke. See `docs/AI_SMS_AGENT.md`.
+
 ## TASK 15.1 — Incoming SMS
 
 ### Checklist
 
-- [ ] Receive webhook
-- [ ] Identify customer
-- [ ] Load conversation
-- [ ] Detect intent
-- [ ] Generate response
-- [ ] Execute tools
-- [ ] Store message
-- [ ] Store AI action
+- [x] Receive webhook
+- [x] Identify customer
+- [x] Load conversation
+- [x] Detect intent
+- [x] Generate response
+- [x] Execute tools
+- [x] Store message
+- [x] Store AI action
 
 ---
 
@@ -2081,11 +2085,11 @@ These remain open until executed in a real environment:
 
 ### Checklist
 
-- [ ] Check availability
-- [ ] Offer slots
-- [ ] Confirm
-- [ ] Book
-- [ ] Send confirmation
+- [x] Check availability
+- [x] Offer slots
+- [x] Confirm
+- [x] Book
+- [x] Send confirmation
 
 ---
 
