@@ -6,6 +6,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from callbot_platform.async_jobs.handlers.knowledge import KnowledgeIngestHandler
 from callbot_platform.async_jobs.handlers.stripe_billing import StripeProvisionHandler
 from callbot_platform.async_jobs.handlers.telephony import TelephonyProvisionHandler
 from callbot_platform.async_jobs.types import JobType
@@ -22,6 +23,7 @@ def build_default_handlers(
 ) -> dict[str, JobHandler]:
     tel = telephony or TelephonyProvisionHandler(settings=settings)
     stripe_h = stripe_handler or StripeProvisionHandler(settings=settings)
+    knowledge_h = KnowledgeIngestHandler(settings=settings)
 
     def _purchase(session: Session, job: AsyncJob) -> dict:
         try:
@@ -51,6 +53,9 @@ def build_default_handlers(
     def _checkout(session: Session, job: AsyncJob) -> dict:
         return stripe_h.handle_checkout(session, job)
 
+    def _knowledge_ingest(session: Session, job: AsyncJob) -> dict:
+        return knowledge_h.handle(session, job)
+
     return {
         JobType.TELEPHONY_PROVISION_PURCHASE: _purchase,
         JobType.TELEPHONY_PROVISION_CONNECT: _connect,
@@ -58,6 +63,7 @@ def build_default_handlers(
         JobType.TELEPHONY_REFRESH_DISPATCH: _refresh,
         JobType.STRIPE_SIGNUP_PROVISION: _signup,
         JobType.STRIPE_CHECKOUT_PROVISION: _checkout,
+        JobType.KNOWLEDGE_INGEST: _knowledge_ingest,
     }
 
 

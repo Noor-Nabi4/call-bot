@@ -46,12 +46,25 @@ from callbot_platform.db.models.crm_config import (
     OrganizationCrmStatus,
     OrganizationCrmWorkflow,
 )
+from callbot_platform.db.models.dispatch import (
+    DispatchEvent,
+    JobAssignmentHistory,
+    TechnicianOperationalStatus,
+    TechnicianStatusHistory,
+)
 from callbot_platform.db.models.dynamic_crm import (
     CrmCustomFieldValue,
     OrganizationCrmRelationshipDefinition,
     OrganizationCrmRelationshipLink,
     OrganizationCustomObjectDefinition,
     OrganizationCustomObjectRecord,
+)
+from callbot_platform.db.models.estimates import (
+    Estimate,
+    EstimateConversion,
+    EstimateItem,
+    EstimateNumberCounter,
+    EstimateStatusHistory,
 )
 from callbot_platform.db.models.handoff import (
     TenantHandoffSettings,
@@ -66,12 +79,6 @@ from callbot_platform.db.models.inventory import (
     InventoryOutboxEvent,
     InventoryTransaction,
 )
-from callbot_platform.db.models.dispatch import (
-    DispatchEvent,
-    JobAssignmentHistory,
-    TechnicianOperationalStatus,
-    TechnicianStatusHistory,
-)
 from callbot_platform.db.models.jobs import (
     Job,
     JobAttachment,
@@ -82,14 +89,13 @@ from callbot_platform.db.models.jobs import (
     TenantUser,
 )
 from callbot_platform.db.models.knowledge import KnowledgeArticle
-from callbot_platform.db.models.onboarding import OrganizationOnboarding
-from callbot_platform.db.models.estimates import (
-    Estimate,
-    EstimateConversion,
-    EstimateItem,
-    EstimateNumberCounter,
-    EstimateStatusHistory,
+from callbot_platform.db.models.knowledge_rag import (
+    KnowledgeChunk,
+    KnowledgeRetrievalLog,
+    KnowledgeSource,
+    KnowledgeSourceVersion,
 )
+from callbot_platform.db.models.onboarding import OrganizationOnboarding
 from callbot_platform.db.models.orders import (
     Order,
     OrderItem,
@@ -181,6 +187,10 @@ __all__ = [
     "JobStatusHistory",
     "JsonType",
     "KnowledgeArticle",
+    "KnowledgeChunk",
+    "KnowledgeRetrievalLog",
+    "KnowledgeSource",
+    "KnowledgeSourceVersion",
     "Lead",
     "LeadActivity",
     "LeadConversion",

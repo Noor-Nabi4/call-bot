@@ -192,6 +192,19 @@ class RuleBasedSmsBrain:
                 confidence=intent.confidence,
                 tool_calls=[{"tool": "find_orders", "args": {}}],
             )
+        if intent.intent in {"GENERAL_QUESTION", "UNKNOWN", "PRICE"} or re.search(
+            r"\b(policy|warranty|faq|how do you|what is your)\b", body or "", re.I
+        ):
+            return SmsTurnPlan(
+                intent="GENERAL_QUESTION",
+                confidence=max(intent.confidence, 0.7),
+                tool_calls=[
+                    {
+                        "tool": "search_knowledge",
+                        "args": {"query": body, "topK": 3},
+                    }
+                ],
+            )
         if customer:
             name = customer.get("displayName") or customer.get("firstName") or ""
             greet = f"Hi {name.split()[0]} — " if name else "Hi — "

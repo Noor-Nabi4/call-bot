@@ -172,6 +172,12 @@ Do not mark ready until staging smoke and provider verification pass. See `docs/
 
 ---
 
+## Knowledge (Phase 16)
+
+SMS may call `search_knowledge` for informational FAQs/policies via the shared `KnowledgeRetrievalService`. Operational questions (stock, price, appointments, orders) still use Phase 14 tools.
+
+---
+
 ## Verification status
 
 | Check | Status |

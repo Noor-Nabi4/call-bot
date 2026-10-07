@@ -283,6 +283,30 @@ class SmsAgentOrchestrator:
                 f"is {o.get('status')}. Total {o.get('total')} {o.get('currency') or ''}."
             ).strip()
 
+        if plan.intent == "GENERAL_QUESTION" or any(
+            (c.get("tool") == "search_knowledge") for c in plan.tool_calls
+        ):
+            result = self._tools.invoke(
+                "search_knowledge",
+                tenant_id=conversation.tenant_id,
+                args={"query": inbound.body, "topK": 3},
+                customer_id=customer_id,
+                caller_phone=phone,
+            )
+            if not result.get("ok"):
+                return self._tools.customer_safe(result)
+            data = result.get("data") or {}
+            if data.get("status") == "NO_RELEVANT_KNOWLEDGE" or not data.get("results"):
+                return (
+                    "I don't have enough information on that in our knowledge base. "
+                    "I can help with booking, products, or order status."
+                )
+            top = (data.get("results") or [])[0]
+            snippet = str(top.get("content") or "")[:280].strip()
+            return snippet or (
+                "I found related information, but need a more specific question."
+            )
+
         return plan.reply or (
             "Thanks for your message. How can I help with booking, products, or orders?"
         )

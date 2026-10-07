@@ -184,6 +184,13 @@ class CancelAppointmentArgs(StrictModel):
     reason: str | None = None
 
 
+class SearchKnowledgeArgs(StrictModel):
+    query: str = Field(min_length=1, max_length=500)
+    top_k: int | None = Field(default=5, ge=1, le=10, alias="topK")
+    source_type: str | None = Field(default=None, alias="sourceType")
+    category: str | None = None
+
+
 class RequestHumanArgs(StrictModel):
     reason: str
     summary: str
@@ -446,6 +453,20 @@ TOOL_SPECS: dict[str, ToolSpec] = {
         confirmation_required=False,
         idempotency_required=True,
         timeout_class=TimeoutClass.EXTERNAL_PROVIDER,
+    ),
+    "search_knowledge": ToolSpec(
+        name="search_knowledge",
+        args_model=SearchKnowledgeArgs,
+        tool_group="knowledge",
+        permissions=("ai.tools_knowledge",),
+        mutation=False,
+        confirmation_required=False,
+        idempotency_required=False,
+        timeout_class=TimeoutClass.STANDARD_READ,
+        description=(
+            "Search tenant knowledge (FAQs, policies, business info, product descriptions). "
+            "Informational only — never use for inventory, prices, appointments, or orders."
+        ),
     ),
 }
 

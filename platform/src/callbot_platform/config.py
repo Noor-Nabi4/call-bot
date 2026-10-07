@@ -103,6 +103,22 @@ class Settings(BaseSettings):
         default="", alias="CREDENTIALS_ENCRYPTION_KEY"
     )
     metadata_hmac_secret: str = Field(default="", alias="METADATA_HMAC_SECRET")
+    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+    knowledge_embedding_model: str = Field(
+        default="text-embedding-3-small", alias="KNOWLEDGE_EMBEDDING_MODEL"
+    )
+    knowledge_embedding_dimension: int = Field(
+        default=1536, alias="KNOWLEDGE_EMBEDDING_DIMENSION"
+    )
+    knowledge_embedding_version: str = Field(
+        default="v1", alias="KNOWLEDGE_EMBEDDING_VERSION"
+    )
+    knowledge_relevance_threshold: float = Field(
+        default=0.35, alias="KNOWLEDGE_RELEVANCE_THRESHOLD"
+    )
+    knowledge_retrieval_top_k: int = Field(
+        default=5, alias="KNOWLEDGE_RETRIEVAL_TOP_K"
+    )
     internal_service_token: str = Field(default="", alias="INTERNAL_SERVICE_TOKEN")
     session_secret: str = Field(default="", alias="SESSION_SECRET")
     ops_cors_origins: str = Field(

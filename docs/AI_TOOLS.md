@@ -353,3 +353,5 @@ Frozen for Phase 14:
 Future work (invoices, payments, subscriptions, advanced estimate workflows) belongs to a later phase — not Phase 14 feature development.
 
 SMS channel specifics (webhooks, conversations, outbound outbox, loop prevention) are documented in `docs/AI_SMS_AGENT.md` and must not fork domain logic.
+
+Phase 16 adds `search_knowledge` (tool group `knowledge`) via `KnowledgeRetrievalService`. RAG answers informational FAQs/policies only — inventory, pricing, appointments, and orders remain domain tools. See `docs/KNOWLEDGE_BASE.md`.

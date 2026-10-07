@@ -20,3 +20,4 @@ class JobType:
     TELEPHONY_REFRESH_DISPATCH = "telephony.refresh_dispatch"
     STRIPE_SIGNUP_PROVISION = "stripe.signup_provision"
     STRIPE_CHECKOUT_PROVISION = "stripe.checkout_provision"
+    KNOWLEDGE_INGEST = "knowledge.ingest"

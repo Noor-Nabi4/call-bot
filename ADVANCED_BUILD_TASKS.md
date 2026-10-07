@@ -2095,18 +2095,22 @@ These remain open until executed in a real environment:
 
 # PHASE 16 — KNOWLEDGE BASE / RAG
 
+> Application implementation frozen on the tenancy branch (migration `0045_knowledge_rag`).
+> Shared `KnowledgeRetrievalService` for Voice/SMS/ops. RAG ≠ operational tools.
+> Production gate: **PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN** (OpenAI + staging smoke only). See `docs/KNOWLEDGE_BASE.md`. No further Phase 16 feature work.
+
 ## TASK 16.1 — Knowledge Sources
 
 Allow:
 
-- [ ] PDF
-- [ ] DOCX
-- [ ] Website
-- [ ] Text
-- [ ] FAQs
-- [ ] Policies
-- [ ] Business information
-- [ ] Product descriptions
+- [x] PDF
+- [x] DOCX
+- [x] Website
+- [x] Text
+- [x] FAQs
+- [x] Policies
+- [x] Business information
+- [x] Product descriptions
 
 ---
 
@@ -2114,15 +2118,15 @@ Allow:
 
 ### Checklist
 
-- [ ] Upload
-- [ ] Extract text
-- [ ] Chunk
-- [ ] Generate embeddings
-- [ ] Store vectors
-- [ ] Store metadata
-- [ ] Organization isolation
-- [ ] Re-index
-- [ ] Delete knowledge
+- [x] Upload
+- [x] Extract text
+- [x] Chunk
+- [x] Generate embeddings
+- [x] Store vectors
+- [x] Store metadata
+- [x] Organization isolation
+- [x] Re-index
+- [x] Delete knowledge
 
 ---
 
@@ -2130,12 +2134,12 @@ Allow:
 
 ### Checklist
 
-- [ ] Semantic search
-- [ ] Organization filtering
-- [ ] Metadata filtering
-- [ ] Context limit
-- [ ] Relevance threshold
-- [ ] Retrieval logging
+- [x] Semantic search
+- [x] Organization filtering
+- [x] Metadata filtering
+- [x] Context limit
+- [x] Relevance threshold
+- [x] Retrieval logging
 
 ---
 
@@ -2143,21 +2147,21 @@ Allow:
 
 Use RAG for:
 
-- [ ] FAQs
-- [ ] Policies
-- [ ] General business information
-- [ ] Product descriptions
+- [x] FAQs
+- [x] Policies
+- [x] General business information
+- [x] Product descriptions
 
 Use database tools for:
 
-- [ ] Customer information
-- [ ] Inventory
-- [ ] Pricing
-- [ ] Availability
-- [ ] Jobs
-- [ ] Appointments
-- [ ] Orders
-- [ ] Payments
+- [x] Customer information
+- [x] Inventory
+- [x] Pricing
+- [x] Availability
+- [x] Jobs
+- [x] Appointments
+- [x] Orders
+- [x] Payments
 
 ---
 

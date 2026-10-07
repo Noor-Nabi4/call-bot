@@ -214,3 +214,42 @@ PROVIDER VERIFICATION BLOCKED without Twilio credentials + staging
 ```
 
 See `docs/AI_SMS_AGENT.md`.
+
+### Phase 16 Knowledge Base / RAG — freeze / handoff
+
+```text
+Phase 16 Implementation: COMPLETE (application)
+Local Verification: COMPLETE
+  - test_knowledge_rag.py + test_knowledge_rag_pg.py: VERIFIED
+  - Phase 14/15 subset (ai_tools + sms + knowledge): 63 passed
+  - Full platform pytest: 608 passed, 1 skipped
+  - Frontend: eslint (warnings only), tsc, 42 tests, production build
+PostgreSQL pgvector migrate on staging fleet: NOT EXECUTED
+OpenAI Embedding Provider: NOT EXECUTED
+Website/PDF/DOCX live ingest: NOT EXECUTED
+Staging Verification: NOT EXECUTED
+Production Verification: NOT EXECUTED
+
+Overall Production Readiness: PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN
+```
+
+```text
+LOCAL knowledge RAG tests: VERIFIED
+Repo Alembic head (workspace target): 0045_knowledge_rag
+Shared KnowledgeRetrievalService + search_knowledge AI tool
+FakeEmbeddingService used locally when OPENAI_API_KEY unset
+pgvector query uses savepoint + JSON cosine fallback if column/extension missing
+PROVIDER VERIFICATION BLOCKED without OpenAI + staging
+```
+
+See `docs/KNOWLEDGE_BASE.md`.
+
+```text
+Phase 16 application implementation is frozen.
+
+Remaining work:
+- provider verification (OpenAI embeddings)
+- staging verification (migrate 0045, real PDF/DOCX/website, Voice/SMS smoke)
+- production deployment
+- production smoke testing
+```

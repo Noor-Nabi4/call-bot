@@ -22,6 +22,7 @@ SMS_ALLOWED_TOOLS: frozenset[str] = frozenset(
         "create_customer",
         "send_sms",
         "request_human",
+        "search_knowledge",
     }
 )
 

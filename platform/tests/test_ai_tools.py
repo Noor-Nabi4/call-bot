@@ -110,6 +110,7 @@ def test_tool_registry_includes_contract_tools() -> None:
         "find_estimates",
         "get_estimate",
         "request_human",
+        "search_knowledge",
     }:
         assert required in names
 
