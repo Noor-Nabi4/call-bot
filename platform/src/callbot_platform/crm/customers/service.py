@@ -7,6 +7,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from callbot_platform.crm.customers.locations import CustomerLocationService
@@ -245,17 +246,30 @@ class CustomerService:
             updated_by=actor,
         )
         self._session.add(customer)
-        self._session.flush()
-        if e164:
-            self._session.add(
-                CustomerPhone(tenant_id=tenant_id, customer_id=customer.id, e164=e164)
-            )
-        if tags:
-            for tag_name in tags:
-                self._attach_tag(
-                    tenant_id, customer.id, tag_name, actor=actor, flush=False
-                )
-        self._session.flush()
+        try:
+            # Savepoint so a phone unique race does not abort the outer transaction
+            # (e.g. AI idempotency claim already flushed on the same session).
+            with self._session.begin_nested():
+                self._session.flush()
+                if e164:
+                    self._session.add(
+                        CustomerPhone(
+                            tenant_id=tenant_id, customer_id=customer.id, e164=e164
+                        )
+                    )
+                if tags:
+                    for tag_name in tags:
+                        self._attach_tag(
+                            tenant_id, customer.id, tag_name, actor=actor, flush=False
+                        )
+                self._session.flush()
+        except IntegrityError as exc:
+            if e164 and "uq_customer_phones_tenant_e164" in str(exc.orig or exc):
+                raise CrmError(
+                    "phone_conflict",
+                    "A customer with this phone already exists for the tenant",
+                ) from exc
+            raise
         write_audit(
             self._session,
             tenant_id=tenant_id,

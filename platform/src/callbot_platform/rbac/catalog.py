@@ -534,6 +534,7 @@ def default_role_permissions(role_name: str) -> list[tuple[str, str]]:
             ("estimates.update", SCOPE_ALL),
             ("inventory.read", SCOPE_ALL),
             ("inventory.reserve", SCOPE_ALL),
+            ("products.read", SCOPE_ALL),
             ("services.read", SCOPE_ALL),
             ("pricebooks.read", SCOPE_ALL),
             ("pricebook_items.read", SCOPE_ALL),

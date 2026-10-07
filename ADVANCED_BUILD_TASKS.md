@@ -1818,18 +1818,22 @@ OFFLINE
 
 Create a centralized tool system that allows AI agents to execute business operations safely.
 
+> Implemented as **Phase 14 AI tool contracts** on the tenancy branch:
+> `callbot_platform/ai_tools/*`, `POST /internal/ai/tools/{name}`, voice-agent
+> `ai_business_tools.py`. See `docs/AI_TOOLS.md`.
+
 ### Checklist
 
-- [ ] Tool registry
-- [ ] Tool schemas
-- [ ] Authentication
-- [ ] Organization context
-- [ ] Authorization
-- [ ] Validation
-- [ ] Tool logging
-- [ ] Error handling
-- [ ] Tool timeout
-- [ ] Tool retry policy
+- [x] Tool registry
+- [x] Tool schemas
+- [x] Authentication
+- [x] Organization context
+- [x] Authorization
+- [x] Validation
+- [x] Tool logging
+- [x] Error handling
+- [x] Tool timeout
+- [x] Tool retry policy
 
 ---
 
@@ -1837,10 +1841,10 @@ Create a centralized tool system that allows AI agents to execute business opera
 
 Create:
 
-- [ ] `find_customer`
-- [ ] `create_customer`
-- [ ] `update_customer`
-- [ ] `get_customer_history`
+- [x] `find_customer`
+- [x] `create_customer`
+- [x] `update_customer`
+- [x] `get_customer_history` (as `get_customer_context`)
 
 ---
 
@@ -1848,13 +1852,13 @@ Create:
 
 Create:
 
-- [ ] `search_products`
-- [ ] `get_product`
-- [ ] `check_inventory`
-- [ ] `get_product_price`
-- [ ] `create_order`
-- [ ] `get_order`
-- [ ] `get_order_status`
+- [x] `search_products`
+- [x] `get_product`
+- [x] `check_inventory`
+- [x] `get_product_price`
+- [x] `create_order`
+- [ ] `get_order` (covered by `get_order_status` / `find_orders`)
+- [x] `get_order_status`
 
 ---
 
@@ -1862,9 +1866,9 @@ Create:
 
 Create:
 
-- [ ] `get_services`
-- [ ] `get_service_price`
-- [ ] `get_pricebook_item`
+- [x] `get_services` (as `search_services`)
+- [x] `get_service_price`
+- [ ] `get_pricebook_item` (pricebook resolution via `get_service_price`)
 
 ---
 
@@ -1872,11 +1876,11 @@ Create:
 
 Create:
 
-- [ ] `check_availability`
-- [ ] `get_available_slots`
-- [ ] `create_appointment`
-- [ ] `reschedule_appointment`
-- [ ] `cancel_appointment`
+- [x] `check_availability`
+- [x] `get_available_slots` (same tool; advisory slots)
+- [x] `create_appointment` (+ preferred `create_booking` orchestration)
+- [x] `reschedule_appointment` (AppointmentService adapter)
+- [x] `cancel_appointment` (AppointmentService adapter)
 
 ---
 
@@ -1884,7 +1888,7 @@ Create:
 
 Create:
 
-- [ ] `create_job`
+- [x] `create_job`
 - [ ] `get_job`
 - [ ] `update_job`
 - [ ] `get_job_status`
@@ -1895,7 +1899,7 @@ Create:
 
 Create:
 
-- [ ] `create_estimate`
+- [ ] `create_estimate` (staff EstimateService; AI has `find_estimates` / `get_estimate`)
 - [ ] `send_estimate`
 - [ ] `create_invoice`
 - [ ] `create_payment_link`
@@ -1907,25 +1911,38 @@ Create:
 
 Create:
 
-- [ ] `send_sms`
+- [x] `send_sms`
 - [ ] `send_email`
-- [ ] `transfer_call`
+- [x] `transfer_call` (as `request_human` handoff queue / transfer initiate)
 - [ ] `create_callback`
 
 ---
 
 # PHASE 14 — AI VOICE AGENT
 
+> **FREEZE (2026-10-07):** Application implementation is frozen.  
+> AI Tool Executor, tool registry, booking orchestration, AI RBAC, confirmation,  
+> idempotency, and voice tool registration must not gain new Phase 14 features.  
+> Remaining work is deployment, staging, provider smoke testing, and ops verification.  
+> See `docs/AI_TOOLS.md` and `docs/PRODUCTION_READINESS.md`.
+
+```text
+Phase 14 Implementation: COMPLETE
+Phase 14 Hardening: COMPLETE
+Local / PostgreSQL / Performance / Security verification: COMPLETE
+Overall Production Readiness: BLOCKED (voice/staging/prod smokes NOT EXECUTED)
+```
+
 ## TASK 14.1 — Caller Identification
 
 ### Checklist
 
-- [ ] Read caller number
-- [ ] Normalize number
-- [ ] Search customer
-- [ ] Identify existing customer
-- [ ] Create new customer
-- [ ] Load customer context
+- [x] Read caller number (call row / session)
+- [x] Normalize number (platform phone utils via tools)
+- [x] Search customer (`find_customer`)
+- [x] Identify existing customer
+- [x] Create new customer (`create_customer` + confirmation/idempotency)
+- [x] Load customer context (`get_customer_context`)
 
 ---
 
@@ -1949,14 +1966,14 @@ AI must understand:
 
 ### Checklist
 
-- [ ] Business context
-- [ ] Customer context
-- [ ] Tool rules
-- [ ] Safety rules
-- [ ] Confirmation rules
-- [ ] Escalation rules
-- [ ] No hallucinated data
-- [ ] Prompt tests
+- [x] Business context (profile instructions)
+- [x] Customer context (tool + call facts)
+- [x] Tool rules
+- [x] Safety rules
+- [x] Confirmation rules
+- [x] Escalation rules (`request_human`)
+- [x] No hallucinated data (tool-backed facts)
+- [x] Prompt / structural safety tests (forbidden args + prompt-boundary suite)
 
 ---
 
@@ -1969,24 +1986,24 @@ CALL
 → IDENTIFY CUSTOMER
 → UNDERSTAND REQUEST
 → FIND SERVICE
-→ CHECK AVAILABILITY
+→ CHECK AVAILABILITY (advisory)
 → OFFER SLOTS
-→ CONFIRM
-→ CREATE JOB
-→ CREATE APPOINTMENT
-→ SEND SMS
+→ CONFIRM (HMAC)
+→ create_booking → BookingOrchestrationService (Job + Appointment)
+→ SEND SMS (queued)
 ```
 
 ### Checklist
 
-- [ ] New customer flow
-- [ ] Existing customer flow
-- [ ] Availability
-- [ ] Slot selection
-- [ ] Booking confirmation
-- [ ] Job creation
-- [ ] SMS
-- [ ] Error handling
+- [x] New customer flow
+- [x] Existing customer flow
+- [x] Availability (advisory)
+- [x] Slot selection
+- [x] Booking confirmation (HMAC prepare→confirm)
+- [x] Job + appointment via `create_booking`
+- [x] SMS enqueue (`QUEUED` ≠ delivered)
+- [x] Error handling (`booking_conflict`, customer-safe errors)
+- [x] PostgreSQL concurrency / race verification
 
 ---
 
@@ -2010,14 +2027,36 @@ search_products()
 
 ### Checklist
 
-- [ ] Product search
-- [ ] Variant search
-- [ ] Inventory lookup
-- [ ] Price lookup
-- [ ] Product questions
-- [ ] Order lookup
-- [ ] Order status
-- [ ] Create order if enabled
+- [x] Product search
+- [x] Variant search
+- [x] Inventory lookup
+- [x] Price lookup (server-authoritative)
+- [x] Product questions (tool-backed)
+- [x] Order lookup / status (customer-scoped IDOR fail-closed)
+- [x] Create order if enabled (`create_order` → DRAFT; inventory on Order lifecycle)
+- [x] Forbidden price/inventory/status args rejected
+
+---
+
+## TASK 14.5 — Deployment gates (not application features)
+
+These remain open until executed in a real environment:
+
+- [ ] Twilio live smoke
+- [ ] LiveKit live smoke
+- [ ] OpenAI Realtime live smoke
+- [ ] Caller identification live smoke
+- [ ] Booking live smoke
+- [ ] Commerce live smoke
+- [ ] Order live smoke
+- [ ] SMS live smoke
+- [ ] Human handoff live smoke
+- [ ] Staging deployment
+- [ ] Staging migration verification
+- [ ] Staging RBAC verification
+- [ ] Staging voice smoke
+- [ ] Production deployment
+- [ ] Production smoke
 
 ---
 

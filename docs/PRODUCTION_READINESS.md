@@ -123,3 +123,60 @@ Repo Alembic head (workspace): 0043_estimates
 Invoices/Payments: intentionally not implemented
 Estimates production readiness: BLOCKED (staging/prod not executed)
 ```
+
+### Phase 14 AI Voice Agent — freeze / handoff (2026-10-07)
+
+```text
+Phase 14 Implementation: COMPLETE
+Phase 14 Hardening: COMPLETE
+Local Verification: COMPLETE
+PostgreSQL Verification: COMPLETE
+Performance Verification: COMPLETE
+Security Verification: COMPLETE
+
+Voice Provider Smoke: NOT EXECUTED
+Staging Verification: NOT EXECUTED
+Production Verification: NOT EXECUTED
+
+Overall Production Readiness: BLOCKED
+```
+
+Reason:
+
+```text
+Live Twilio/LiveKit/OpenAI/SMS voice path has not been executed.
+Staging and production deployment verification have not been executed.
+```
+
+Implementation and local verification complete; deployment verification pending.
+
+```text
+LOCAL AI tools (tests/test_ai_tools.py): VERIFIED — 22 passed
+LOCAL PostgreSQL concurrency (tests/test_ai_tools_pg_concurrency.py): VERIFIED — 16 passed
+LOCAL PostgreSQL performance / EXPLAIN / N+1 (tests/test_ai_tools_pg_perf.py): VERIFIED (local synthetic)
+LOCAL full backend regression: VERIFIED — 576 passed, 1 skipped
+LOCAL voice registration unit tests: VERIFIED
+LOCAL frontend: VERIFIED — TypeScript PASS, ESLint 0 errors / 3 warnings, 42 tests, build PASS
+Repo Alembic head (workspace): 0043_estimates (no Phase 14 migration)
+Idempotency scope: tenant + tool + operation_id (not call-scoped)
+Phase 14 application freeze: AI Tool Executor, registry, booking orchestration, AI RBAC, confirmation, idempotency, voice registration
+```
+
+Security verification (local):
+
+```text
+Tenant isolation: VERIFIED
+RBAC: VERIFIED
+IDOR: VERIFIED
+Call scope: VERIFIED
+Internal token: VERIFIED (config presence; secrets not logged)
+Forbidden arguments: VERIFIED
+Confirmation: VERIFIED
+Prompt injection structural boundary: VERIFIED
+Sensitive data handling: VERIFIED
+Audit: VERIFIED
+```
+
+RBAC note: AI Agent permission checks use a session-scoped permission-key cache for performance. Role/permission updates via `RoleRepository` call `AuthorizationService.invalidate_tenant`, which clears the AI permission cache so revocations/grants are reflected on subsequent AI tool authorization.
+
+Performance note (LOCAL POSTGRESQL only): product_search p95 ≈ 127 ms while SQL EXPLAIN execution ≈ 0.031 ms — known optimization candidate in the ORM/app path; product dataset was 1,000 variants (not 10k). Estimate lookup EXPLAIN: NOT EXECUTED. See `docs/AI_TOOLS.md`.

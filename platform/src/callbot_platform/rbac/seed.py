@@ -13,6 +13,7 @@ from callbot_platform.rbac.catalog import (
     PERMISSION_CATALOG,
     SOURCE_SYSTEM_DEFAULT,
     SYSTEM_ROLE_ADMIN,
+    SYSTEM_ROLE_AI_AGENT,
     SYSTEM_ROLE_NAMES,
     SYSTEM_ROLE_OWNER,
     default_role_permissions,
@@ -117,6 +118,34 @@ def ensure_system_roles_for_tenant(
                 )
                 added = True
             if added:
+                session.flush()
+        # Additive AI Agent template keys introduced after initial seed (do not
+        # re-grant keys an org intentionally revoked outside this set).
+        if name == SYSTEM_ROLE_AI_AGENT:
+            existing_keys = {
+                rp.permission.key
+                for rp in session.scalars(
+                    select(RolePermission)
+                    .where(RolePermission.role_id == role.id)
+                    .options(joinedload(RolePermission.permission))
+                ).all()
+                if rp.permission is not None
+            }
+            template = dict(default_role_permissions(SYSTEM_ROLE_AI_AGENT))
+            for perm_key in ("products.read",):
+                if perm_key in existing_keys or perm_key not in template:
+                    continue
+                perm = perms.get(perm_key)
+                if perm is None:
+                    continue
+                session.add(
+                    RolePermission(
+                        role_id=role.id,
+                        permission_id=perm.id,
+                        scope=template[perm_key],
+                        source=SOURCE_SYSTEM_DEFAULT,
+                    )
+                )
                 session.flush()
         roles[name] = role
     return roles

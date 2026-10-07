@@ -1,6 +1,11 @@
 """Tenant-scoped CRM function tools for the Realtime voice agent.
 
 Docs: https://docs.livekit.io/agents/logic/tools/definition/
+
+When Phase 14 AI business tools are enabled, use
+``build_legacy_crm_compat_tools`` so customer upsert/lookup do not bypass
+the platform AI tool executor. Lead creation remains on the legacy path
+(with call-scope + AI CRM permission + idempotency key).
 """
 
 from __future__ import annotations
@@ -30,6 +35,16 @@ def _reject_tenant_override(**kwargs: Any) -> None:
             "I cannot change which business this call belongs to. "
             "Please continue with the current request."
         )
+
+
+def _tool_name(tool: Any) -> str:
+    info = getattr(tool, "info", None)
+    if info is not None and getattr(info, "name", None):
+        return str(info.name)
+    name = getattr(tool, "name", None)
+    if name:
+        return str(name)
+    return str(getattr(tool, "__name__", ""))
 
 
 def build_crm_tools(client: PlatformCrmClient) -> list[Any]:
@@ -131,7 +146,7 @@ def build_crm_tools(client: PlatformCrmClient) -> list[Any]:
     ) -> dict[str, Any]:
         """Create a service lead / job request after the caller confirms the summary.
 
-        Prefer book_appointment when the caller picks a real slot. Use this tool
+        Prefer create_booking when the caller picks a real slot. Use this tool
         when no slot fits or the caller only wants a callback window.
 
         Args:
@@ -150,7 +165,7 @@ def build_crm_tools(client: PlatformCrmClient) -> list[Any]:
         data = _userdata(context)
         if not data.customer_id:
             raise ToolError(
-                "Save the customer with create_or_update_customer before creating a lead."
+                "Save the customer with create_customer before creating a lead."
             )
         digest = hashlib.sha256(
             f"{data.call_id}|{data.customer_id}|{service_type}|{urgency}|{notes or ''}".encode()
@@ -185,3 +200,9 @@ def build_crm_tools(client: PlatformCrmClient) -> list[Any]:
         create_or_update_customer,
         create_lead,
     ]
+
+
+def build_legacy_crm_compat_tools(client: PlatformCrmClient) -> list[Any]:
+    """Subset of CRM tools when Phase 14 executor owns customer mutations."""
+    keep = {"get_call_context", "create_lead"}
+    return [t for t in build_crm_tools(client) if _tool_name(t) in keep]

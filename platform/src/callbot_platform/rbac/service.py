@@ -58,6 +58,11 @@ class AuthorizationService:
             cache = {}
             session.info["rbac_authz_cache"] = cache
         self._cache: dict[tuple[UUID, UUID], frozenset[GrantedPermission]] = cache
+        ai_cache = session.info.get("rbac_ai_perm_cache")
+        if ai_cache is None:
+            ai_cache = {}
+            session.info["rbac_ai_perm_cache"] = ai_cache
+        self._ai_perm_cache: dict[UUID, frozenset[str]] = ai_cache
 
     def invalidate_member(self, tenant_user_id: UUID) -> None:
         keys = [k for k in self._cache if k[1] == tenant_user_id]
@@ -68,6 +73,9 @@ class AuthorizationService:
         keys = [k for k in self._cache if k[0] == tenant_id]
         for k in keys:
             del self._cache[k]
+        self._ai_perm_cache.pop(tenant_id, None)
+        self._ai_perm_cache.pop(tenant_id, None)
+        self._ai_perm_cache.pop(tenant_id, None)
 
     def list_permissions_catalog(self) -> list[dict[str, Any]]:
         rows = self._session.scalars(
@@ -287,19 +295,7 @@ class AuthorizationService:
             return SYSTEM_TO_LEGACY.get(names[0], "dispatcher")
         return None
 
-    def check_ai_tool(
-        self,
-        tenant_id: UUID,
-        tool_group: str,
-    ) -> None:
-        """Authorize AI tool groups via the org AI Agent system role."""
-        ensure_system_roles_for_tenant(self._session, tenant_id)
-        perm_key = AI_TOOL_PERMISSIONS.get(tool_group)
-        if perm_key is None:
-            raise RbacError(
-                "unknown_tool_group",
-                f"Unknown AI tool group: {tool_group}",
-            )
+    def _ai_agent_role(self, tenant_id: UUID) -> OrganizationRole | None:
         role = self._session.scalar(
             select(OrganizationRole).where(
                 OrganizationRole.tenant_id == tenant_id,
@@ -307,22 +303,62 @@ class AuthorizationService:
                 OrganizationRole.is_active.is_(True),
             )
         )
+        if role is not None:
+            return role
+        # Seed only when the AI Agent role is missing — never on every permission check.
+        ensure_system_roles_for_tenant(self._session, tenant_id)
+        return self._session.scalar(
+            select(OrganizationRole).where(
+                OrganizationRole.tenant_id == tenant_id,
+                OrganizationRole.name == SYSTEM_ROLE_AI_AGENT,
+                OrganizationRole.is_active.is_(True),
+            )
+        )
+
+    def _ai_permission_keys(self, tenant_id: UUID) -> frozenset[str]:
+        cached = self._ai_perm_cache.get(tenant_id)
+        if cached is not None:
+            return cached
+        role = self._ai_agent_role(tenant_id)
         if role is None:
-            raise RbacError("permission_denied", f"Missing permission: {perm_key}")
-        rows = self._session.scalars(
-            select(RolePermission)
-            .join(Permission, RolePermission.permission_id == Permission.id)
-            .where(
-                RolePermission.role_id == role.id,
-                Permission.resource == perm_key.split(".", 1)[0],
-                Permission.action == perm_key.split(".", 1)[1],
-            )
+            self._ai_perm_cache[tenant_id] = frozenset()
+            return frozenset()
+        rows = self._session.execute(
+            select(Permission.resource, Permission.action)
+            .join(RolePermission, RolePermission.permission_id == Permission.id)
+            .where(RolePermission.role_id == role.id)
         ).all()
-        if not rows:
+        keys = frozenset(f"{resource}.{action}" for resource, action in rows)
+        self._ai_perm_cache[tenant_id] = keys
+        return keys
+
+    def ai_has_permission(self, tenant_id: UUID, permission_key: str) -> bool:
+        """Return True if the org AI Agent role holds ``resource.action``."""
+        if "." not in permission_key:
+            return False
+        return permission_key in self._ai_permission_keys(tenant_id)
+
+    def require_ai_permission(self, tenant_id: UUID, permission_key: str) -> None:
+        if not self.ai_has_permission(tenant_id, permission_key):
             logger.warning(
-                "ai_tool_denied tenant_id=%s tool_group=%s permission=%s",
+                "ai_permission_denied tenant_id=%s permission=%s",
                 tenant_id,
-                tool_group,
-                perm_key,
+                permission_key,
             )
-            raise RbacError("permission_denied", f"Missing permission: {perm_key}")
+            raise RbacError(
+                "permission_denied", f"Missing permission: {permission_key}"
+            )
+
+    def check_ai_tool(
+        self,
+        tenant_id: UUID,
+        tool_group: str,
+    ) -> None:
+        """Authorize AI tool groups via the org AI Agent system role."""
+        perm_key = AI_TOOL_PERMISSIONS.get(tool_group)
+        if perm_key is None:
+            raise RbacError(
+                "unknown_tool_group",
+                f"Unknown AI tool group: {tool_group}",
+            )
+        self.require_ai_permission(tenant_id, perm_key)

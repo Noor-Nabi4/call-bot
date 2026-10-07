@@ -14,14 +14,14 @@ from callbot_platform.api.admin_routes import router as admin_router  # noqa: E4
 from callbot_platform.api.agent_admin_routes import (
     router as agent_admin_router,
 )
+from callbot_platform.api.ai_tools_routes import (  # noqa: E402
+    router as ai_tools_router,
+)
 from callbot_platform.api.api_key_admin_routes import (
     router as api_key_admin_router,
 )
 from callbot_platform.api.appointments_crm_routes import (  # noqa: E402
     router as appointments_crm_router,
-)
-from callbot_platform.api.dispatch_crm_routes import (  # noqa: E402
-    router as dispatch_crm_router,
 )
 from callbot_platform.api.auth_routes import router as auth_router  # noqa: E402
 from callbot_platform.api.automation_routes import (
@@ -32,30 +32,6 @@ from callbot_platform.api.branding_routes import router as branding_router  # no
 from callbot_platform.api.business_config_routes import (  # noqa: E402
     router as business_config_router,
 )
-from callbot_platform.api.dynamic_crm_routes import (  # noqa: E402
-    router as dynamic_crm_router,
-)
-from callbot_platform.api.customer_crm_routes import (  # noqa: E402
-    router as customer_crm_router,
-)
-from callbot_platform.api.product_catalog_routes import (  # noqa: E402
-    router as product_catalog_router,
-)
-from callbot_platform.api.inventory_routes import (  # noqa: E402
-    router as inventory_router,
-)
-from callbot_platform.api.services_pricebook_routes import (  # noqa: E402
-    router as services_pricebook_router,
-)
-from callbot_platform.api.orders_routes import (  # noqa: E402
-    router as orders_router,
-)
-from callbot_platform.api.estimates_routes import (  # noqa: E402
-    router as estimates_router,
-)
-from callbot_platform.api.leads_routes import (  # noqa: E402
-    router as leads_router,
-)
 from callbot_platform.api.crm_routes import (  # noqa: E402
     internal_tenant_router,
     tenant_settings_router,
@@ -63,11 +39,26 @@ from callbot_platform.api.crm_routes import (  # noqa: E402
 from callbot_platform.api.crm_routes import (
     router as crm_router,
 )
+from callbot_platform.api.customer_crm_routes import (  # noqa: E402
+    router as customer_crm_router,
+)
+from callbot_platform.api.dispatch_crm_routes import (  # noqa: E402
+    router as dispatch_crm_router,
+)
+from callbot_platform.api.dynamic_crm_routes import (  # noqa: E402
+    router as dynamic_crm_router,
+)
+from callbot_platform.api.estimates_routes import (  # noqa: E402
+    router as estimates_router,
+)
 from callbot_platform.api.handoff_routes import (  # noqa: E402
     internal_router as handoff_internal_router,
 )
 from callbot_platform.api.handoff_routes import (
     ops_router as handoff_ops_router,
+)
+from callbot_platform.api.inventory_routes import (  # noqa: E402
+    router as inventory_router,
 )
 from callbot_platform.api.jobs_admin_routes import (  # noqa: E402
     router as jobs_admin_router,
@@ -82,11 +73,20 @@ from callbot_platform.api.knowledge_routes import (  # noqa: E402
 from callbot_platform.api.knowledge_routes import (
     ops_router as knowledge_ops_router,
 )
-from callbot_platform.api.organization_routes import (  # noqa: E402
-    router as organization_router,
+from callbot_platform.api.leads_routes import (  # noqa: E402
+    router as leads_router,
 )
 from callbot_platform.api.onboarding_routes import (  # noqa: E402
     router as onboarding_router,
+)
+from callbot_platform.api.orders_routes import (  # noqa: E402
+    router as orders_router,
+)
+from callbot_platform.api.organization_routes import (  # noqa: E402
+    router as organization_router,
+)
+from callbot_platform.api.product_catalog_routes import (  # noqa: E402
+    router as product_catalog_router,
 )
 from callbot_platform.api.rbac_routes import (  # noqa: E402
     router as rbac_router,
@@ -94,6 +94,9 @@ from callbot_platform.api.rbac_routes import (  # noqa: E402
 from callbot_platform.api.routes import router  # noqa: E402
 from callbot_platform.api.scheduling_routes import (
     router as scheduling_router,
+)
+from callbot_platform.api.services_pricebook_routes import (  # noqa: E402
+    router as services_pricebook_router,
 )
 from callbot_platform.api.v1_routes import router as v1_router  # noqa: E402
 from callbot_platform.config import (  # noqa: E402
@@ -126,6 +129,7 @@ if _settings.is_production:
     )
 app.include_router(router)
 app.include_router(crm_router)
+app.include_router(ai_tools_router)
 app.include_router(internal_tenant_router)
 app.include_router(scheduling_router)
 app.include_router(auth_router)
