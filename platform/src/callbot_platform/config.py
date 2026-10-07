@@ -80,6 +80,15 @@ class Settings(BaseSettings):
     recording_retention_days: int = Field(
         default=30, alias="RECORDING_RETENTION_DAYS", ge=1, le=3650
     )
+    call_transcription_provider: str = Field(
+        default="deterministic", alias="CALL_TRANSCRIPTION_PROVIDER"
+    )
+    call_analysis_provider: str = Field(
+        default="deterministic", alias="CALL_ANALYSIS_PROVIDER"
+    )
+    call_intelligence_model: str = Field(
+        default="gpt-4o-mini", alias="CALL_INTELLIGENCE_MODEL"
+    )
     dedicated_db_idle_seconds: int = Field(
         default=600, alias="DEDICATED_DB_IDLE_SECONDS", ge=60
     )

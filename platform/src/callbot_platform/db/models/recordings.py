@@ -30,6 +30,8 @@ class RecordingObject(Base):
             "tenant_id",
             "retention_until",
         ),
+        Index("ix_recording_objects_tenant_call", "tenant_id", "call_id"),
+        Index("ix_recording_objects_tenant_lifecycle", "tenant_id", "lifecycle_status"),
         UniqueConstraint(
             "tenant_id", "object_key", name="uq_recording_objects_tenant_key"
         ),
@@ -44,13 +46,27 @@ class RecordingObject(Base):
     call_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("calls.id", ondelete="SET NULL"), nullable=True
     )
+    provider: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="internal"
+    )
+    provider_recording_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
     object_key: Mapped[str] = mapped_column(String(1024), nullable=False)
     mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    checksum: Mapped[str | None] = mapped_column(String(128), nullable=True)
     storage_backend: Mapped[str] = mapped_column(
         String(32), nullable=False, default="filesystem"
     )
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="stored")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="READY")
+    lifecycle_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="ACTIVE"
+    )
+    recorded_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     retention_until: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

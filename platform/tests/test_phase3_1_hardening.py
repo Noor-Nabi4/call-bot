@@ -209,6 +209,6 @@ def test_retention_idempotent_missing_object(
     store.delete(tenant_id=tenant.id, object_key=row.object_key)
     assert svc.delete_expired(limit=5) == 1
     session.refresh(row)
-    assert row.status == "deleted"
+    assert row.status == "DELETED"
     # Second pass is a no-op (already deleted status).
     assert svc.delete_expired(limit=5) == 0

@@ -150,11 +150,14 @@ class RecordingStorageService:
         rec = RecordingObject(
             tenant_id=tenant_id,
             call_id=call_id,
+            provider="internal",
             object_key=stored.object_key,
             mime_type=stored.mime_type,
             size_bytes=stored.size_bytes,
             storage_backend=stored.backend,
-            status="stored",
+            status="READY",
+            lifecycle_status="ACTIVE",
+            recorded_at=datetime.now(UTC),
             retention_until=retention_until,
             metadata_json=metadata or {},
         )
@@ -179,7 +182,7 @@ class RecordingStorageService:
             self._session.scalars(
                 select(RecordingObject)
                 .where(
-                    RecordingObject.status == "stored",
+                    RecordingObject.lifecycle_status == "ACTIVE",
                     RecordingObject.retention_until.is_not(None),
                     RecordingObject.retention_until <= now,
                     RecordingObject.deleted_at.is_(None),
@@ -196,7 +199,8 @@ class RecordingStorageService:
                     self._storage.delete(
                         tenant_id=row.tenant_id, object_key=row.object_key
                     )
-                row.status = "deleted"
+                row.status = "DELETED"
+                row.lifecycle_status = "DELETED"
                 row.deleted_at = now
                 row.updated_at = now
                 deleted += 1

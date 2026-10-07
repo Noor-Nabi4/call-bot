@@ -28,6 +28,7 @@ import {
   useToast,
   type DataTableColumn,
 } from "@/components/ui";
+import { CallIntelligencePanel } from "@/components/calls/CallIntelligencePanel";
 
 const DISPOSITIONS = [
   "resolved",
@@ -361,6 +362,7 @@ function CallsWorkspace() {
               <h3 className="mb-3 text-sm font-semibold">Timeline</h3>
               <Timeline items={timelineItems} />
             </div>
+            <CallIntelligencePanel callId={selected.id} />
             {selected.status !== "active" && selected.ended_at ? (
               <form className="space-y-3 border-t border-border pt-4" onSubmit={onSaveQuality}>
                 <h3 className="text-sm font-semibold">{copy.quality}</h3>

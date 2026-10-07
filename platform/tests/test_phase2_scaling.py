@@ -384,7 +384,7 @@ def test_recording_storage_and_retention(
         mime_type="audio/wav",
         retention_days=0,
     )
-    assert meta["status"] == "stored"
+    assert meta["status"] == "READY"
     # Force retention_until in the past
     from callbot_platform.db.models import RecordingObject
 
@@ -395,7 +395,7 @@ def test_recording_storage_and_retention(
     deleted = svc.delete_expired(limit=10)
     assert deleted == 1
     session.refresh(row)
-    assert row.status == "deleted"
+    assert row.status == "DELETED"
     assert row.deleted_at is not None
 
 

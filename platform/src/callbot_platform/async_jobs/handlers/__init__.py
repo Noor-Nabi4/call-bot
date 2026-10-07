@@ -6,6 +6,9 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from callbot_platform.async_jobs.handlers.call_intelligence import (
+    CallIntelligenceJobHandler,
+)
 from callbot_platform.async_jobs.handlers.knowledge import KnowledgeIngestHandler
 from callbot_platform.async_jobs.handlers.stripe_billing import StripeProvisionHandler
 from callbot_platform.async_jobs.handlers.telephony import TelephonyProvisionHandler
@@ -24,6 +27,7 @@ def build_default_handlers(
     tel = telephony or TelephonyProvisionHandler(settings=settings)
     stripe_h = stripe_handler or StripeProvisionHandler(settings=settings)
     knowledge_h = KnowledgeIngestHandler(settings=settings)
+    call_intel_h = CallIntelligenceJobHandler(settings=settings)
 
     def _purchase(session: Session, job: AsyncJob) -> dict:
         try:
@@ -56,6 +60,15 @@ def build_default_handlers(
     def _knowledge_ingest(session: Session, job: AsyncJob) -> dict:
         return knowledge_h.handle(session, job)
 
+    def _call_transcribe(session: Session, job: AsyncJob) -> dict:
+        return call_intel_h.handle_transcribe(session, job)
+
+    def _call_analyze(session: Session, job: AsyncJob) -> dict:
+        return call_intel_h.handle_analyze(session, job)
+
+    def _call_retention(session: Session, job: AsyncJob) -> dict:
+        return call_intel_h.handle_retention(session, job)
+
     return {
         JobType.TELEPHONY_PROVISION_PURCHASE: _purchase,
         JobType.TELEPHONY_PROVISION_CONNECT: _connect,
@@ -64,6 +77,9 @@ def build_default_handlers(
         JobType.STRIPE_SIGNUP_PROVISION: _signup,
         JobType.STRIPE_CHECKOUT_PROVISION: _checkout,
         JobType.KNOWLEDGE_INGEST: _knowledge_ingest,
+        JobType.CALL_TRANSCRIBE: _call_transcribe,
+        JobType.CALL_ANALYZE: _call_analyze,
+        JobType.CALL_INTELLIGENCE_RETENTION: _call_retention,
     }
 
 

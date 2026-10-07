@@ -21,3 +21,6 @@ class JobType:
     STRIPE_SIGNUP_PROVISION = "stripe.signup_provision"
     STRIPE_CHECKOUT_PROVISION = "stripe.checkout_provision"
     KNOWLEDGE_INGEST = "knowledge.ingest"
+    CALL_TRANSCRIBE = "call.transcribe"
+    CALL_ANALYZE = "call.analyze"
+    CALL_INTELLIGENCE_RETENTION = "call.intelligence_retention"

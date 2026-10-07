@@ -268,3 +268,79 @@ def publish_call_completed(
         },
         idempotency_key=f"call-completed:{call_id}",
     )
+
+
+def publish_call_transcribed(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    call_id: UUID,
+    transcript_id: UUID,
+) -> None:
+    emit_automation_event(
+        session,
+        tenant_id=tenant_id,
+        event_type=AutomationEventType.CALL_TRANSCRIBED.value,
+        source="call_intelligence",
+        entity_type="call",
+        entity_id=call_id,
+        payload={
+            "call_id": str(call_id),
+            "transcript_id": str(transcript_id),
+        },
+        idempotency_key=f"call-transcribed:{transcript_id}",
+    )
+
+
+def publish_call_analyzed(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    call_id: UUID,
+    intelligence_id: UUID,
+    classification: str | None = None,
+    sentiment: str | None = None,
+    intent: str | None = None,
+) -> None:
+    emit_automation_event(
+        session,
+        tenant_id=tenant_id,
+        event_type=AutomationEventType.CALL_ANALYZED.value,
+        source="call_intelligence",
+        entity_type="call",
+        entity_id=call_id,
+        payload={
+            "call_id": str(call_id),
+            "intelligence_id": str(intelligence_id),
+            "classification": classification,
+            "sentiment": sentiment,
+            "intent": intent,
+        },
+        idempotency_key=f"call-analyzed:{intelligence_id}",
+    )
+
+
+def publish_call_classified(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    call_id: UUID,
+    classification: str,
+    confidence: float | None = None,
+    source: str | None = None,
+) -> None:
+    emit_automation_event(
+        session,
+        tenant_id=tenant_id,
+        event_type=AutomationEventType.CALL_CLASSIFIED.value,
+        source="call_intelligence",
+        entity_type="call",
+        entity_id=call_id,
+        payload={
+            "call_id": str(call_id),
+            "classification": classification,
+            "confidence": confidence,
+            "source": source,
+        },
+        idempotency_key=f"call-classified:{call_id}:{classification}",
+    )

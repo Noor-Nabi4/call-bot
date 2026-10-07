@@ -175,6 +175,37 @@ def _resolve_field(
             None if appt is None else appt.status if path.endswith("status") else None
         )
 
+    if path.startswith("call."):
+        key = path.split(".", 1)[1]
+        # Prefer event payload (CALL_ANALYZED / CALL_CLASSIFIED), else latest intel row.
+        if key in payload and payload.get(key) is not None:
+            return payload.get(key)
+        call_id = payload.get("call_id") or (
+            event.entity_id if event.entity_type == "call" else None
+        )
+        if not call_id:
+            return None
+        from callbot_platform.db.models.call_intelligence import CallIntelligence
+
+        intel = session.scalar(
+            select(CallIntelligence)
+            .where(
+                CallIntelligence.tenant_id == tenant_id,
+                CallIntelligence.call_id == UUID(str(call_id)),
+                CallIntelligence.deleted_at.is_(None),
+                CallIntelligence.analysis_status == "COMPLETED",
+            )
+            .order_by(CallIntelligence.analysis_version.desc())
+            .limit(1)
+        )
+        if intel is None:
+            return None
+        return {
+            "classification": intel.classification,
+            "sentiment": intel.sentiment,
+            "intent": intel.intent,
+        }.get(key)
+
     return None
 
 

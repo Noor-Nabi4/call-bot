@@ -12,6 +12,9 @@ DEFAULT_APPOINTMENT_REMINDER_HOURS = 24
 
 class AutomationEventType(StrEnum):
     CALL_COMPLETED = "CALL_COMPLETED"
+    CALL_TRANSCRIBED = "CALL_TRANSCRIBED"
+    CALL_ANALYZED = "CALL_ANALYZED"
+    CALL_CLASSIFIED = "CALL_CLASSIFIED"
     LEAD_CREATED = "LEAD_CREATED"
     JOB_CREATED = "JOB_CREATED"
     APPOINTMENT_CREATED = "APPOINTMENT_CREATED"
@@ -105,6 +108,9 @@ CONDITION_FIELDS: frozenset[str] = frozenset(
         "order.status",
         "estimate.status",
         "appointment.status",
+        "call.classification",
+        "call.sentiment",
+        "call.intent",
         "event.type",
         "event.entity_type",
     }

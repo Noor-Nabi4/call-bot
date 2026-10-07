@@ -176,7 +176,7 @@ def test_recording_retention_missing_object(
     deleted = svc.delete_expired(limit=10)
     assert deleted == 1
     session.refresh(row)
-    assert row.status == "deleted"
+    assert row.status == "DELETED"
 
 
 def test_dlq_retry(session: Session, tenant: Tenant) -> None:

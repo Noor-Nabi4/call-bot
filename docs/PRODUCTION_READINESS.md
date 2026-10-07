@@ -410,3 +410,24 @@ Out of freeze scope:
 - canvas/graph builder
 - full 10k/100k/1M performance suite
 ```
+
+### Phase 23 Call Intelligence — freeze / handoff
+
+```text
+Phase 23 — APPLICATION COMPLETE / FROZEN (local)
+Migration: 0051_call_intelligence (head)
+Local Verification: COMPLETE with caveats
+  - test_call_intelligence.py: PASS (9)
+  - test_call_intelligence_pg_concurrency.py: PASS (2) on PostgreSQL
+  - Migration 0051 upgrade/downgrade/re-upgrade from stamped 0050: VERIFIED on PostgreSQL
+  - Backend regression (excl. known hanging PG suites): 616 passed, 1 skipped
+  - Frontend: tsc PASS, eslint 0 errors, next build PASS
+  - Live Twilio/LiveKit recording + STT/OpenAI analysis: NOT EXECUTED
+Performance / EXPLAIN / 100k segments: NOT EXECUTED
+Staging: NOT EXECUTED
+Production: NOT EXECUTED
+
+Overall: PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN
+```
+
+See `docs/CALL_INTELLIGENCE.md`.

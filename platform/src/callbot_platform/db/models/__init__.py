@@ -129,6 +129,11 @@ from callbot_platform.db.models.orders import (
     OrderStatusHistory,
 )
 from callbot_platform.db.models.queue import CallQueueItem
+from callbot_platform.db.models.call_intelligence import (
+    CallIntelligence,
+    CallTranscript,
+    CallTranscriptSegment,
+)
 from callbot_platform.db.models.recordings import RecordingObject
 from callbot_platform.db.models.scheduling import (
     Appointment,
@@ -183,7 +188,10 @@ __all__ = [
     "BusinessHoliday",
     "Call",
     "CallCogs",
+    "CallIntelligence",
     "CallQueueItem",
+    "CallTranscript",
+    "CallTranscriptSegment",
     "CatalogSku",
     "CrmCustomFieldValue",
     "Customer",
