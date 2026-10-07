@@ -139,4 +139,14 @@ class JobTransitionService:
             resource_ids={"job_id": str(job.id), "job_number": job.job_number},
             payload_summary={"from": current, "to": target},
         )
+        if target == JobStatus.COMPLETED.value:
+            from callbot_platform.automations.publishers import publish_job_completed
+
+            publish_job_completed(
+                self._session,
+                tenant_id=tenant_id,
+                job_id=job.id,
+                customer_id=job.customer_id,
+                job_number=job.job_number,
+            )
         return serialize_job(job, include_notes=True, include_history=True)

@@ -151,5 +151,17 @@ class OrderTransitionService:
             },
             payload_summary={"reason": reason} if reason else None,
         )
+        if target == OrderStatus.SHIPPED.value:
+            from callbot_platform.automations.constants import AutomationEventType
+            from callbot_platform.automations.publishers import publish_order_event
+
+            publish_order_event(
+                self._session,
+                tenant_id=tenant_id,
+                order_id=order.id,
+                event_type=AutomationEventType.ORDER_SHIPPED.value,
+                customer_id=order.customer_id,
+                status=order.status,
+            )
         self._session.refresh(order)
         return serialize_order(order, include_history=True)

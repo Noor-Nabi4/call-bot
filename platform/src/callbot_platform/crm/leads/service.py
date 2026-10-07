@@ -297,6 +297,14 @@ class LeadService:
             },
             idempotency_key=idempotency_key,
         )
+        from callbot_platform.automations.publishers import publish_lead_created
+
+        publish_lead_created(
+            self._session,
+            tenant_id=tenant_id,
+            lead_id=lead.id,
+            customer_id=lead.customer_id,
+        )
         return self._hydrate(lead)
 
     def update(

@@ -380,6 +380,17 @@ class OrderService:
                 "item_count": len(line_payloads),
             },
         )
+        from callbot_platform.automations.constants import AutomationEventType
+        from callbot_platform.automations.publishers import publish_order_event
+
+        publish_order_event(
+            self._session,
+            tenant_id=tenant_id,
+            order_id=order.id,
+            event_type=AutomationEventType.ORDER_CREATED.value,
+            customer_id=customer.id,
+            status=order.status,
+        )
         return serialize_order(
             self._load(tenant_id, order.id, include_history=True),
             include_history=True,

@@ -365,6 +365,17 @@ class JobService:
                 "job_number": job.job_number,
             },
         )
+        from callbot_platform.automations.publishers import publish_job_created
+
+        publish_job_created(
+            self._session,
+            tenant_id=tenant_id,
+            job_id=job.id,
+            customer_id=job.customer_id,
+            job_number=job.job_number,
+            location_id=job.location_id,
+            status=job.status,
+        )
         # Initial technician on create goes through the same assignment service
         # so history, audit, eligibility, and dispatch_events stay consistent.
         if tech_id is not None:

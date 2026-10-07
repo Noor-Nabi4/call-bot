@@ -290,6 +290,8 @@ def call_end(
             customer_id=body.customer_id,
         )
         from callbot_platform.automation.service import AutomationService
+        from callbot_platform.automations.publishers import publish_call_completed
+        from uuid import UUID as _UUID
 
         automation = AutomationService(session)
         payload = {
@@ -298,6 +300,14 @@ def call_end(
             "status": call.get("status"),
             "disconnect_reason": call.get("disconnect_reason"),
         }
+        publish_call_completed(
+            session,
+            tenant_id=body.tenant_id,
+            call_id=_UUID(str(call["id"])),
+            customer_id=(
+                _UUID(str(call["customer_id"])) if call.get("customer_id") else None
+            ),
+        )
         fired = automation.dispatch(body.tenant_id, "call.ended", payload=payload)
         metrics = body.metrics if isinstance(body.metrics, dict) else {}
         if metrics.get("handoff_requested"):

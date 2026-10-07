@@ -75,6 +75,15 @@ from callbot_platform.db.models.invoices import (
 )
 from callbot_platform.db.models.payments import Payment, PaymentRefund
 from callbot_platform.db.models.equipment import Equipment, EquipmentAttachment
+from callbot_platform.db.models.automations import (
+    AutomationActionExecution,
+    AutomationEvent,
+    AutomationExecution,
+    AutomationScheduledEvent,
+    AutomationTask,
+    AutomationWorkflow,
+    AutomationWorkflowVersion,
+)
 from callbot_platform.db.models.memberships import (
     CustomerMembership,
     MembershipBillingPeriod,
@@ -227,6 +236,13 @@ __all__ = [
     "PaymentRefund",
     "Equipment",
     "EquipmentAttachment",
+    "AutomationEvent",
+    "AutomationWorkflow",
+    "AutomationWorkflowVersion",
+    "AutomationExecution",
+    "AutomationActionExecution",
+    "AutomationTask",
+    "AutomationScheduledEvent",
     "CustomerMembership",
     "MembershipBillingPeriod",
     "MembershipEntitlementUsage",

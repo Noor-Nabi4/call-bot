@@ -387,6 +387,17 @@ class InvoiceService:
                 "currency": invoice.currency,
             },
         )
+        from callbot_platform.automations.publishers import publish_invoice_created
+
+        publish_invoice_created(
+            self._session,
+            tenant_id=tenant_id,
+            invoice_id=invoice.id,
+            customer_id=customer.id,
+            total=invoice.total_amount,
+            balance_due=invoice.balance_due,
+            invoice_number=invoice.invoice_number,
+        )
         return self.get(tenant_id, invoice.id)
 
     def update(

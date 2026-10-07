@@ -205,6 +205,18 @@ class DispatchAssignmentService:
                 "previous_technician_id": str(prev) if prev else None,
             },
         )
+        if technician_id is not None:
+            from callbot_platform.automations.publishers import (
+                publish_technician_dispatched,
+            )
+
+            publish_technician_dispatched(
+                self._session,
+                tenant_id=tenant_id,
+                job_id=job.id,
+                technician_id=technician_id,
+                customer_id=job.customer_id,
+            )
         # Reload relationships for serialize
         job = self._session.scalar(
             select(Job).where(Job.id == job_id, Job.tenant_id == tenant_id)

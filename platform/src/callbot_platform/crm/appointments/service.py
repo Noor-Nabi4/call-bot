@@ -446,6 +446,16 @@ class AppointmentService:
             idempotency_key=key,
             payload_summary={"starts_at": starts.isoformat()},
         )
+        from callbot_platform.automations.publishers import publish_appointment_created
+
+        publish_appointment_created(
+            self._session,
+            tenant_id=tenant_id,
+            appointment_id=appt.id,
+            customer_id=appt.customer_id,
+            starts_at=starts,
+            confirmation_code=getattr(appt, "confirmation_code", None),
+        )
         return self.get(tenant_id, appt.id)
 
     def update(

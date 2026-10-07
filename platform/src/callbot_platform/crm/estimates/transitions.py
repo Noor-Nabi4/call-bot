@@ -167,6 +167,25 @@ class EstimateTransitionService:
             },
             payload_summary={"reason": reason} if reason else None,
         )
+        if target in {
+            EstimateStatus.SENT.value,
+            EstimateStatus.APPROVED.value,
+        }:
+            from callbot_platform.automations.constants import AutomationEventType
+            from callbot_platform.automations.publishers import publish_estimate_event
+
+            etype = (
+                AutomationEventType.ESTIMATE_SENT.value
+                if target == EstimateStatus.SENT.value
+                else AutomationEventType.ESTIMATE_APPROVED.value
+            )
+            publish_estimate_event(
+                self._session,
+                tenant_id=tenant_id,
+                estimate_id=estimate.id,
+                event_type=etype,
+                customer_id=estimate.customer_id,
+            )
         return serialize_estimate(
             estimate, include_history=True, include_conversions=True
         )

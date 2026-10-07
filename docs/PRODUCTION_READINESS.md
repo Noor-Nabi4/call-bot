@@ -384,3 +384,29 @@ Remaining work (ops only):
 - staging migration 0049
 - production deployment / smoke
 ```
+
+### Phase 22 Automation Engine — freeze / handoff
+
+```text
+Phase 22 — APPLICATION COMPLETE / FROZEN (local)
+Migration: 0050_automations (head)
+Local Verification: COMPLETE with caveats
+  - test_automations_engine.py: PASS
+  - test_automations_pg_concurrency.py: PASS (one execution under concurrent workers)
+  - Migration 0050 upgrade/downgrade/re-upgrade from stamped 0049: VERIFIED on PostgreSQL
+Performance / EXPLAIN: NOT EXECUTED
+Stripe / SMS / Email / Webhook live providers: NOT EXECUTED
+Staging: NOT EXECUTED
+Production: NOT EXECUTED
+
+Overall: PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN
+```
+
+See `docs/AUTOMATIONS.md`.
+
+```text
+Out of freeze scope:
+- AI workflow generation
+- canvas/graph builder
+- full 10k/100k/1M performance suite
+```

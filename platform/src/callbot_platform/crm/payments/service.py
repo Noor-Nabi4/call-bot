@@ -393,6 +393,16 @@ class PaymentService:
             },
             payload_summary={"amount": serialize_money(apply_amount)},
         )
+        from callbot_platform.automations.publishers import publish_payment_completed
+
+        publish_payment_completed(
+            self._session,
+            tenant_id=tenant_id,
+            payment_id=payment.id,
+            invoice_id=payment.invoice_id,
+            customer_id=payment.customer_id,
+            amount=apply_amount,
+        )
         write_audit(
             self._session,
             tenant_id=tenant_id,
