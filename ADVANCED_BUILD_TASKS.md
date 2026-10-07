@@ -2211,21 +2211,25 @@ DRAFT
 
 # PHASE 18 — INVOICING
 
+> Application implementation frozen on the tenancy branch (migration `0046_invoicing`).
+> Payment provider integration deferred to Phase 19. See `docs/INVOICING.md`.
+> Production gate: **PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN**.
+
 ## TASK 18.1 — Invoice
 
 ### Checklist
 
-- [ ] Invoice model
-- [ ] Invoice number
-- [ ] Customer
-- [ ] Job/order
-- [ ] Line items
-- [ ] Tax
-- [ ] Discount
-- [ ] Total
-- [ ] Balance
-- [ ] Due date
-- [ ] Status
+- [x] Invoice model
+- [x] Invoice number
+- [x] Customer
+- [x] Job/order
+- [x] Line items
+- [x] Tax
+- [x] Discount
+- [x] Total
+- [x] Balance
+- [x] Due date
+- [x] Status
 
 ---
 
@@ -2239,6 +2243,13 @@ DRAFT
 → OVERDUE
 → VOID
 ```
+
+### Checklist
+
+- [x] Send + outbox notification
+- [x] Payment application ledger (Phase 19 links payment_id)
+- [x] Overdue transition
+- [x] Void
 
 ---
 

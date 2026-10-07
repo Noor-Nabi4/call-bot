@@ -244,6 +244,23 @@ PROVIDER VERIFICATION BLOCKED without OpenAI + staging
 
 See `docs/KNOWLEDGE_BASE.md`.
 
+### Phase 18 Invoicing — freeze / handoff
+
+```text
+Phase 18 Implementation: COMPLETE (application)
+Local Verification: COMPLETE
+  - test_invoices_crm.py + test_invoices_pg_concurrency.py: VERIFIED
+  - Full platform pytest: 612 passed, 1 skipped
+Payment provider (Phase 19 Stripe Connect): NOT EXECUTED
+Email notification delivery (live): NOT EXECUTED
+Staging Verification: NOT EXECUTED
+Production Verification: NOT EXECUTED
+
+Overall Production Readiness: PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN
+```
+
+See `docs/INVOICING.md`.
+
 ```text
 Phase 16 application implementation is frozen.
 

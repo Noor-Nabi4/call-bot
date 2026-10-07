@@ -66,6 +66,13 @@ from callbot_platform.db.models.estimates import (
     EstimateNumberCounter,
     EstimateStatusHistory,
 )
+from callbot_platform.db.models.invoices import (
+    Invoice,
+    InvoiceItem,
+    InvoiceNumberCounter,
+    InvoicePaymentApplication,
+    InvoiceStatusHistory,
+)
 from callbot_platform.db.models.handoff import (
     TenantHandoffSettings,
     TenantRetentionSettings,
@@ -172,6 +179,11 @@ __all__ = [
     "EstimateItem",
     "EstimateNumberCounter",
     "EstimateStatusHistory",
+    "Invoice",
+    "InvoiceItem",
+    "InvoiceNumberCounter",
+    "InvoicePaymentApplication",
+    "InvoiceStatusHistory",
     "InventoryAlertConfiguration",
     "InventoryAlertEvent",
     "InventoryBalance",

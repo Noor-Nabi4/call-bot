@@ -51,6 +51,9 @@ from callbot_platform.api.dynamic_crm_routes import (  # noqa: E402
 from callbot_platform.api.estimates_routes import (  # noqa: E402
     router as estimates_router,
 )
+from callbot_platform.api.invoices_routes import (  # noqa: E402
+    router as invoices_router,
+)
 from callbot_platform.api.handoff_routes import (  # noqa: E402
     internal_router as handoff_internal_router,
 )
@@ -150,6 +153,7 @@ app.include_router(services_pricebook_router)
 app.include_router(leads_router)
 app.include_router(orders_router)
 app.include_router(estimates_router)
+app.include_router(invoices_router)
 app.include_router(rbac_router)
 app.include_router(jobs_router)
 app.include_router(jobs_crm_router)
