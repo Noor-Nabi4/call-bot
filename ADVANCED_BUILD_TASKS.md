@@ -2255,18 +2255,24 @@ DRAFT
 
 # PHASE 19 — PAYMENTS
 
+> Application implementation frozen (migration `0047_payments`).
+> Applies money only through Phase 18 `InvoicePaymentService`. See `docs/PAYMENTS.md`.
+> Refund policy (explicit): refund → `amount_paid`↓ / `balance_due`↑ → invoice status recalculated.
+> Full platform pytest: **not** claimed 100% clean — open flaky PG failure (passed on re-run); classify before production.
+> Production gate: **PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN** (Stripe test-mode + staging + flake triage).
+
 ## TASK 19.1 — Stripe Integration
 
 ### Checklist
 
-- [ ] Payment link
-- [ ] Checkout
-- [ ] Webhook
-- [ ] Payment status
-- [ ] Partial payment
-- [ ] Refund
-- [ ] Idempotency
-- [ ] Audit logging
+- [x] Payment link
+- [x] Checkout
+- [x] Webhook
+- [x] Payment status
+- [x] Partial payment
+- [x] Refund
+- [x] Idempotency
+- [x] Audit logging
 
 ---
 
@@ -2274,11 +2280,11 @@ DRAFT
 
 ### Checklist
 
-- [ ] Generate payment link
-- [ ] Send SMS
-- [ ] Send email
-- [ ] Check payment status
-- [ ] Never expose card data
+- [x] Generate payment link
+- [x] Send SMS
+- [x] Send email
+- [x] Check payment status
+- [x] Never expose card data
 
 ---
 

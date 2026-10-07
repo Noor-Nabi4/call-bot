@@ -53,8 +53,14 @@ VALID_TRANSITIONS: frozenset[tuple[str, str]] = frozenset(
         (InvoiceStatus.PARTIALLY_PAID.value, InvoiceStatus.PAID.value),
         (InvoiceStatus.PARTIALLY_PAID.value, InvoiceStatus.OVERDUE.value),
         (InvoiceStatus.PARTIALLY_PAID.value, InvoiceStatus.VOID.value),
+        (InvoiceStatus.PARTIALLY_PAID.value, InvoiceStatus.SENT.value),
         (InvoiceStatus.OVERDUE.value, InvoiceStatus.PARTIALLY_PAID.value),
         (InvoiceStatus.OVERDUE.value, InvoiceStatus.PAID.value),
         (InvoiceStatus.OVERDUE.value, InvoiceStatus.VOID.value),
+        (InvoiceStatus.OVERDUE.value, InvoiceStatus.SENT.value),
+        # Refund unwind (Phase 19)
+        (InvoiceStatus.PAID.value, InvoiceStatus.PARTIALLY_PAID.value),
+        (InvoiceStatus.PAID.value, InvoiceStatus.SENT.value),
+        (InvoiceStatus.PAID.value, InvoiceStatus.OVERDUE.value),
     }
 )

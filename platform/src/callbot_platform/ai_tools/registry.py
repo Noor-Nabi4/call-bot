@@ -191,6 +191,24 @@ class SearchKnowledgeArgs(StrictModel):
     category: str | None = None
 
 
+class CreatePaymentLinkArgs(StrictModel):
+    invoice_id: str = Field(alias="invoiceId")
+    amount: str | None = None
+
+
+class SendPaymentLinkSmsArgs(StrictModel):
+    payment_id: str = Field(alias="paymentId")
+
+
+class SendPaymentLinkEmailArgs(StrictModel):
+    payment_id: str = Field(alias="paymentId")
+
+
+class GetPaymentStatusArgs(StrictModel):
+    payment_id: str | None = Field(default=None, alias="paymentId")
+    invoice_id: str | None = Field(default=None, alias="invoiceId")
+
+
 class RequestHumanArgs(StrictModel):
     reason: str
     summary: str
@@ -467,6 +485,53 @@ TOOL_SPECS: dict[str, ToolSpec] = {
             "Search tenant knowledge (FAQs, policies, business info, product descriptions). "
             "Informational only — never use for inventory, prices, appointments, or orders."
         ),
+    ),
+    "create_payment_link": ToolSpec(
+        name="create_payment_link",
+        args_model=CreatePaymentLinkArgs,
+        tool_group="payments",
+        permissions=("payments.create",),
+        mutation=True,
+        confirmation_required=True,
+        idempotency_required=True,
+        timeout_class=TimeoutClass.EXTERNAL_PROVIDER,
+        description=(
+            "Create a secure Stripe Checkout payment link for an invoice. "
+            "Never collect card data; send the customer to Stripe-hosted checkout."
+        ),
+    ),
+    "send_payment_link_sms": ToolSpec(
+        name="send_payment_link_sms",
+        args_model=SendPaymentLinkSmsArgs,
+        tool_group="payments",
+        permissions=("payments.create",),
+        mutation=True,
+        confirmation_required=True,
+        idempotency_required=True,
+        timeout_class=TimeoutClass.EXTERNAL_PROVIDER,
+        description="SMS the Stripe checkout URL to the invoice customer's phone on file.",
+    ),
+    "send_payment_link_email": ToolSpec(
+        name="send_payment_link_email",
+        args_model=SendPaymentLinkEmailArgs,
+        tool_group="payments",
+        permissions=("payments.create",),
+        mutation=True,
+        confirmation_required=True,
+        idempotency_required=True,
+        timeout_class=TimeoutClass.EXTERNAL_PROVIDER,
+        description="Email the Stripe checkout URL to the invoice customer's email on file.",
+    ),
+    "get_payment_status": ToolSpec(
+        name="get_payment_status",
+        args_model=GetPaymentStatusArgs,
+        tool_group="payments",
+        permissions=("payments.read",),
+        mutation=False,
+        confirmation_required=False,
+        idempotency_required=False,
+        timeout_class=TimeoutClass.FAST_READ,
+        description="Read payment status/amount for an invoice or payment id (no card data).",
     ),
 }
 

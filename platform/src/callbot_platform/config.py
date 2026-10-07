@@ -148,6 +148,26 @@ class Settings(BaseSettings):
         default="http://localhost:3002/settings/billing",
         alias="STRIPE_PORTAL_RETURN_URL",
     )
+    # Customer invoice payments (Phase 19) — same platform Stripe account, not Connect.
+    # Optional dedicated webhook secret; falls back to STRIPE_WEBHOOK_SECRET.
+    stripe_invoice_webhook_secret: str = Field(
+        default="", alias="STRIPE_INVOICE_WEBHOOK_SECRET"
+    )
+    stripe_publishable_key: str = Field(default="", alias="STRIPE_PUBLISHABLE_KEY")
+    stripe_invoice_checkout_success_url: str = Field(
+        default=(
+            "http://localhost:3002/crm/invoices/{INVOICE_ID}"
+            "?payment=success&paymentId={PAYMENT_ID}"
+        ),
+        alias="STRIPE_INVOICE_CHECKOUT_SUCCESS_URL",
+    )
+    stripe_invoice_checkout_cancel_url: str = Field(
+        default=(
+            "http://localhost:3002/crm/invoices/{INVOICE_ID}"
+            "?payment=canceled&paymentId={PAYMENT_ID}"
+        ),
+        alias="STRIPE_INVOICE_CHECKOUT_CANCEL_URL",
+    )
 
     allow_env_tenant_fallback: bool = Field(
         default=True, alias="ALLOW_ENV_TENANT_FALLBACK"

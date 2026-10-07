@@ -20,12 +20,14 @@ from callbot_platform.ai_tools.registry import (
     CreateCustomerArgs,
     CreateJobArgs,
     CreateOrderArgs,
+    CreatePaymentLinkArgs,
     FindCustomerArgs,
     FindEstimatesArgs,
     FindOrdersArgs,
     GetCustomerContextArgs,
     GetEstimateArgs,
     GetOrderStatusArgs,
+    GetPaymentStatusArgs,
     GetProductArgs,
     GetProductPriceArgs,
     GetServicePriceArgs,
@@ -34,6 +36,8 @@ from callbot_platform.ai_tools.registry import (
     SearchKnowledgeArgs,
     SearchProductsArgs,
     SearchServicesArgs,
+    SendPaymentLinkEmailArgs,
+    SendPaymentLinkSmsArgs,
     SendSmsArgs,
     ToolSpec,
     UpdateCustomerArgs,
@@ -48,6 +52,7 @@ from callbot_platform.crm.inventory.service import InventoryService
 from callbot_platform.crm.inventory.status import available_quantity, derive_status
 from callbot_platform.crm.jobs.service import JobService
 from callbot_platform.crm.orders.service import OrderService
+from callbot_platform.crm.payments import PaymentService
 from callbot_platform.crm.products.service import ProductCatalogService
 from callbot_platform.crm.services.pricing import PricingService
 from callbot_platform.crm.services.service import ServicesPricebookService
@@ -1241,7 +1246,7 @@ class AIToolHandlers:
                     "note": (
                         "No sufficiently relevant knowledge found. "
                         "Do not invent operational facts; use tools for "
-                        "inventory, pricing, appointments, and orders."
+                        "inventory, pricing, appointments, or orders."
                     ),
                 }
             )
@@ -1256,6 +1261,133 @@ class AIToolHandlers:
                 ),
             }
         )
+
+    def handle_create_payment_link(
+        self, ctx: AIToolContext, args: CreatePaymentLinkArgs
+    ) -> Any:
+        invoice_id = _uuid(args.invoice_id, field="invoiceId")
+        payment = PaymentService(self._session).create_payment_link(
+            ctx.tenant_id,
+            invoice_id,
+            actor=ctx.actor_type,
+            amount=args.amount,
+            idempotency_key=str(ctx.operation_id) if ctx.operation_id else None,
+        )
+        return ok_result(
+            {
+                "paymentId": payment["id"],
+                "status": payment["status"],
+                "amount": payment["amount"],
+                "currency": payment["currency"],
+                "checkoutUrl": payment.get("checkout_url"),
+                "invoiceId": payment["invoice_id"],
+                "note": "Send checkoutUrl via SMS/email tools. Never ask for card numbers.",
+            }
+        )
+
+    def handle_send_payment_link_sms(
+        self, ctx: AIToolContext, args: SendPaymentLinkSmsArgs
+    ) -> Any:
+        payment_id = _uuid(args.payment_id, field="paymentId")
+        payment = PaymentService(self._session).get(ctx.tenant_id, payment_id)
+        url = payment.get("checkout_url")
+        if not url:
+            return tool_error("payment_failed")
+        phone = self._session.scalar(
+            select(CustomerPhone).where(
+                CustomerPhone.tenant_id == ctx.tenant_id,
+                CustomerPhone.customer_id == UUID(payment["customer_id"]),
+            )
+        )
+        if phone is None:
+            return tool_error("customer_not_found")
+        body = (
+            f"Secure payment link for your invoice: {url}"
+        )
+        row = NotificationService(self._session).enqueue_sms(
+            tenant_id=ctx.tenant_id,
+            to_address=phone.e164,
+            body=body,
+            idempotency_key=f"payment_link_sms:{payment_id}",
+        )
+        return ok_result(
+            {
+                "status": "QUEUED",
+                "notificationId": row.get("id"),
+                "paymentId": str(payment_id),
+            }
+        )
+
+    def handle_send_payment_link_email(
+        self, ctx: AIToolContext, args: SendPaymentLinkEmailArgs
+    ) -> Any:
+        payment_id = _uuid(args.payment_id, field="paymentId")
+        payment = PaymentService(self._session).get(ctx.tenant_id, payment_id)
+        url = payment.get("checkout_url")
+        if not url:
+            return tool_error("payment_failed")
+        customer = self._session.scalar(
+            select(Customer).where(
+                Customer.id == UUID(payment["customer_id"]),
+                Customer.tenant_id == ctx.tenant_id,
+            )
+        )
+        if customer is None or not customer.email:
+            return tool_error("customer_not_found")
+        body = f"Secure payment link for your invoice: {url}"
+        row = NotificationService(self._session).enqueue_email(
+            tenant_id=ctx.tenant_id,
+            to_address=customer.email,
+            body=body,
+            idempotency_key=f"payment_link_email:{payment_id}",
+        )
+        return ok_result(
+            {
+                "status": "QUEUED",
+                "notificationId": row.get("id"),
+                "paymentId": str(payment_id),
+            }
+        )
+
+    def handle_get_payment_status(
+        self, ctx: AIToolContext, args: GetPaymentStatusArgs
+    ) -> Any:
+        svc = PaymentService(self._session)
+        if args.payment_id:
+            payment = svc.get(
+                ctx.tenant_id, _uuid(args.payment_id, field="paymentId")
+            )
+            return ok_result(
+                {
+                    "payment": {
+                        "id": payment["id"],
+                        "status": payment["status"],
+                        "amount": payment["amount"],
+                        "currency": payment["currency"],
+                        "refundedAmount": payment["refunded_amount"],
+                        "invoiceId": payment["invoice_id"],
+                    }
+                }
+            )
+        if args.invoice_id:
+            payments = svc.list_for_invoice(
+                ctx.tenant_id, _uuid(args.invoice_id, field="invoiceId")
+            )
+            return ok_result(
+                {
+                    "payments": [
+                        {
+                            "id": p["id"],
+                            "status": p["status"],
+                            "amount": p["amount"],
+                            "currency": p["currency"],
+                            "refundedAmount": p["refunded_amount"],
+                        }
+                        for p in payments
+                    ]
+                }
+            )
+        return tool_error("invalid_arguments")
 
 
 def load_caller_phone(session: Session, ctx_call_id: UUID | None) -> str | None:

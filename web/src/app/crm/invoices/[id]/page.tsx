@@ -10,6 +10,11 @@ import {
   voidInvoice,
   type InvoiceRow,
 } from "@/lib/api/invoices";
+import {
+  createPaymentLink,
+  listPaymentsForInvoice,
+  type PaymentRow,
+} from "@/lib/api/payments";
 import { useAuth } from "@/lib/use-auth";
 import { safeUserError } from "@/lib/safe-error";
 import {
@@ -25,9 +30,11 @@ export default function InvoiceDetailPage() {
   const id = String(params.id || "");
   const { user, loading: authLoading } = useAuth();
   const [invoice, setInvoice] = useState<InvoiceRow | null>(null);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [lastLink, setLastLink] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id || id === "new") return;
@@ -36,6 +43,12 @@ export default function InvoiceDetailPage() {
     try {
       const res = await getInvoice(id);
       setInvoice(res.invoice);
+      try {
+        const pay = await listPaymentsForInvoice(id);
+        setPayments(pay.payments);
+      } catch {
+        setPayments([]);
+      }
     } catch (err) {
       setError(safeUserError(err));
     } finally {
@@ -77,12 +90,16 @@ export default function InvoiceDetailPage() {
     status === "SENT" ||
     status === "PARTIALLY_PAID" ||
     status === "OVERDUE";
+  const canPay =
+    status === "SENT" ||
+    status === "PARTIALLY_PAID" ||
+    status === "OVERDUE";
 
   return (
     <AppShell user={user}>
       <PageHeader
         title={invoice?.invoice_number || "Invoice"}
-        description="Totals and balance are server authoritative."
+        description="Totals and balance are server authoritative. Payment success comes from Stripe webhooks, not browser redirects."
       />
       <p className="mb-4 text-sm">
         <Link href="/crm/invoices" className="underline-offset-2 hover:underline">
@@ -104,6 +121,28 @@ export default function InvoiceDetailPage() {
                 Send
               </Button>
             ) : null}
+            {canPay ? (
+              <Button
+                disabled={busy}
+                variant="secondary"
+                onClick={async () => {
+                  if (busy) return;
+                  setBusy(true);
+                  setError(null);
+                  try {
+                    const res = await createPaymentLink(id);
+                    setLastLink(res.payment.checkout_url || null);
+                    await load();
+                  } catch (err) {
+                    setError(safeUserError(err));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Create payment link
+              </Button>
+            ) : null}
             {canVoid ? (
               <Button
                 variant="danger"
@@ -114,6 +153,14 @@ export default function InvoiceDetailPage() {
               </Button>
             ) : null}
           </div>
+          {lastLink ? (
+            <p className="mb-4 text-sm break-all">
+              Checkout URL:{" "}
+              <a href={lastLink} className="underline" target="_blank" rel="noreferrer">
+                {lastLink}
+              </a>
+            </p>
+          ) : null}
           <dl className="grid gap-2 text-sm md:grid-cols-2">
             <div>
               <dt className="text-text-muted">Customer</dt>
@@ -147,6 +194,21 @@ export default function InvoiceDetailPage() {
               </li>
             ))}
           </ul>
+          {payments.length ? (
+            <>
+              <h2 className="mt-6 text-sm font-semibold">Stripe payments</h2>
+              <ul className="mt-2 space-y-1 text-sm">
+                {payments.map((p) => (
+                  <li key={p.id}>
+                    {p.status} · {p.amount} {p.currency}
+                    {p.refunded_amount !== "0.0000"
+                      ? ` · refunded ${p.refunded_amount}`
+                      : ""}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
           {invoice.status_history?.length ? (
             <>
               <h2 className="mt-6 text-sm font-semibold">Status history</h2>

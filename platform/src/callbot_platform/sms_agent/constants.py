@@ -23,6 +23,10 @@ SMS_ALLOWED_TOOLS: frozenset[str] = frozenset(
         "send_sms",
         "request_human",
         "search_knowledge",
+        "create_payment_link",
+        "send_payment_link_sms",
+        "send_payment_link_email",
+        "get_payment_status",
     }
 )
 

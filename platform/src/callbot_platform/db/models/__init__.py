@@ -73,6 +73,7 @@ from callbot_platform.db.models.invoices import (
     InvoicePaymentApplication,
     InvoiceStatusHistory,
 )
+from callbot_platform.db.models.payments import Payment, PaymentRefund
 from callbot_platform.db.models.handoff import (
     TenantHandoffSettings,
     TenantRetentionSettings,
@@ -213,6 +214,8 @@ __all__ = [
     "OrderItem",
     "OrderNumberCounter",
     "OrderStatusHistory",
+    "Payment",
+    "PaymentRefund",
     "OrganizationCrmConfiguration",
     "OrganizationCrmField",
     "OrganizationCrmModule",

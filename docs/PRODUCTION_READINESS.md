@@ -261,6 +261,51 @@ Overall Production Readiness: PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZ
 
 See `docs/INVOICING.md`.
 
+### Phase 19 Payments — freeze / handoff
+
+```text
+Phase 19 Implementation: COMPLETE (application)
+Local Verification: COMPLETE with caveats (see flake note)
+  - test_payments_crm.py: VERIFIED (Stripe mocked)
+  - full platform pytest: 614 passed, 1 skipped, 1 flaky failure that passed on re-run
+  - suite is NOT claimed 100% clean until flake root cause is classified
+Stripe test-mode Checkout: NOT EXECUTED
+Stripe invoice payment webhooks: NOT EXECUTED
+Email/SMS delivery of payment links (live): NOT EXECUTED
+Staging Verification: NOT EXECUTED
+Production Verification: NOT EXECUTED
+
+Overall Production Readiness: PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN
+```
+
+```text
+LOCAL payment tests: VERIFIED (mocked Stripe)
+Repo Alembic head (workspace target): 0047_payments
+Payment → InvoicePaymentService → invoice_payment_applications
+Refund policy: amount_paid↓ balance_due↑ then invoice status recalculated
+  (documented in docs/PAYMENTS.md — do not change silently)
+Webhook: POST /webhooks/stripe/payments (signature required)
+AI tools: create_payment_link, send_payment_link_sms/email, get_payment_status
+PROVIDER VERIFICATION BLOCKED without Stripe test credentials + staging
+OPEN BEFORE PRODUCTION: classify flaky PG failure
+  (test_sms_perf_hot_paths / customer create race) as
+  genuine concurrency defect vs test sync vs env contention
+```
+
+See `docs/PAYMENTS.md`.
+
+```text
+Phase 19 application implementation is frozen.
+
+Remaining work:
+- classify flaky PostgreSQL suite failure (pre-production)
+- Stripe test-mode verification
+- webhook endpoint registration
+- staging verification
+- production deployment
+- production smoke testing
+```
+
 ```text
 Phase 16 application implementation is frozen.
 

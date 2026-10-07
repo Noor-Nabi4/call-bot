@@ -150,6 +150,123 @@ class InvoicePaymentService:
         inv = self._load(tenant_id, invoice.id)
         return serialize_invoice(inv, include_history=True, include_payments=True)
 
+    def reverse_payment(
+        self,
+        tenant_id: UUID,
+        invoice_id: UUID,
+        *,
+        amount: object,
+        actor: str,
+        payment_id: UUID | None = None,
+        idempotency_key: str | None = None,
+        reference_note: str | None = None,
+    ) -> dict[str, Any]:
+        """Reduce amount_paid after a verified refund (increases balance_due)."""
+        key = idempotency_key.strip() if idempotency_key else None
+        if key:
+            existing = self._session.scalar(
+                select(InvoicePaymentApplication).where(
+                    InvoicePaymentApplication.tenant_id == tenant_id,
+                    InvoicePaymentApplication.idempotency_key == key,
+                )
+            )
+            if existing is not None:
+                inv = self._load(tenant_id, existing.invoice_id)
+                return serialize_invoice(
+                    inv, include_history=True, include_payments=True
+                )
+
+        rev_amount = require_money(amount, field="amount")
+        if rev_amount <= 0:
+            raise CrmError("invalid_amount", "Refund amount must be positive")
+
+        invoice = self._load(tenant_id, invoice_id, for_update=True)
+        if invoice.status == InvoiceStatus.VOID.value:
+            raise CrmError("invoice_void", "Cannot reverse payment on void invoice")
+
+        paid = invoice.amount_paid or _MONEY_ZERO
+        if rev_amount > paid:
+            raise CrmError(
+                "refund_exceeds_paid",
+                "Refund amount exceeds amount_paid",
+            )
+
+        # Negative application row records the reversal in the same ledger.
+        app = InvoicePaymentApplication(
+            tenant_id=tenant_id,
+            invoice_id=invoice.id,
+            payment_id=payment_id,
+            amount=rev_amount,
+            idempotency_key=key,
+            reference_note=reference_note or "refund_reversal",
+            created_by=actor,
+        )
+        # Store reversal as metadata-only note; amount_paid adjusted below.
+        # Application amount stays positive; direction is via reference_note.
+        try:
+            with self._session.begin_nested():
+                self._session.add(app)
+                self._session.flush()
+        except IntegrityError as exc:
+            if key:
+                raced = self._session.scalar(
+                    select(InvoicePaymentApplication).where(
+                        InvoicePaymentApplication.tenant_id == tenant_id,
+                        InvoicePaymentApplication.idempotency_key == key,
+                    )
+                )
+                if raced is not None:
+                    inv = self._load(tenant_id, raced.invoice_id)
+                    return serialize_invoice(
+                        inv, include_history=True, include_payments=True
+                    )
+            raise CrmError("payment_conflict", "Could not record refund") from exc
+
+        invoice.amount_paid = paid - rev_amount
+        InvoiceCalculationService.sync_balance(invoice)
+
+        from callbot_platform.crm.invoices.transitions import is_overdue
+
+        if invoice.amount_paid == _MONEY_ZERO:
+            target = (
+                InvoiceStatus.OVERDUE.value
+                if is_overdue(invoice)
+                else InvoiceStatus.SENT.value
+            )
+        else:
+            target = InvoiceStatus.PARTIALLY_PAID.value
+
+        if invoice.status != target:
+            self._transitions.transition(
+                tenant_id,
+                invoice.id,
+                to_status=target,
+                actor=actor,
+                reason="payment_refunded",
+                metadata={"amount": serialize_money(rev_amount)},
+                skip_overdue_check=True,
+            )
+        else:
+            invoice.updated_by = actor
+            invoice.updated_at = datetime.now(UTC)
+            self._session.flush()
+
+        write_audit(
+            self._session,
+            tenant_id=tenant_id,
+            actor=actor,
+            action="invoice.payment_reversed",
+            resource_ids={
+                "invoice_id": str(invoice.id),
+                "application_id": str(app.id),
+                "payment_id": str(payment_id) if payment_id else None,
+            },
+            idempotency_key=key,
+            payload_summary={"amount": serialize_money(rev_amount)},
+        )
+        inv = self._load(tenant_id, invoice.id)
+        return serialize_invoice(inv, include_history=True, include_payments=True)
+
     def _load(
         self, tenant_id: UUID, invoice_id: UUID, *, for_update: bool = False
     ) -> Invoice:
