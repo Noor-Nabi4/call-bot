@@ -144,6 +144,7 @@ class JobCreateBody(BaseModel):
     service_type: str | None = None
     service_id: UUID | None = None
     location_id: UUID | None = None
+    equipment_id: UUID | None = None
     description: str | None = None
     priority: str | None = None
     technician_id: UUID | None = None
@@ -163,6 +164,8 @@ class JobUpdateBody(BaseModel):
     priority: str | None = None
     location_id: UUID | None = None
     clear_location: bool = False
+    equipment_id: UUID | None = None
+    clear_equipment: bool = False
     service_id: UUID | None = None
     clear_service: bool = False
     service_type: str | None = None
@@ -203,6 +206,7 @@ def list_jobs(
     technician_id: UUID | None = None,
     service_id: UUID | None = None,
     location_id: UUID | None = None,
+    equipment_id: UUID | None = None,
     scheduled_from: datetime | None = None,
     scheduled_to: datetime | None = None,
     include_archived: bool = False,
@@ -237,6 +241,7 @@ def list_jobs(
             technician_id=tech_filter,
             service_id=service_id,
             location_id=location_id,
+            equipment_id=equipment_id,
             scheduled_from=scheduled_from,
             scheduled_to=scheduled_to,
             include_archived=include_archived,
@@ -262,6 +267,7 @@ def create_job(
             service_type=body.service_type,
             service_id=body.service_id,
             location_id=body.location_id,
+            equipment_id=body.equipment_id,
             description=body.description,
             priority=body.priority,
             technician_id=body.technician_id,
@@ -315,6 +321,8 @@ def update_job(
             priority=body.priority,
             location_id=body.location_id,
             clear_location=body.clear_location,
+            equipment_id=body.equipment_id,
+            clear_equipment=body.clear_equipment,
             service_id=body.service_id,
             clear_service=body.clear_service,
             service_type=body.service_type,

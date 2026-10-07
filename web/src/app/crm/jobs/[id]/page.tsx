@@ -7,6 +7,10 @@ import { AppShell } from "@/components/shell";
 import { listTechnicians } from "@/lib/api/technicians";
 import type { Technician } from "@/types";
 import {
+  listEquipment,
+  type EquipmentRow,
+} from "@/lib/api/equipment";
+import {
   archiveCrmJob,
   archiveCrmJobAttachment,
   archiveCrmJobNote,
@@ -19,6 +23,7 @@ import {
   listCrmJobAttachments,
   listCrmJobNotes,
   restoreCrmJob,
+  updateCrmJob,
   transitionCrmJob,
   uploadCrmJobAttachment,
   type JobAttachmentRow,
@@ -49,6 +54,7 @@ export default function CrmJobDetailPage() {
   const [notes, setNotes] = useState<JobNoteRow[]>([]);
   const [attachments, setAttachments] = useState<JobAttachmentRow[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [equipmentOptions, setEquipmentOptions] = useState<EquipmentRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -73,6 +79,13 @@ export default function CrmJobDetailPage() {
       setNotes(notesRes.notes);
       setAttachments(attachRes.attachments);
       setTechnicians(techRes.technicians);
+      const eqRes = await listEquipment({
+        customer_id: row.customer_id,
+        location_id: row.location_id || undefined,
+        status: "ACTIVE",
+        limit: 100,
+      }).catch(() => ({ equipment: [] as EquipmentRow[] }));
+      setEquipmentOptions(eqRes.equipment);
     } catch (err) {
       setError(safeUserError(err));
     } finally {
@@ -218,6 +231,41 @@ export default function CrmJobDetailPage() {
                   {job.scheduled_starts_at
                     ? new Date(job.scheduled_starts_at).toLocaleString()
                     : "—"}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-neutral-500">Equipment</dt>
+                <dd>
+                  <Select
+                    value={job.equipment_id || ""}
+                    disabled={busy}
+                    onChange={(e) =>
+                      void runAction(() =>
+                        updateCrmJob(id, {
+                          equipment_id: e.target.value || null,
+                          clear_equipment: !e.target.value,
+                        })
+                      )
+                    }
+                    aria-label="Job equipment"
+                    className="max-w-md"
+                  >
+                    <option value="">None</option>
+                    {equipmentOptions.map((eq) => (
+                      <option key={eq.id} value={eq.id}>
+                        {eq.manufacturer} {eq.model}
+                        {eq.serial_number ? ` (${eq.serial_number})` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                  {job.equipment_id ? (
+                    <Link
+                      href={`/crm/equipment/${job.equipment_id}`}
+                      className="ml-2 text-sm underline-offset-2 hover:underline"
+                    >
+                      View asset
+                    </Link>
+                  ) : null}
                 </dd>
               </div>
               <div className="sm:col-span-2">

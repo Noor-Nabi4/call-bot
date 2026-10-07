@@ -74,6 +74,7 @@ from callbot_platform.db.models.invoices import (
     InvoiceStatusHistory,
 )
 from callbot_platform.db.models.payments import Payment, PaymentRefund
+from callbot_platform.db.models.equipment import Equipment, EquipmentAttachment
 from callbot_platform.db.models.memberships import (
     CustomerMembership,
     MembershipBillingPeriod,
@@ -224,6 +225,8 @@ __all__ = [
     "OrderStatusHistory",
     "Payment",
     "PaymentRefund",
+    "Equipment",
+    "EquipmentAttachment",
     "CustomerMembership",
     "MembershipBillingPeriod",
     "MembershipEntitlementUsage",

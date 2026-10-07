@@ -2328,14 +2328,14 @@ DRAFT
 
 ### Checklist
 
-- [ ] Equipment model
-- [ ] Manufacturer
-- [ ] Model
-- [ ] Serial number
-- [ ] Installation date
-- [ ] Warranty
-- [ ] Customer relationship
-- [ ] Location
+- [x] Equipment model
+- [x] Manufacturer
+- [x] Model
+- [x] Serial number
+- [x] Installation date
+- [x] Warranty
+- [x] Customer relationship
+- [x] Location
 
 ---
 
@@ -2343,12 +2343,12 @@ DRAFT
 
 ### Checklist
 
-- [ ] Service history
-- [ ] Repairs
-- [ ] Parts
-- [ ] Technician notes
-- [ ] Photos
-- [ ] Warranty status
+- [x] Service history
+- [x] Repairs
+- [x] Parts
+- [x] Technician notes
+- [x] Photos
+- [x] Warranty status
 
 ---
 

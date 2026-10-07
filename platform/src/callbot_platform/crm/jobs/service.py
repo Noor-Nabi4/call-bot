@@ -119,6 +119,45 @@ class JobService:
             raise CrmError("technician_not_found", "Technician not found for tenant")
         return row
 
+    def _require_equipment(
+        self,
+        tenant_id: UUID,
+        customer_id: UUID,
+        equipment_id: UUID,
+        *,
+        location_id: UUID | None = None,
+    ):
+        from callbot_platform.crm.equipment.constants import SELECTABLE_STATUSES
+        from callbot_platform.db.models.equipment import Equipment
+
+        row = self._session.scalar(
+            select(Equipment).where(
+                Equipment.id == equipment_id, Equipment.tenant_id == tenant_id
+            )
+        )
+        if row is None or row.archived_at is not None:
+            raise CrmError("equipment_not_found", "Equipment not found for tenant")
+        if row.customer_id != customer_id:
+            raise CrmError(
+                "equipment_customer_mismatch",
+                "Equipment does not belong to the job customer",
+            )
+        if row.status not in SELECTABLE_STATUSES:
+            raise CrmError(
+                "equipment_not_selectable",
+                "Equipment is not available for job association",
+            )
+        if (
+            location_id is not None
+            and row.location_id is not None
+            and row.location_id != location_id
+        ):
+            raise CrmError(
+                "equipment_location_mismatch",
+                "Equipment location does not match job location",
+            )
+        return row
+
     def _validate_schedule(
         self,
         starts: datetime | None,
@@ -157,6 +196,7 @@ class JobService:
         service_type: str | None = None,
         service_id: UUID | None = None,
         location_id: UUID | None = None,
+        equipment_id: UUID | None = None,
         description: str | None = None,
         priority: str | None = None,
         technician_id: UUID | None = None,
@@ -183,6 +223,13 @@ class JobService:
 
         if location_id is not None:
             self._require_location(tenant_id, customer.id, location_id)
+        if equipment_id is not None:
+            self._require_equipment(
+                tenant_id,
+                customer.id,
+                equipment_id,
+                location_id=location_id,
+            )
 
         tech_id = None
         if technician_id is not None:
@@ -219,6 +266,7 @@ class JobService:
             service_id=service_id,
             service_type=stype,
             location_id=location_id,
+            equipment_id=equipment_id,
             description=desc,
             priority=prio,
             technician_id=tech_id,
@@ -256,6 +304,7 @@ class JobService:
                     job_number=number,
                     customer_id=customer.id,
                     location_id=location_id,
+                    equipment_id=equipment_id,
                     service_id=service_id,
                     appointment_id=appointment_id,
                     lead_id=lead_id,
@@ -343,6 +392,8 @@ class JobService:
         priority: str | None = None,
         location_id: UUID | None = None,
         clear_location: bool = False,
+        equipment_id: UUID | None = None,
+        clear_equipment: bool = False,
         service_id: UUID | None = None,
         clear_service: bool = False,
         service_type: str | None = None,
@@ -365,6 +416,8 @@ class JobService:
                 priority is not None,
                 clear_location,
                 location_id is not None,
+                clear_equipment,
+                equipment_id is not None,
                 clear_service,
                 service_id is not None,
                 service_type is not None,
@@ -398,6 +451,17 @@ class JobService:
         elif location_id is not None:
             self._require_location(tenant_id, job.customer_id, location_id)
             job.location_id = location_id
+
+        if clear_equipment:
+            job.equipment_id = None
+        elif equipment_id is not None:
+            self._require_equipment(
+                tenant_id,
+                job.customer_id,
+                equipment_id,
+                location_id=job.location_id,
+            )
+            job.equipment_id = equipment_id
 
         if clear_service:
             job.service_id = None

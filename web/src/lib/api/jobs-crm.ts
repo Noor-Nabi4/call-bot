@@ -66,6 +66,7 @@ export type JobRow = {
   customer_id: string;
   customer?: JobCustomerRef | null;
   location_id?: string | null;
+  equipment_id?: string | null;
   service_id?: string | null;
   appointment_id?: string | null;
   lead_id?: string | null;
@@ -101,6 +102,7 @@ export type JobCreateInput = {
   customer_id: string;
   service_type: string;
   location_id?: string;
+  equipment_id?: string;
   service_id?: string;
   description?: string;
   priority?: string;

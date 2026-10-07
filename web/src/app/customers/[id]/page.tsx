@@ -28,6 +28,10 @@ import {
   getCustomerMembership,
   type CustomerMembership,
 } from "@/lib/api/memberships";
+import {
+  listEquipment,
+  type EquipmentRow,
+} from "@/lib/api/equipment";
 import { useAuth } from "@/lib/use-auth";
 import { customers as copy, errors } from "@/lib/ops-copy";
 import { safeUserError } from "@/lib/safe-error";
@@ -167,6 +171,7 @@ export default function CustomerDetailPage() {
 
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [membership, setMembership] = useState<CustomerMembership | null>(null);
+  const [equipment, setEquipment] = useState<EquipmentRow[]>([]);
   const [timeline, setTimeline] = useState<CustomerTimelineEvent[]>([]);
   const [profile, setProfile] = useState<ProfileForm | null>(null);
   const [tagInput, setTagInput] = useState("");
@@ -192,15 +197,19 @@ export default function CustomerDetailPage() {
   const [locationArchiveBusy, setLocationArchiveBusy] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [custRes, timelineRes, membershipRes] = await Promise.all([
+    const [custRes, timelineRes, membershipRes, equipmentRes] = await Promise.all([
       getCrmCustomer(params.id),
       getCrmCustomerTimeline(params.id, { limit: 50 }),
       getCustomerMembership(params.id).catch(() => ({ membership: null })),
+      listEquipment({ customer_id: params.id, limit: 50 }).catch(() => ({
+        equipment: [] as EquipmentRow[],
+      })),
     ]);
     setCustomer(custRes.customer);
     setProfile(toProfileForm(custRes.customer));
     setTimeline(timelineRes.items || []);
     setMembership(membershipRes.membership);
+    setEquipment(equipmentRes.equipment);
   }, [params.id]);
 
   useEffect(() => {
@@ -769,6 +778,40 @@ export default function CustomerDetailPage() {
           </Surface>
         </div>
       </div>
+
+      <Surface className="mt-4 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-text-primary">Equipment</h3>
+          {canUpdate && !customer.archived_at ? (
+            <Link href={`/crm/equipment/new?customer_id=${customer.id}`}>
+              <Button size="sm" variant="ghost">
+                Add equipment
+              </Button>
+            </Link>
+          ) : null}
+        </div>
+        <ul className="mt-3 space-y-2 text-sm">
+          {equipment.length === 0 ? (
+            <li className="text-text-muted">No equipment on file.</li>
+          ) : (
+            equipment.map((eq) => (
+              <li key={eq.id} className="flex flex-wrap items-center gap-2">
+                <StatusPill status={eq.status} />
+                <Link
+                  href={`/crm/equipment/${eq.id}`}
+                  className="font-medium underline-offset-2 hover:underline"
+                >
+                  {eq.manufacturer} {eq.model}
+                </Link>
+                {eq.serial_number ? (
+                  <span className="text-text-muted">SN {eq.serial_number}</span>
+                ) : null}
+                <span className="text-text-muted">{eq.warranty_status}</span>
+              </li>
+            ))
+          )}
+        </ul>
+      </Surface>
 
       <Surface className="mt-4 p-4">
         <h3 className="text-sm font-semibold text-text-primary">Membership</h3>

@@ -107,6 +107,7 @@ def serialize_job(
         "customer_id": str(job.customer_id),
         "customer": customer,
         "location_id": str(job.location_id) if job.location_id else None,
+        "equipment_id": str(job.equipment_id) if job.equipment_id else None,
         "location": location,
         "service_id": str(job.service_id) if job.service_id else None,
         "service": service,

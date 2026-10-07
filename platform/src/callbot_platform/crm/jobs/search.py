@@ -32,6 +32,7 @@ class JobSearchService:
         technician_id: UUID | None = None,
         service_id: UUID | None = None,
         location_id: UUID | None = None,
+        equipment_id: UUID | None = None,
         scheduled_from: datetime | None = None,
         scheduled_to: datetime | None = None,
         include_archived: bool = False,
@@ -66,6 +67,8 @@ class JobSearchService:
             filters.append(Job.service_id == service_id)
         if location_id is not None:
             filters.append(Job.location_id == location_id)
+        if equipment_id is not None:
+            filters.append(Job.equipment_id == equipment_id)
         if scheduled_from is not None:
             filters.append(Job.scheduled_starts_at >= scheduled_from)
         if scheduled_to is not None:

@@ -150,6 +150,7 @@ class Job(Base):
         Index("ix_jobs_tenant_scheduled_start", "tenant_id", "scheduled_starts_at"),
         Index("ix_jobs_tenant_customer", "tenant_id", "customer_id"),
         Index("ix_jobs_tenant_location", "tenant_id", "location_id"),
+        Index("ix_jobs_tenant_equipment", "tenant_id", "equipment_id"),
         Index("ix_jobs_tenant_service", "tenant_id", "service_id"),
         Index("ix_jobs_tenant_archived", "tenant_id", "archived_at"),
         UniqueConstraint(
@@ -186,6 +187,11 @@ class Job(Base):
     location_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("customer_locations.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    equipment_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("equipment.id", ondelete="SET NULL"),
         nullable=True,
     )
     service_id: Mapped[uuid.UUID | None] = mapped_column(
