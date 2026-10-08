@@ -31,10 +31,13 @@ from callbot_platform.security.session import ROLE_DISPATCHER, create_session_to
 
 @pytest.fixture()
 def session_settings() -> Settings:
+    # Isolate from platform/.env.local (e.g. REQUIRE_CALL_SCOPE=true).
     return Settings(
+        _env_file=None,
         session_secret="test-session-secret-rbac-ok32xxxxxxxx",
         internal_service_token="internal-test-token",
         session_cookie_name="callbot_ops_session",
+        require_call_scope=False,
     )
 
 

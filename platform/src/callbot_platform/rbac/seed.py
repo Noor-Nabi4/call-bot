@@ -300,10 +300,12 @@ def backfill_tenant_rbac(session: Session, tenant_id: UUID) -> None:
 
 
 def backfill_all_tenants(session: Session) -> int:
-    from callbot_platform.db.models.tenant import Tenant
+    # Use raw SQL — migration-time ORM Tenant maps may include columns
+    # not yet applied (e.g. business_size added in a later revision).
+    from sqlalchemy import text
 
     ensure_permission_catalog(session)
-    tenants = list(session.scalars(select(Tenant)))
-    for tenant in tenants:
-        backfill_tenant_rbac(session, tenant.id)
-    return len(tenants)
+    tenant_ids = list(session.scalars(text("SELECT id FROM tenants")))
+    for tenant_id in tenant_ids:
+        backfill_tenant_rbac(session, tenant_id)
+    return len(tenant_ids)

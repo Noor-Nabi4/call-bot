@@ -22,10 +22,11 @@ import {
 import { notifications as copy } from "@/lib/ops-copy";
 import { safeUserError } from "@/lib/safe-error";
 
-const POLL_HIDDEN_MS = 60_000;
-const POLL_IDLE_MS = 20_000;
-const POLL_ACTIVE_MS = 8_000;
-const POLL_OPEN_MS = 4_000;
+// Badge feed is shell-wide — keep closed-tab polling slow so billing/settings
+// pages are not flooded with jobs/technicians/handoff traffic.
+const POLL_HIDDEN_MS = 120_000;
+const POLL_CLOSED_MS = 60_000;
+const POLL_OPEN_MS = 12_000;
 
 export type AttentionFeed = {
   summary: AttentionItem[];
@@ -43,11 +44,7 @@ function pollIntervalMs(open: boolean): number {
   if (typeof document !== "undefined" && document.visibilityState === "hidden") {
     return POLL_HIDDEN_MS;
   }
-  if (open) return POLL_OPEN_MS;
-  if (typeof document !== "undefined" && document.hasFocus()) {
-    return POLL_ACTIVE_MS;
-  }
-  return POLL_IDLE_MS;
+  return open ? POLL_OPEN_MS : POLL_CLOSED_MS;
 }
 
 export function useAttentionFeed(open: boolean): AttentionFeed {
@@ -94,7 +91,8 @@ export function useAttentionFeed(open: boolean): AttentionFeed {
     });
   }, [refresh]);
 
-  // Adaptive polling — faster while open / focused, slower when idle/hidden.
+  // Poll slowly while the bell is closed; faster only while the menu is open.
+  // Do not refetch on every route change — that flooded unrelated pages.
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
@@ -117,28 +115,39 @@ export function useAttentionFeed(open: boolean): AttentionFeed {
     };
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible") bump();
-      else if (timer) {
-        clearTimeout(timer);
+      if (timer) clearTimeout(timer);
+      if (document.visibilityState === "visible") {
+        // Tab back: one soft refresh, then resume slow/open cadence.
+        void refresh({ soft: true }).finally(() => schedule());
+      } else {
         schedule();
       }
     };
 
-    window.addEventListener("focus", bump);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener(ATTENTION_REFRESH_EVENT, bump);
 
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
-      window.removeEventListener("focus", bump);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener(ATTENTION_REFRESH_EVENT, bump);
     };
   }, [open, refresh]);
 
-  // Route changes often follow job edits — soft refresh.
+  // Soft refresh only when navigating onto ops surfaces that edit attention data.
   useEffect(() => {
+    if (!pathname) return;
+    const opsSurface =
+      pathname.startsWith("/jobs") ||
+      pathname.startsWith("/crm/jobs") ||
+      pathname.startsWith("/dispatch") ||
+      pathname.startsWith("/crm/dispatch") ||
+      pathname.startsWith("/queue") ||
+      pathname.startsWith("/handoff") ||
+      pathname.startsWith("/crm/handoffs") ||
+      pathname.startsWith("/tech");
+    if (!opsSurface) return;
     queueMicrotask(() => {
       void refresh({ soft: true });
     });

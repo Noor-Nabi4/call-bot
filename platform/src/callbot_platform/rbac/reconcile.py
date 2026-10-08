@@ -212,26 +212,27 @@ def reconcile_all_tenants(
     freeze_existing_gaps: bool = False,
 ) -> dict[str, Any]:
     """Reconcile every tenant. Optionally freeze gaps before granting."""
-    from callbot_platform.db.models.tenant import Tenant
+    # Raw SQL avoids ORM Tenant maps that expect columns from later migrations.
+    from sqlalchemy import text
 
     _perms, newly = ensure_permission_catalog(session)
     newly_keys = frozenset(newly)
-    tenants = list(session.scalars(select(Tenant)))
+    tenant_ids = list(session.scalars(text("SELECT id FROM tenants")))
     results = []
     total_added = 0
     total_frozen = 0
-    for tenant in tenants:
+    for tenant_id in tenant_ids:
         if freeze_existing_gaps:
             total_frozen += freeze_system_role_gaps_for_tenant(
                 session,
-                tenant.id,
+                tenant_id,
                 skip_permission_keys=newly_keys,
             )
-        result = reconcile_system_roles_for_tenant(session, tenant.id, actor=actor)
+        result = reconcile_system_roles_for_tenant(session, tenant_id, actor=actor)
         results.append(result)
         total_added += int(result["added_count"])
     return {
-        "tenants": len(tenants),
+        "tenants": len(tenant_ids),
         "added_count": total_added,
         "frozen_count": total_frozen,
         "results": results,

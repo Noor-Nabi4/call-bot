@@ -7,8 +7,9 @@ blocked (see docs/PRODUCTION_READINESS.md and docs/CUSTOMER_CRM.md).
 from __future__ import annotations
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "0030_customer_crm"
 down_revision = "0029_dynamic_crm_hardening"
@@ -82,14 +83,8 @@ def upgrade() -> None:
     op.create_index("ix_customers_tenant_name", "customers", ["tenant_id", "name"])
 
     if is_pg:
-        op.execute(
-            sa.text(
-                "CREATE INDEX IF NOT EXISTS ix_customers_tenant_name_trgm "
-                "ON customers USING gin (tenant_id, name gin_trgm_ops)"
-            )
-        )
-        # gin on (tenant_id, name) may not work that way — use expression on name only
-        # with tenant filter in queries. Prefer tenant_id btree + name trgm:
+        # GIN trgm cannot index uuid + text together; keep btree on
+        # (tenant_id, name) above and trgm on name for ILIKE / similarity.
         op.execute(sa.text("DROP INDEX IF EXISTS ix_customers_tenant_name_trgm"))
         op.execute(
             sa.text(

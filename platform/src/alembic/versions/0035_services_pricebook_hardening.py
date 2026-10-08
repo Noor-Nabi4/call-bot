@@ -22,6 +22,18 @@ depends_on = None
 
 def upgrade() -> None:
     bind = op.get_bind()
+    # Alembic default version_num is VARCHAR(32); this revision id is longer.
+    if bind.dialect.name == "postgresql":
+        op.execute(
+            sa.text(
+                "ALTER TABLE alembic_version "
+                "ALTER COLUMN version_num TYPE VARCHAR(128)"
+            )
+        )
+    elif bind.dialect.name == "sqlite":
+        # SQLite ignores length; no-op for type width.
+        pass
+
     if bind.dialect.name != "postgresql":
         return
 
