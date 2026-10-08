@@ -139,18 +139,28 @@ def readiness(
         session.execute(text("SELECT 1"))
         checks["postgres"] = "ok"
     except SQLAlchemyError as exc:
+        # Do not return SQLAlchemy/driver strings to public clients.
         raise HTTPException(
             status_code=503,
             detail={
                 "code": "not_ready",
                 "message": "postgres unavailable",
                 "checks": {"postgres": "fail"},
-                "error": str(exc)[:200],
             },
         ) from exc
 
+    # Expose backend class only (filesystem|s3) — not credentials or endpoints.
     backend = (settings.object_storage_backend or "filesystem").strip().lower()
-    checks["object_storage"] = backend
+    checks["object_storage"] = "ok" if backend in {"filesystem", "s3"} else "fail"
+    if checks["object_storage"] != "ok":
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "not_ready",
+                "message": "object storage misconfigured",
+                "checks": checks,
+            },
+        )
     return {"status": "ready", "checks": checks}
 
 

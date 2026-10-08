@@ -14,11 +14,11 @@ from callbot_platform.api.admin_routes import router as admin_router  # noqa: E4
 from callbot_platform.api.agent_admin_routes import (
     router as agent_admin_router,
 )
-from callbot_platform.api.ai_business_setup_routes import (  # noqa: E402
-    router as ai_business_setup_router,
-)
 from callbot_platform.api.agent_config_routes import (  # noqa: E402
     router as agent_config_router,
+)
+from callbot_platform.api.ai_business_setup_routes import (  # noqa: E402
+    router as ai_business_setup_router,
 )
 from callbot_platform.api.ai_tools_routes import (  # noqa: E402
     router as ai_tools_router,
@@ -33,10 +33,19 @@ from callbot_platform.api.auth_routes import router as auth_router  # noqa: E402
 from callbot_platform.api.automation_routes import (
     router as automation_router,
 )
+from callbot_platform.api.automations_routes import (  # noqa: E402
+    router as automations_crm_router,
+)
 from callbot_platform.api.billing_routes import router as billing_router  # noqa: E402
 from callbot_platform.api.branding_routes import router as branding_router  # noqa: E402
 from callbot_platform.api.business_config_routes import (  # noqa: E402
     router as business_config_router,
+)
+from callbot_platform.api.call_intelligence_routes import (  # noqa: E402
+    router as call_intelligence_router,
+)
+from callbot_platform.api.communication_templates_routes import (  # noqa: E402
+    router as communication_templates_router,
 )
 from callbot_platform.api.crm_routes import (  # noqa: E402
     internal_tenant_router,
@@ -54,32 +63,11 @@ from callbot_platform.api.dispatch_crm_routes import (  # noqa: E402
 from callbot_platform.api.dynamic_crm_routes import (  # noqa: E402
     router as dynamic_crm_router,
 )
-from callbot_platform.api.estimates_routes import (  # noqa: E402
-    router as estimates_router,
-)
-from callbot_platform.api.invoices_routes import (  # noqa: E402
-    router as invoices_router,
-)
-from callbot_platform.api.payments_routes import (  # noqa: E402
-    router as payments_router,
-)
-from callbot_platform.api.memberships_routes import (  # noqa: E402
-    router as memberships_router,
-)
-from callbot_platform.api.call_intelligence_routes import (  # noqa: E402
-    router as call_intelligence_router,
-)
-from callbot_platform.api.human_handoff_routes import (  # noqa: E402
-    router as human_handoff_router,
-)
-from callbot_platform.api.communication_templates_routes import (  # noqa: E402
-    router as communication_templates_router,
-)
 from callbot_platform.api.equipment_routes import (  # noqa: E402
     router as equipment_router,
 )
-from callbot_platform.api.automations_routes import (  # noqa: E402
-    router as automations_crm_router,
+from callbot_platform.api.estimates_routes import (  # noqa: E402
+    router as estimates_router,
 )
 from callbot_platform.api.handoff_routes import (  # noqa: E402
     internal_router as handoff_internal_router,
@@ -87,11 +75,17 @@ from callbot_platform.api.handoff_routes import (  # noqa: E402
 from callbot_platform.api.handoff_routes import (
     ops_router as handoff_ops_router,
 )
+from callbot_platform.api.human_handoff_routes import (  # noqa: E402
+    router as human_handoff_router,
+)
 from callbot_platform.api.integrations_routes import (  # noqa: E402
     router as integrations_router,
 )
 from callbot_platform.api.inventory_routes import (  # noqa: E402
     router as inventory_router,
+)
+from callbot_platform.api.invoices_routes import (  # noqa: E402
+    router as invoices_router,
 )
 from callbot_platform.api.jobs_admin_routes import (  # noqa: E402
     router as jobs_admin_router,
@@ -109,6 +103,9 @@ from callbot_platform.api.knowledge_routes import (
 from callbot_platform.api.leads_routes import (  # noqa: E402
     router as leads_router,
 )
+from callbot_platform.api.memberships_routes import (  # noqa: E402
+    router as memberships_router,
+)
 from callbot_platform.api.onboarding_routes import (  # noqa: E402
     router as onboarding_router,
 )
@@ -117,6 +114,9 @@ from callbot_platform.api.orders_routes import (  # noqa: E402
 )
 from callbot_platform.api.organization_routes import (  # noqa: E402
     router as organization_router,
+)
+from callbot_platform.api.payments_routes import (  # noqa: E402
+    router as payments_router,
 )
 from callbot_platform.api.product_catalog_routes import (  # noqa: E402
     router as product_catalog_router,
@@ -144,6 +144,9 @@ from callbot_platform.origins import (  # noqa: E402
     PROD_API_HOST,
     cors_allow_origins,
 )
+from callbot_platform.security.headers import (  # noqa: E402
+    SecurityHeadersMiddleware,
+)
 
 _settings = get_settings()
 _cors_origins = cors_allow_origins(_settings)
@@ -155,6 +158,10 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+app.add_middleware(
+    SecurityHeadersMiddleware,
+    is_production=_settings.is_production,
 )
 if _settings.is_production:
     from starlette.middleware.trustedhost import TrustedHostMiddleware

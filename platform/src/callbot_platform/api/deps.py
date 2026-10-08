@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 from collections.abc import Callable, Generator
 from dataclasses import dataclass
 from typing import Any
@@ -87,6 +88,16 @@ def db_dep() -> Generator[Session, None, None]:
     yield from get_db()
 
 
+def _constant_time_token_eq(provided: str | None, expected: str) -> bool:
+    """Compare secrets without early length short-circuit in application code."""
+    a = (provided or "").encode("utf-8")
+    b = expected.encode("utf-8")
+    if len(a) != len(b):
+        hmac.compare_digest(b, b)
+        return False
+    return hmac.compare_digest(a, b)
+
+
 def require_internal_token(
     settings: Settings = Depends(settings_dep),
     x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
@@ -96,7 +107,7 @@ def require_internal_token(
         raise HTTPException(
             status_code=500, detail="INTERNAL_SERVICE_TOKEN not configured"
         )
-    if not x_internal_token or x_internal_token != expected:
+    if not _constant_time_token_eq(x_internal_token, expected):
         raise HTTPException(status_code=401, detail="Invalid internal service token")
 
 

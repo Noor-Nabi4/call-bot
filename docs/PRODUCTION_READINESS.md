@@ -549,3 +549,35 @@ Freeze: no second billing/notification stack; next step is staging/provider veri
 ```
 
 See `docs/AI_COST_TRACKING.md`.
+
+### Phase 33 Security Baseline — freeze / handoff
+
+```text
+PHASE 33 — SECURITY
+
+APPLICATION COMPLETE
+SECURITY BASELINE VERIFIED
+LIVE SECURITY VERIFICATION BLOCKED
+PRODUCTION BLOCKED
+
+Hardening (reuse-only; no second RBAC/audit/encryption stack):
+  - constant-time internal token compare
+  - auth login/signup rate limits + login anti-enumeration
+  - LoginBody/BootstrapBody mass-assignment forbid
+  - SecurityHeadersMiddleware (API) + Next.js security headers
+  - shared sanitize_object_key (path traversal)
+  - /health and /liveness minimal; /readiness omits SQL error strings
+
+Application security tests: VERIFIED (test_security_baseline + existing isolation/RBAC/webhook suites)
+
+Keep visible (deployment items — do not invent new app architecture to "fix"):
+  1. No PostgreSQL RLS (app-layer tenant filters)
+  2. Rate limiting not distributed (edge/WAF required for multi-replica)
+  3. No CSRF token layer (SameSite=Lax + CORS only)
+  4. CSP allows unsafe-inline / unsafe-eval (Next.js/LiveKit)
+
+Staging security drills / edge rate limits / live provider HMAC drills: NOT EXECUTED
+Production gate: revisit only after staging/live security drills.
+```
+
+See `docs/SECURITY_BASELINE.md`.

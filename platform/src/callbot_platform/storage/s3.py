@@ -10,6 +10,7 @@ from callbot_platform.config import Settings
 from callbot_platform.storage.base import (
     ObjectStorage,
     StoredObject,
+    sanitize_object_key,
     validate_object_mime_type,
 )
 
@@ -57,9 +58,7 @@ class S3ObjectStorage(ObjectStorage):
         self._client = boto3.client(**kwargs)
 
     def _key(self, tenant_id: UUID, object_key: str) -> str:
-        safe = object_key.lstrip("/").replace("..", "")
-        if not safe or safe.startswith("/"):
-            raise ValueError("invalid_object_key")
+        safe = sanitize_object_key(object_key)
         # Never allow caller to escape tenant prefix.
         return f"tenants/{tenant_id}/{safe}"
 

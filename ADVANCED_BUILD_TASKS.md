@@ -2899,18 +2899,31 @@ Gross Margin
 
 # PHASE 33 — SECURITY
 
+```text
+PHASE 33 — SECURITY
+
+APPLICATION COMPLETE
+SECURITY BASELINE VERIFIED
+LIVE SECURITY VERIFICATION BLOCKED
+PRODUCTION BLOCKED
+```
+
+> **FREEZE.** Next: staging/live security drills (WAF/rate limits, cookies/CORS/CSRF behavior, object storage, Stripe/Twilio webhooks, infrastructure boundaries) — not a second security stack.  
+> Keep visible: no Postgres RLS; in-process rate limits; SameSite+CORS ≠ CSRF tokens; CSP unsafe-inline/unsafe-eval.  
+> See `docs/SECURITY_BASELINE.md`.
+
 ## TASK 33.1 — Security Baseline
 
-- [ ] Tenant isolation
-- [ ] RBAC
-- [ ] API authorization
-- [ ] Input validation
-- [ ] Rate limiting
-- [ ] Webhook verification
-- [ ] Audit logs
-- [ ] Secure file access
-- [ ] Encryption
-- [ ] Secrets management
+- [x] Tenant isolation (app-layer + Phase 33 tests; no RLS)
+- [x] RBAC (existing catalog + HTTP matrices)
+- [x] API authorization (PUBLIC/AUTH/TENANT/ADMIN/INTERNAL/WEBHOOK classification)
+- [x] Input validation (auth bodies `extra=forbid`; storage key sanitize)
+- [x] Rate limiting (auth login/signup + existing agent/API key limiters; in-process)
+- [x] Webhook verification (existing Stripe/Twilio signature tests)
+- [x] Audit logs (existing `write_audit` + redaction)
+- [x] Secure file access (tenant prefix + traversal reject)
+- [x] Encryption (Phase 28 CredentialCipher)
+- [x] Secrets management (env-only; frontend boundary documented)
 
 ---
 

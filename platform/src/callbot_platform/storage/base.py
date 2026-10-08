@@ -44,6 +44,37 @@ def validate_object_mime_type(mime_type: str) -> str:
     return cleaned
 
 
+def sanitize_object_key(object_key: str) -> str:
+    """Normalize a caller-supplied object key; reject traversal / absolute paths.
+
+    Storage backends must still prefix with ``tenants/{tenant_id}/`` (or equivalent).
+    Prefer opaque IDs over user filenames when possible.
+    """
+    raw = object_key or ""
+    if "\x00" in raw:
+        raise ValueError("invalid_object_key")
+    # Reject URL-encoded traversal before any decode side effects in proxies.
+    lowered = raw.lower()
+    if "%2e%2e" in lowered or "%2e." in lowered or ".%2e" in lowered:
+        raise ValueError("invalid_object_key")
+    # Absolute / drive-letter paths are never valid object keys.
+    if raw.startswith(("/", "\\")) or (len(raw) >= 2 and raw[1] == ":"):
+        raise ValueError("invalid_object_key")
+    normalized = raw.replace("\\", "/").lstrip("/")
+    if not normalized or normalized.startswith("/") or ":" in normalized.split("/")[0]:
+        raise ValueError("invalid_object_key")
+    parts: list[str] = []
+    for part in normalized.split("/"):
+        if part in ("", "."):
+            continue
+        if part == "..":
+            raise ValueError("invalid_object_key")
+        parts.append(part)
+    if not parts:
+        raise ValueError("invalid_object_key")
+    return "/".join(parts)
+
+
 def validate_product_image_mime_type(mime_type: str) -> str:
     cleaned = (mime_type or "").strip().lower()
     if cleaned not in ALLOWED_PRODUCT_IMAGE_MIME_TYPES:

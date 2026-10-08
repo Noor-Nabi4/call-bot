@@ -17,6 +17,7 @@ from callbot_platform.db.models.recordings import RecordingObject
 from callbot_platform.storage.base import (
     ObjectStorage,
     StoredObject,
+    sanitize_object_key,
     validate_object_mime_type,
 )
 
@@ -40,9 +41,10 @@ class FilesystemObjectStorage(ObjectStorage):
         self._max_bytes = int(max_upload_bytes)
 
     def _path(self, tenant_id: UUID, object_key: str) -> Path:
-        safe_key = object_key.lstrip("/").replace("..", "")
-        path = (self._root / str(tenant_id) / safe_key).resolve()
-        if not str(path).startswith(str(self._root / str(tenant_id))):
+        safe_key = sanitize_object_key(object_key)
+        tenant_root = (self._root / str(tenant_id)).resolve()
+        path = (tenant_root / safe_key).resolve()
+        if path != tenant_root and tenant_root not in path.parents:
             raise ValueError("invalid_object_key")
         return path
 

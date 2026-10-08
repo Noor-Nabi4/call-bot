@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -22,9 +22,35 @@ from callbot_platform.billing.service import BillingService
 from callbot_platform.config import Settings
 from callbot_platform.origins import session_cookie_params
 from callbot_platform.rbac.service import AuthorizationService
+from callbot_platform.security.rate_limit import (
+    AUTH_LOGIN_RATE_LIMITER,
+    AUTH_SIGNUP_RATE_LIMITER,
+    RateLimitExceeded,
+    SlidingWindowRateLimiter,
+)
 from callbot_platform.security.session import create_session_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _client_rate_key(request: Request, *parts: str) -> str:
+    forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+    host = forwarded or (request.client.host if request.client else "unknown")
+    return "|".join((host, *parts))
+
+
+def _enforce_auth_rate_limit(limiter: SlidingWindowRateLimiter, key: str) -> None:
+    try:
+        limiter.check(key)
+    except RateLimitExceeded as exc:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "rate_limited",
+                "message": "Too many authentication attempts",
+            },
+            headers={"Retry-After": str(int(exc.retry_after_sec) + 1)},
+        ) from exc
 
 
 def _enrich_user_session(session: Session, user: dict[str, Any]) -> dict[str, Any]:
@@ -38,16 +64,20 @@ def _enrich_user_session(session: Session, user: dict[str, Any]) -> dict[str, An
 
 
 class LoginBody(BaseModel):
-    email: str
-    password: str
-    tenant_slug: str
+    model_config = {"extra": "forbid"}
+
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=1, max_length=128)
+    tenant_slug: str = Field(min_length=1, max_length=64)
 
 
 class BootstrapBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
     tenant_id: UUID
-    email: str
-    password: str = Field(min_length=8)
-    name: str
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=8, max_length=128)
+    name: str = Field(min_length=1, max_length=255)
 
 
 class SignupBody(BaseModel):
@@ -70,8 +100,17 @@ class UpdateProfileBody(BaseModel):
     new_password: str | None = Field(default=None, min_length=8)
 
 
-def _auth_http(exc: Exception) -> HTTPException:
+def _auth_http(exc: Exception, *, login: bool = False) -> HTTPException:
     if isinstance(exc, AuthError):
+        # Login: avoid account/tenant enumeration via distinct codes/status.
+        if login and exc.code in {"invalid_credentials", "tenant_not_found"}:
+            return HTTPException(
+                status_code=401,
+                detail={
+                    "code": "invalid_credentials",
+                    "message": "Invalid email, password, or organization",
+                },
+            )
         status = 401 if exc.code == "invalid_credentials" else 400
         if exc.code == "tenant_not_found":
             status = 404
@@ -114,10 +153,15 @@ def _set_session_cookie(
 @router.post("/signup")
 def signup(
     body: SignupBody,
+    request: Request,
     response: Response,
     session: Session = Depends(db_dep),
     settings: Settings = Depends(settings_dep),
 ) -> dict[str, Any]:
+    _enforce_auth_rate_limit(
+        AUTH_SIGNUP_RATE_LIMITER,
+        _client_rate_key(request, "signup", body.slug.lower(), body.email.lower()),
+    )
     try:
         result = BillingService(session, settings).signup(
             business_name=body.business_name,
@@ -154,10 +198,17 @@ def signup(
 @router.post("/login")
 def login(
     body: LoginBody,
+    request: Request,
     response: Response,
     session: Session = Depends(db_dep),
     settings: Settings = Depends(settings_dep),
 ) -> dict[str, Any]:
+    _enforce_auth_rate_limit(
+        AUTH_LOGIN_RATE_LIMITER,
+        _client_rate_key(
+            request, "login", body.tenant_slug.lower(), body.email.lower()
+        ),
+    )
     try:
         user = AuthRepository(session).authenticate(
             tenant_slug=body.tenant_slug,
@@ -165,7 +216,7 @@ def login(
             password=body.password,
         )
     except Exception as exc:
-        raise _auth_http(exc) from exc
+        raise _auth_http(exc, login=True) from exc
 
     _set_session_cookie(response, settings, user)
     return {"user": _enrich_user_session(session, user)}
