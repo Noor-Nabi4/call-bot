@@ -143,6 +143,97 @@ class CrmSetupService:
         invalidate_effective_configuration(tenant_id)
         return self._serialize(cfg)
 
+    def setup_from_recommendation(
+        self,
+        tenant_id: UUID,
+        *,
+        actor: str,
+        industry_key: str,
+        business_model_key: str,
+        module_keys: list[str],
+        custom_fields: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
+        """Apply owner-confirmed AI recommendation modules/fields idempotently.
+
+        Reuses template statuses/workflows for the industry, but enables exactly
+        the selected module keys (plus required platform modules).
+        """
+        from callbot_platform.business_config.modules import (
+            MODULE_KEYS,
+            assert_module_keys,
+        )
+
+        try:
+            cleaned = assert_module_keys(list(module_keys))
+        except ValueError as exc:
+            raise CrmSetupError("INVALID_MODULE", str(exc)) from exc
+        # Always keep required modules enabled.
+        for key, defn in MODULE_BY_KEY.items():
+            if defn.required and key not in cleaned:
+                cleaned.append(key)
+
+        # Seed from industry template then overlay selected modules.
+        cfg = self.setup(
+            tenant_id,
+            actor=actor,
+            industry_key=industry_key,
+            business_model_key=business_model_key,
+        )
+        self._ensure_modules(tenant_id, cleaned)
+        # Disable non-selected non-required modules that came from template only
+        # when user explicitly deselected — leave enabled if selected.
+        selected = set(cleaned)
+        for row in self._session.scalars(
+            select(OrganizationCrmModule).where(
+                OrganizationCrmModule.tenant_id == tenant_id
+            )
+        ).all():
+            defn = MODULE_BY_KEY.get(row.module_key)
+            if defn and defn.required:
+                row.enabled = True
+                continue
+            if row.module_key in selected:
+                row.enabled = True
+            elif row.source in {"template", "INDUSTRY_DEFAULT"}:
+                # Owner deselected a template suggestion during AI review.
+                if row.module_key not in selected:
+                    row.enabled = False
+
+        fields_payload: dict[str, list[dict[str, str]]] = {}
+        for item in custom_fields or []:
+            module_key = str(item.get("module_key") or "").strip().upper()
+            field_key = str(item.get("key") or "").strip().lower()
+            label = str(item.get("label") or field_key).strip()
+            if module_key not in MODULE_KEYS or not field_key:
+                continue
+            fields_payload.setdefault(module_key, []).append(
+                {"key": field_key, "label": label or field_key}
+            )
+        if fields_payload:
+            self._ensure_fields(
+                tenant_id,
+                {k: tuple(v) for k, v in fields_payload.items()},
+            )
+        self._session.flush()
+        from callbot_platform.dynamic_crm.config_cache import (
+            invalidate_effective_configuration,
+        )
+
+        invalidate_effective_configuration(tenant_id)
+        write_audit(
+            self._session,
+            tenant_id=tenant_id,
+            actor=actor,
+            action="crm_configuration_ai_setup",
+            resource_ids={"configuration_id": str(cfg.get("id") or "")},
+            payload_summary={
+                "modules": cleaned,
+                "industry_key": industry_key,
+                "fields": sum(len(v) for v in fields_payload.values()),
+            },
+        )
+        return self.get(tenant_id) or cfg
+
     def _ensure_modules(self, tenant_id: UUID, modules: list[str]) -> None:
         existing = {
             r.module_key: r

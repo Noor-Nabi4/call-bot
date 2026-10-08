@@ -35,6 +35,7 @@ import {
   Store,
   KeyRound,
   Palette,
+  Sparkles,
   Truck,
   Users,
   UserPlus,
@@ -309,6 +310,13 @@ const ADMIN_NAV: NavItem[] = [
     label: "Onboarding",
     icon: ClipboardList,
     permission: "organization.read",
+    section: "admin",
+  },
+  {
+    href: "/onboarding/ai-setup",
+    label: "AI setup",
+    icon: Sparkles,
+    permission: "business_setup.read",
     section: "admin",
   },
   {

@@ -2734,17 +2734,19 @@ Modules:
 
 ### Checklist
 
-- [ ] Natural language input
-- [ ] Business extraction
-- [ ] Industry classification
-- [ ] Business model detection
-- [ ] Module recommendation
-- [ ] Custom field recommendation
-- [ ] Service recommendation
-- [ ] AI configuration recommendation
-- [ ] Human review
-- [ ] Confirm setup
-- [ ] Persist configuration
+- [x] Natural language input
+- [x] Business extraction
+- [x] Industry classification
+- [x] Business model detection
+- [x] Module recommendation
+- [x] Custom field recommendation
+- [x] Service recommendation
+- [x] AI configuration recommendation
+- [x] Human review
+- [x] Confirm setup
+- [x] Persist configuration
+
+Docs: `docs/AI_BUSINESS_SETUP.md`
 
 ---
 
