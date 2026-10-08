@@ -399,7 +399,8 @@ export default function AgentBuilderPage() {
             <div className="space-y-6">
               <p className="text-sm text-text-muted">
                 Capabilities map to existing AI tools. Disabled capabilities cannot
-                mutate data even if the model requests a tool.
+                mutate data even if the model requests a tool. Enabling a capability
+                does not bypass RBAC, confirmation, or tenant ownership checks.
               </p>
               {[...capsByCategory.entries()].map(([category, states]) => (
                 <div key={category} className="space-y-2">
@@ -429,6 +430,11 @@ export default function AgentBuilderPage() {
                         <p className="mt-1 text-xs text-text-muted">
                           {state.description}
                         </p>
+                        {state.confirmation_required ? (
+                          <p className="mt-2 text-xs text-text-muted">
+                            Caller confirmation required before execution
+                          </p>
+                        ) : null}
                         {!state.available ? (
                           <p className="mt-2 flex items-center gap-1 text-xs text-amber-700">
                             <ShieldAlert className="size-3.5" aria-hidden />

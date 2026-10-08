@@ -55,12 +55,14 @@ NON_RETRYABLE_CODES: frozenset[str] = frozenset(
         "expired",
         "archived",
         "handoff_unavailable",
+        "capability_disabled",
     }
 )
 
 CUSTOMER_SAFE_MESSAGES: dict[str, str] = {
     "invalid_arguments": "I need a bit more information to continue.",
     "permission_denied": "I can't complete that request.",
+    "capability_disabled": "I can't complete that request.",
     "tenant_access_denied": "I can't complete that request.",
     "not_found": "I couldn't find that record.",
     "ambiguous_result": "I found more than one match — can you clarify?",

@@ -568,9 +568,13 @@ def test_forbidden_argument_matrix(session: Session, ai_tenant: Tenant) -> None:
         {"role": "SUPER_ADMIN"},
         {"unitPrice": 0},
         {"total": 0},
+        {"price": 99},
+        {"inventory": 12},
         {"inventoryBalance": 999999},
         {"appointmentStatus": "CONFIRMED"},
         {"orderStatus": "DELIVERED"},
+        {"paymentStatus": "paid"},
+        {"technicianName": "Bob"},
     ]
     for extra in forbidden_payloads:
         result = _executor(session).execute(

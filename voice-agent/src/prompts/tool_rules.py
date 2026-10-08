@@ -1,18 +1,29 @@
-"""Tool-usage rules for CRM, scheduling, knowledge, and handoff."""
+"""Tool-usage rules for CRM, scheduling, knowledge, commerce, payments, handoff."""
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 
-TOOL_RULES_VERSION = "tool-rules-v3"
+TOOL_RULES_VERSION = "tool-rules-v4"
 
-# Stable order for prompt-cache prefixes (sms has no spoken tool-rule block).
-_TOOL_RULE_GROUPS: tuple[str, ...] = ("crm", "scheduling", "knowledge", "handoff")
+# Stable order for prompt-cache prefixes.
+_TOOL_RULE_GROUPS: tuple[str, ...] = (
+    "crm",
+    "scheduling",
+    "knowledge",
+    "handoff",
+    "payments",
+)
 
 _GLOBAL_TOOL_RULES = (
     "Call tools only when necessary.\n"
     "- Never ask the caller for a tenant id, and never pass tenant_id to tools.\n"
-    "- Never claim success unless the tool returned ok."
+    "- Never claim success unless the tool returned ok.\n"
+    "- Never invent price, inventory, availability, technician, customer history, "
+    "order status, or payment status — use tools, or say unavailable.\n"
+    "- Before state-changing tools (book, cancel, reschedule, order, payment, SMS), "
+    "summarize authoritative details from tools and get an explicit yes, then "
+    "set caller_confirmed=true. Ambiguous words like \"okay\" are not enough."
 )
 
 _KNOWLEDGE_TOOL_RULES = (
@@ -33,7 +44,10 @@ _CRM_TOOL_RULES = (
     "- Use lookup_customer_by_phone when you have a phone.\n"
     "- Collect only missing required details; ask one question at a time.\n"
     "- Before create_or_update_customer or create_lead, summarize and get an "
-    "explicit yes, then set caller_confirmed=true."
+    "explicit yes, then set caller_confirmed=true.\n"
+    "- Never invent customer history — use get_customer_context / find tools.\n"
+    "- For products/inventory/pricing, use search_products, check_inventory, "
+    "and get_*_price tools. Never invent stock counts or prices."
 )
 
 _SCHEDULING_TOOL_RULES = (
@@ -44,7 +58,7 @@ _SCHEDULING_TOOL_RULES = (
     "offer a small number of suitable options, and confirm before booking.\n"
     "- Before book, reschedule, or cancel, get explicit confirmation and "
     "set caller_confirmed=true.\n"
-    "- Never invent availability or confirmation codes."
+    "- Never invent availability, technician assignment, or confirmation codes."
 )
 
 _HANDOFF_TOOL_RULES = (
@@ -56,11 +70,20 @@ _HANDOFF_TOOL_RULES = (
     "when CRM tools are available; otherwise offer a callback."
 )
 
+_PAYMENTS_TOOL_RULES = (
+    "Payments:\n"
+    "- Never collect card numbers or payment secrets.\n"
+    "- Use create_payment_link / send_payment_link_* only after confirmation.\n"
+    "- Payment status must come from get_payment_status — never invent paid/unpaid.\n"
+    "- Never invent invoice amounts; amounts come from the payment/invoice tools."
+)
+
 _GROUP_BLOCKS: dict[str, str] = {
     "crm": _CRM_TOOL_RULES,
     "scheduling": _SCHEDULING_TOOL_RULES,
     "knowledge": _KNOWLEDGE_TOOL_RULES,
     "handoff": _HANDOFF_TOOL_RULES,
+    "payments": _PAYMENTS_TOOL_RULES,
 }
 
 

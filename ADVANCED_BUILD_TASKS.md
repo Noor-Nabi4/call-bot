@@ -2791,17 +2791,24 @@ Allow:
 
 # PHASE 31 — AI GUARDRAILS
 
+> **FREEZE:** `APPLICATION COMPLETE / GUARDRAILS VERIFIED / LIVE VOICE VERIFICATION BLOCKED / PRODUCTION BLOCKED`  
+> Do not mark provider-verified. Next work is staging/provider verification — not additional guardrail architecture.  
+> See `docs/AI_GUARDRAILS.md`.
+
+**Docs:** `docs/AI_GUARDRAILS.md`  
+**Module:** `callbot_platform.ai_guardrails` (catalogs atop Phase 14 executor + Phase 30 capabilities)
+
 ## TASK 31.1 — No Hallucinated Business Data
 
 AI must never invent:
 
-- [ ] Price
-- [ ] Inventory
-- [ ] Availability
-- [ ] Technician
-- [ ] Customer history
-- [ ] Order status
-- [ ] Payment status
+- [x] Price
+- [x] Inventory
+- [x] Availability
+- [x] Technician
+- [x] Customer history
+- [x] Order status
+- [x] Payment status
 
 All operational information must come from tools.
 
@@ -2811,12 +2818,12 @@ All operational information must come from tools.
 
 Require confirmation before:
 
-- [ ] Booking
-- [ ] Cancellation
-- [ ] Rescheduling
-- [ ] Order placement
-- [ ] Payment action
-- [ ] Destructive changes
+- [x] Booking
+- [x] Cancellation
+- [x] Rescheduling
+- [x] Order placement
+- [x] Payment action
+- [x] Destructive changes
 
 ---
 
@@ -2824,11 +2831,22 @@ Require confirmation before:
 
 Every tool call must verify:
 
-- [ ] Organization
-- [ ] User/agent permission
-- [ ] Resource ownership
-- [ ] Input validation
-- [ ] Audit logging
+- [x] Organization
+- [x] User/agent permission
+- [x] Resource ownership
+- [x] Input validation
+- [x] Audit logging
+
+---
+
+## TASK 31.4–31.10
+
+- [x] Response provenance helpers (authoritative vs unknown)
+- [x] Fail-closed behavior
+- [x] Phase 14 preserved (HMAC / operation_id / idempotency)
+- [x] Automated tests (`test_ai_guardrails.py` + Phase 14/30 regression)
+- [x] Frontend capability confirmation hints + catalog guardrails note
+- [x] Documentation (`docs/AI_GUARDRAILS.md`)
 
 ---
 

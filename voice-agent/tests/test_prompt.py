@@ -57,6 +57,21 @@ def test_prompt_includes_unsupported_and_guardrails() -> None:
     assert "yes, okay, or thanks" in prompt
 
 
+def test_prompt_forbids_hallucinated_operational_data() -> None:
+    prompt = build_system_instructions_from_profile(_profile()).lower()
+    assert "authoritative business data" in prompt or "never invent" in prompt
+    for phrase in (
+        "price",
+        "inventory",
+        "availability",
+        "technician",
+        "order status",
+        "payment status",
+    ):
+        assert phrase in prompt
+    assert "don't have that information" in prompt or "unavailable" in prompt
+
+
 def test_legacy_build_still_works_for_evals() -> None:
     prompt = build_system_instructions(
         business_name="Acme Support",

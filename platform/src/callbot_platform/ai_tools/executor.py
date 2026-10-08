@@ -402,9 +402,15 @@ class AIToolExecutor:
 
     @staticmethod
     def _forbidden_keys(tool_name: str, args: dict[str, Any]) -> set[str]:
+        # Phase 31: also reject authoritative-injection keys (catalog may expand).
+        from callbot_platform.ai_guardrails.authoritative import (
+            AUTHORITATIVE_INJECTION_KEYS,
+        )
+
+        blocked = FORBIDDEN_ARG_KEYS | AUTHORITATIVE_INJECTION_KEYS
         forbidden = set()
         for key in args:
-            if key in FORBIDDEN_ARG_KEYS:
+            if key in blocked:
                 if key == "status" and tool_name in STATUS_FILTER_ALLOWED:
                     continue
                 forbidden.add(key)

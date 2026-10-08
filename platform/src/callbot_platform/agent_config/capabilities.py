@@ -142,6 +142,17 @@ CAPABILITIES: tuple[CapabilityDef, ...] = (
         default_enabled=False,
     ),
     CapabilityDef(
+        key="ORDER_CREATE",
+        display_name="Order placement",
+        description="Place orders (confirmation required)",
+        risk_level="high",
+        category="commerce",
+        tool_names=("create_order",),
+        tool_group="crm",
+        required_modules=("ORDERS",),
+        default_enabled=False,
+    ),
+    CapabilityDef(
         key="PAYMENT_LINK",
         display_name="Payment links",
         description="Generate Stripe Checkout links (never card data)",
@@ -149,7 +160,8 @@ CAPABILITIES: tuple[CapabilityDef, ...] = (
         category="payments",
         tool_names=(
             "create_payment_link",
-            "create_payment_link_for_invoice",
+            "send_payment_link_sms",
+            "send_payment_link_email",
             "get_payment_status",
         ),
         tool_group="payments",
@@ -189,6 +201,7 @@ GROUP_TO_CAPABILITIES: dict[str, tuple[str, ...]] = {
         "INVENTORY_LOOKUP",
         "PRICING_LOOKUP",
         "ORDER_LOOKUP",
+        "ORDER_CREATE",
     ),
     "scheduling": (
         "APPOINTMENT_BOOK",
@@ -203,20 +216,30 @@ GROUP_TO_CAPABILITIES: dict[str, tuple[str, ...]] = {
 
 
 def list_capabilities() -> list[dict[str, Any]]:
-    return [
-        {
-            "key": c.key,
-            "display_name": c.display_name,
-            "description": c.description,
-            "risk_level": c.risk_level,
-            "category": c.category,
-            "tool_names": list(c.tool_names),
-            "tool_group": c.tool_group,
-            "required_modules": list(c.required_modules),
-            "default_enabled": c.default_enabled,
-        }
-        for c in CAPABILITIES
-    ]
+    from callbot_platform.ai_tools.registry import TOOL_SPECS
+
+    out: list[dict[str, Any]] = []
+    for c in CAPABILITIES:
+        confirm = any(
+            TOOL_SPECS[t].confirmation_required
+            for t in c.tool_names
+            if t in TOOL_SPECS and TOOL_SPECS[t].confirmation_required
+        )
+        out.append(
+            {
+                "key": c.key,
+                "display_name": c.display_name,
+                "description": c.description,
+                "risk_level": c.risk_level,
+                "category": c.category,
+                "tool_names": list(c.tool_names),
+                "tool_group": c.tool_group,
+                "required_modules": list(c.required_modules),
+                "default_enabled": c.default_enabled,
+                "confirmation_required": confirm,
+            }
+        )
+    return out
 
 
 def default_capabilities() -> dict[str, bool]:
@@ -245,6 +268,7 @@ def capabilities_from_enabled_tools(
                 "PRODUCT_SEARCH",
                 "INVENTORY_LOOKUP",
                 "ORDER_LOOKUP",
+                "ORDER_CREATE",
             }:
                 # Keep conservative defaults for high/commerce caps.
                 out[key] = CAPABILITY_BY_KEY[key].default_enabled and group_on

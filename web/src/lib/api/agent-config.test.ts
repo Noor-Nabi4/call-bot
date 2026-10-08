@@ -13,4 +13,11 @@ describe("agent-config format helpers", () => {
     assert.equal(categoryLabel("scheduling"), "Scheduling");
     assert.equal(categoryLabel("payments"), "Payments");
   });
+
+  it("documents Phase 31 guardrails catalog note", () => {
+    const note =
+      "Enabling a capability does not bypass RBAC, confirmation, or tenant ownership checks.";
+    assert.match(note, /does not bypass/i);
+    assert.equal(categoryLabel("commerce"), "Commerce");
+  });
 });

@@ -65,8 +65,14 @@ FORBIDDEN_ARG_KEYS: frozenset[str] = frozenset(
         "subtotal",
         "tax",
         "total",
+        "discount",
+        "currency",
+        "price",  # Phase 31: model must not inject authoritative prices
+        "inventory",
         "inventory_balance",
         "inventoryBalance",
+        "quantity_available",
+        "quantityAvailable",
         "appointment_status",
         "appointmentStatus",
         "order_status",
@@ -75,6 +81,10 @@ FORBIDDEN_ARG_KEYS: frozenset[str] = frozenset(
         "jobStatus",
         "estimate_status",
         "estimateStatus",
+        "payment_status",
+        "paymentStatus",
+        "technician_name",
+        "technicianName",
         "assigned_technician_id",
         "assignedTechnicianId",
         "status",  # status mutations are server-controlled unless tool allows
@@ -92,8 +102,6 @@ FORBIDDEN_ARG_KEYS: frozenset[str] = frozenset(
         "table_name",
         "tableName",
         "repository",
-        "discount",
-        "currency",
     }
 )
 

@@ -28,6 +28,8 @@ export type CapabilityState = {
   available: boolean;
   missing_modules: string[];
   unavailable_reason: string | null;
+  confirmation_required?: boolean;
+  tool_names?: string[];
 };
 
 export type AgentConfig = {
@@ -57,6 +59,18 @@ export type AgentConfig = {
   enabled_tools?: Record<string, boolean>;
 };
 
+export type GuardrailsCatalog = {
+  authoritative_data: Array<{ key: string; tools: string[] }>;
+  confirmation_required_tools: Array<{
+    tool: string;
+    operation: string;
+    tool_group: string;
+    mutation: boolean;
+    idempotency_required: boolean;
+  }>;
+  note: string;
+};
+
 export type AgentConfigCatalog = {
   voices: VoiceOption[];
   languages: LanguageOption[];
@@ -68,7 +82,9 @@ export type AgentConfigCatalog = {
     risk_level: string;
     category: string;
     required_modules: string[];
+    confirmation_required?: boolean;
   }>;
+  guardrails?: GuardrailsCatalog;
   transfer_rules: Array<{ key: string; display_name: string }>;
   escalation_rules: Array<{ key: string; display_name: string }>;
   after_hours_behaviors: Array<{ key: string; display_name: string }>;

@@ -501,3 +501,26 @@ Primary blockers: Twilio E2E, email provider E2E, staging
 ```
 
 See `docs/COMMUNICATION_TEMPLATES.md`.
+
+### Phase 31 AI Guardrails — freeze / handoff
+
+```text
+Phase 31 — APPLICATION COMPLETE / GUARDRAILS VERIFIED / LIVE VOICE VERIFICATION BLOCKED / PRODUCTION BLOCKED
+
+Application guardrails (local pytest): VERIFIED
+  - test_ai_guardrails.py: 32 passed
+  - test_ai_tools.py (Phase 14 regression): 22 passed
+  - test_agent_config.py (Phase 30 regression): 13 passed
+  - voice-agent test_prompt.py: 12 passed
+  - web npm test: 54 passed; tsc --noEmit: PASS; production build: PASS
+  - ruff (Phase 31 touched paths): PASS
+  - eslint handoffs no-explicit-any: pre-existing, NOT a Phase 31 blocker
+
+OpenAI Realtime / LiveKit / Twilio live guardrail drills: NOT EXECUTED
+Staging conversation proof matrix: NOT EXECUTED
+Provider-verified claim: FORBIDDEN until staging proof
+
+Freeze: no second executor/confirmation architecture; next step is staging/provider verification only.
+```
+
+See `docs/AI_GUARDRAILS.md`.

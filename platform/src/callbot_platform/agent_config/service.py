@@ -63,11 +63,24 @@ class AgentConfigService:
         self._profiles = AgentProfileRepository(session)
 
     def catalog(self) -> dict[str, Any]:
+        from callbot_platform.ai_guardrails import (
+            list_authoritative_categories,
+            list_confirmation_required_tools,
+        )
+
         return {
             "voices": list_voices(),
             "languages": list_languages(),
             "tones": list_tones(),
             "capabilities": list_capabilities(),
+            "guardrails": {
+                "authoritative_data": list_authoritative_categories(),
+                "confirmation_required_tools": list_confirmation_required_tools(),
+                "note": (
+                    "Enabling a capability does not bypass RBAC, confirmation, "
+                    "or tenant ownership checks."
+                ),
+            },
             **list_rule_catalogs(),
         }
 
@@ -259,11 +272,17 @@ class AgentConfigService:
             else None
         )
         modules = self._enabled_modules(tenant_id)
+        from callbot_platform.ai_tools.registry import TOOL_SPECS
+
         capability_states = []
         for key, enabled in capabilities.items():
             cap = CAPABILITY_BY_KEY[key]
             missing = [m for m in cap.required_modules if m not in modules]
             available = len(missing) == 0
+            confirm = any(
+                t in TOOL_SPECS and TOOL_SPECS[t].confirmation_required
+                for t in cap.tool_names
+            )
             capability_states.append(
                 {
                     "key": key,
@@ -278,6 +297,8 @@ class AgentConfigService:
                     "unavailable_reason": (
                         f"Requires module(s): {', '.join(missing)}" if missing else None
                     ),
+                    "confirmation_required": confirm,
+                    "tool_names": list(cap.tool_names),
                 }
             )
         return {
