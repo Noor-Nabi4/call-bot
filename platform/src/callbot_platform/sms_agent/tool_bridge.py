@@ -36,6 +36,7 @@ class SmsToolBridge:
         operation_id: UUID | None = None,
         confirmed: bool = False,
         confirmation_token: str | None = None,
+        conversation_id: UUID | None = None,
     ) -> dict[str, Any]:
         if tool_name not in SMS_ALLOWED_TOOLS:
             logger.warning("sms_tool_not_allowed tool=%s", tool_name)
@@ -58,6 +59,7 @@ class SmsToolBridge:
             caller_phone=caller_phone,
             confirmed=confirmed,
             confirmation_token=confirmation_token,
+            conversation_id=conversation_id,
         )
         logger.info(
             "sms.tool.executed tool=%s tenant_id=%s operation_id=%s ok=%s",

@@ -115,6 +115,20 @@ class SmsAgentOrchestrator:
             conversation.id,
             inbound.id,
         )
+        # Pause AI once a human handoff is active — humans continue the thread.
+        if conversation.status == "HANDOFF":
+            inbound.intent = "HUMAN_HANDOFF"
+            logger.info(
+                "sms.ai.paused_handoff tenant_id=%s conversation_id=%s",
+                conversation.tenant_id,
+                conversation.id,
+            )
+            return {
+                "intent": "HUMAN_HANDOFF",
+                "reply": None,
+                "paused": True,
+                "outbound_id": None,
+            }
         history = self._conversations.load_context(
             tenant_id=conversation.tenant_id,
             conversation_id=conversation.id,
@@ -222,6 +236,7 @@ class SmsAgentOrchestrator:
                 customer_id=customer_id,
                 caller_phone=phone,
                 operation_id=uuid.uuid4(),
+                conversation_id=conversation.id,
             )
             write_audit(
                 self._session,

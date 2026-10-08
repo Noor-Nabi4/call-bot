@@ -178,6 +178,9 @@ PERMISSION_CATALOG: Final[tuple[tuple[str, str, str], ...]] = (
     ("calls", "transcripts.read", "View call transcripts"),
     ("calls", "intelligence.read", "View call intelligence summaries"),
     ("calls", "intelligence.manage", "Reanalyze and manage call intelligence"),
+    ("handoffs", "read", "View human handoff queue and detail"),
+    ("handoffs", "manage", "Create and complete human handoffs"),
+    ("handoffs", "accept", "Accept or reject handoff assignments"),
     ("handoff", "read", "View handoff settings and queue"),
     ("handoff", "manage", "Manage handoff settings"),
     ("ai", "read", "View AI agent configuration"),
@@ -416,6 +419,9 @@ def default_role_permissions(role_name: str) -> list[tuple[str, str]]:
             "calls.intelligence.manage",
             "handoff.read",
             "handoff.manage",
+            "handoffs.read",
+            "handoffs.manage",
+            "handoffs.accept",
             "analytics.read",
             "team.read",
             "ai.read",
@@ -510,6 +516,9 @@ def default_role_permissions(role_name: str) -> list[tuple[str, str]]:
             "calls.intelligence.manage",
             "handoff.read",
             "handoff.manage",
+            "handoffs.read",
+            "handoffs.manage",
+            "handoffs.accept",
             "analytics.read",
         ]
         return [(k, SCOPE_ALL) for k in keys]
@@ -568,6 +577,8 @@ def default_role_permissions(role_name: str) -> list[tuple[str, str]]:
             "calls.transcripts.read",
             "calls.intelligence.read",
             "handoff.read",
+            "handoffs.read",
+            "handoffs.accept",
         ]
         return [(k, SCOPE_ALL) for k in keys]
     if role_name == SYSTEM_ROLE_ACCOUNTANT:

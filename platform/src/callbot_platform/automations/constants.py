@@ -15,6 +15,10 @@ class AutomationEventType(StrEnum):
     CALL_TRANSCRIBED = "CALL_TRANSCRIBED"
     CALL_ANALYZED = "CALL_ANALYZED"
     CALL_CLASSIFIED = "CALL_CLASSIFIED"
+    HANDOFF_CREATED = "HANDOFF_CREATED"
+    HANDOFF_ASSIGNED = "HANDOFF_ASSIGNED"
+    HANDOFF_CONNECTED = "HANDOFF_CONNECTED"
+    HANDOFF_COMPLETED = "HANDOFF_COMPLETED"
     LEAD_CREATED = "LEAD_CREATED"
     JOB_CREATED = "JOB_CREATED"
     APPOINTMENT_CREATED = "APPOINTMENT_CREATED"
@@ -111,6 +115,9 @@ CONDITION_FIELDS: frozenset[str] = frozenset(
         "call.classification",
         "call.sentiment",
         "call.intent",
+        "handoff.priority",
+        "handoff.channel",
+        "handoff.status",
         "event.type",
         "event.entity_type",
     }

@@ -344,3 +344,89 @@ def publish_call_classified(
         },
         idempotency_key=f"call-classified:{call_id}:{classification}",
     )
+
+
+def publish_handoff_created(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    handoff_id: UUID,
+    channel: str,
+    priority: str,
+    customer_id: UUID | None = None,
+) -> None:
+    emit_automation_event(
+        session,
+        tenant_id=tenant_id,
+        event_type=AutomationEventType.HANDOFF_CREATED.value,
+        source="human_handoff",
+        entity_type="handoff",
+        entity_id=handoff_id,
+        payload={
+            "handoff_id": str(handoff_id),
+            "channel": channel,
+            "priority": priority,
+            "customer_id": str(customer_id) if customer_id else None,
+        },
+        idempotency_key=f"handoff-created:{handoff_id}",
+    )
+
+
+def publish_handoff_assigned(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    handoff_id: UUID,
+    assignment_id: UUID,
+    assignment_type: str,
+) -> None:
+    emit_automation_event(
+        session,
+        tenant_id=tenant_id,
+        event_type=AutomationEventType.HANDOFF_ASSIGNED.value,
+        source="human_handoff",
+        entity_type="handoff",
+        entity_id=handoff_id,
+        payload={
+            "handoff_id": str(handoff_id),
+            "assignment_id": str(assignment_id),
+            "assignment_type": assignment_type,
+        },
+        idempotency_key=f"handoff-assigned:{assignment_id}",
+    )
+
+
+def publish_handoff_connected(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    handoff_id: UUID,
+) -> None:
+    emit_automation_event(
+        session,
+        tenant_id=tenant_id,
+        event_type=AutomationEventType.HANDOFF_CONNECTED.value,
+        source="human_handoff",
+        entity_type="handoff",
+        entity_id=handoff_id,
+        payload={"handoff_id": str(handoff_id)},
+        idempotency_key=f"handoff-connected:{handoff_id}",
+    )
+
+
+def publish_handoff_completed(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    handoff_id: UUID,
+) -> None:
+    emit_automation_event(
+        session,
+        tenant_id=tenant_id,
+        event_type=AutomationEventType.HANDOFF_COMPLETED.value,
+        source="human_handoff",
+        entity_type="handoff",
+        entity_id=handoff_id,
+        payload={"handoff_id": str(handoff_id)},
+        idempotency_key=f"handoff-completed:{handoff_id}",
+    )

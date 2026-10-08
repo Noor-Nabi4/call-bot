@@ -206,6 +206,31 @@ def _resolve_field(
             "intent": intel.intent,
         }.get(key)
 
+    if path.startswith("handoff."):
+        key = path.split(".", 1)[1]
+        if key in payload and payload.get(key) is not None:
+            return payload.get(key)
+        handoff_id = payload.get("handoff_id") or (
+            event.entity_id if event.entity_type == "handoff" else None
+        )
+        if not handoff_id:
+            return None
+        from callbot_platform.db.models.human_handoff import HandoffRequest
+
+        row = session.scalar(
+            select(HandoffRequest).where(
+                HandoffRequest.id == UUID(str(handoff_id)),
+                HandoffRequest.tenant_id == tenant_id,
+            )
+        )
+        if row is None:
+            return None
+        return {
+            "priority": row.priority,
+            "channel": row.channel,
+            "status": row.status,
+        }.get(key)
+
     return None
 
 

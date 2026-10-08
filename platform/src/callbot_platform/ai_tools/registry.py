@@ -237,6 +237,8 @@ class ChangeMembershipPlanArgs(StrictModel):
 class RequestHumanArgs(StrictModel):
     reason: str
     summary: str
+    department: str | None = None
+    emergency: bool = False
 
 
 ToolHandler = Callable[..., Any]

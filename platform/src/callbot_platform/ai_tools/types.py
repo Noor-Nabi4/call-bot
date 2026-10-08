@@ -9,6 +9,7 @@ from uuid import UUID
 T = TypeVar("T")
 
 ACTOR_AI_VOICE = "AI_VOICE_AGENT"
+ACTOR_AI_SMS = "AI_SMS_AGENT"
 
 # Canonical structured error codes (customer-safe messaging is separate).
 ERROR_CODES: frozenset[str] = frozenset(
@@ -115,6 +116,7 @@ class AIToolContext:
     customer_id: UUID | None = None
     caller_phone: str | None = None
     confirmed: bool = False
+    conversation_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)

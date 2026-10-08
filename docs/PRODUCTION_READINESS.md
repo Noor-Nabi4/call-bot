@@ -431,3 +431,31 @@ Overall: PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN
 ```
 
 See `docs/CALL_INTELLIGENCE.md`.
+
+### Phase 24 Human Handoff — freeze / handoff
+
+```text
+Phase 24 — APPLICATION COMPLETE / FROZEN (local)
+Migration: 0052_human_handoff (head) — VERIFIED (alembic heads)
+Local Verification: COMPLETE with caveats
+  - Focused suite (handoff + sms_agent + ai_tools + call_intelligence):
+    VERIFIED (57 passed) — routing, emergency, hours, departments, IDOR,
+    SMS pause, queue views, transfer mock, automation events
+  - Broader local pytest (excl. load/pg suites): VERIFIED (655 passed, 1 skipped)
+  - web tsc --noEmit: VERIFIED
+  - Live LiveKit/Twilio PSTN/SIP transfer: NOT EXECUTED
+    (TelephonyTransferProvider NoOp + Twilio/LiveKit stubs;
+     warm transfer remains voice-agent — production path still pending)
+  - PG assignment/accept/timeout race: NOT EXECUTED
+  - Performance / EXPLAIN / 10k queue: NOT EXECUTED
+Staging: NOT EXECUTED
+Production: NOT EXECUTED
+
+Freeze decision: do NOT expand into skills routing, presence, agent desktop,
+multi-agent queues, Teams/Slack UI, or WebRTC contact center.
+
+Overall: PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN
+Primary production blockers: live voice transfer + PG race verification
+```
+
+See `docs/HUMAN_HANDOFF.md`.

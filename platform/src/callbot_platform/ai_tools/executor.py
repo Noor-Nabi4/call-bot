@@ -26,6 +26,8 @@ from callbot_platform.ai_tools.handlers import (
 from callbot_platform.ai_tools.policy import TIMEOUT_SECONDS
 from callbot_platform.ai_tools.registry import TOOL_SPECS, ToolSpec, get_tool_spec
 from callbot_platform.ai_tools.types import (
+    ACTOR_AI_SMS,
+    ACTOR_AI_VOICE,
     FORBIDDEN_ARG_KEYS,
     STATUS_FILTER_ALLOWED,
     AIToolContext,
@@ -70,6 +72,7 @@ class AIToolExecutor:
         caller_phone: str | None = None,
         confirmed: bool = False,
         confirmation_token: str | None = None,
+        conversation_id: UUID | None = None,
     ) -> dict[str, Any]:
         started = time.perf_counter()
         spec = get_tool_spec(tool_name)
@@ -223,13 +226,16 @@ class AIToolExecutor:
 
         resolved_customer = customer_id or load_call_customer_id(self._session, call_id)
         resolved_phone = caller_phone or load_caller_phone(self._session, call_id)
+        actor = ACTOR_AI_VOICE if call_id is not None else ACTOR_AI_SMS
         ctx = AIToolContext(
             tenant_id=tenant_id,
             call_id=call_id,
+            actor_type=actor,
             operation_id=operation_id,
             customer_id=resolved_customer,
             caller_phone=resolved_phone,
             confirmed=confirmed,
+            conversation_id=conversation_id,
         )
 
         try:

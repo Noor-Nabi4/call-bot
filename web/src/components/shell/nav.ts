@@ -167,6 +167,13 @@ const FALLBACK_CRM_NAV: NavItem[] = [
     permission: "appointments.read",
     section: "work",
   },
+  {
+    href: "/crm/handoffs",
+    label: "Handoffs queue",
+    icon: PhoneForwarded,
+    permission: "handoffs.read",
+    section: "work",
+  },
 ];
 
 const AI_NAV: NavItem[] = [
@@ -207,9 +214,16 @@ const AI_NAV: NavItem[] = [
   },
   {
     href: "/handoff",
-    label: "Handoff",
+    label: "Handoff settings",
     icon: PhoneForwarded,
     permission: "handoff.read",
+    section: "ai",
+  },
+  {
+    href: "/crm/handoffs",
+    label: "Handoffs queue",
+    icon: Handshake,
+    permission: "handoffs.read",
     section: "ai",
   },
 ];

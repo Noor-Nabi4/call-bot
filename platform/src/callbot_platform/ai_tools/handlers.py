@@ -65,10 +65,8 @@ from callbot_platform.crm.services.service import ServicesPricebookService
 from callbot_platform.db.models import Call, Customer, CustomerPhone
 from callbot_platform.db.models.catalog.variant import ProductVariant
 from callbot_platform.db.models.inventory import InventoryBalance, InventoryLocation
-from callbot_platform.handoff.repos import HandoffRepository
 from callbot_platform.rbac.service import AuthorizationService
 from callbot_platform.scheduling.notifications import NotificationService
-from callbot_platform.telephony.audit import write_audit
 
 logger = logging.getLogger(__name__)
 
@@ -749,44 +747,49 @@ class AIToolHandlers:
         )
 
     def handle_request_human(self, ctx: AIToolContext, args: RequestHumanArgs) -> Any:
-        if args.reason not in _HANDOFF_REASONS:
-            return tool_error("invalid_arguments")
+        # AI may not choose tenant/user/permissions — executor routes authoritatively.
         summary = (args.summary or "").strip()
-        if not summary:
+        if not summary and args.reason not in _HANDOFF_REASONS:
             return tool_error("invalid_arguments")
+        if not summary:
+            summary = f"Human requested ({args.reason})"
 
-        settings = HandoffRepository(self._session).get(ctx.tenant_id)
-        if not settings.get("enabled"):
-            return ok_result({"status": "TRANSFER_UNAVAILABLE"})
+        from callbot_platform.human_handoff.errors import HandoffDomainError
+        from callbot_platform.human_handoff.service import HumanHandoffService
 
-        write_audit(
-            self._session,
-            tenant_id=ctx.tenant_id,
-            actor=ctx.actor_type,
-            action="ai_handoff_requested",
-            resource_ids={
-                "call_id": str(ctx.call_id) if ctx.call_id else None,
-                "operation_id": str(ctx.operation_id) if ctx.operation_id else None,
-                "reason": args.reason,
-            },
-            payload_summary={"summary": summary[:2000]},
-            idempotency_key=(
-                f"ai_handoff:{ctx.operation_id}" if ctx.operation_id else None
-            ),
-        )
+        channel = "VOICE" if ctx.call_id is not None else "SMS"
+        try:
+            result = HumanHandoffService(self._session).create_request(
+                tenant_id=ctx.tenant_id,
+                channel=channel,
+                actor=ctx.actor_type,
+                reason=args.reason,
+                summary=summary[:4000],
+                department=args.department,
+                emergency=bool(args.emergency) or args.reason == "emergency",
+                call_id=ctx.call_id,
+                conversation_id=ctx.conversation_id,
+                customer_id=ctx.customer_id,
+                idempotency_key=(
+                    f"ai_handoff:{ctx.operation_id}" if ctx.operation_id else None
+                ),
+            )
+        except HandoffDomainError as exc:
+            if exc.code == "handoff_disabled":
+                return ok_result({"status": "TRANSFER_UNAVAILABLE"})
+            return tool_error("handoff_unavailable")
 
+        # Keep legacy follow-up queue in sync for supervisor UI.
         if ctx.call_id is not None:
             try:
                 from callbot_platform.queue import CallQueueRepository
 
-                queued = CallQueueRepository(self._session).enqueue_for_call(
+                CallQueueRepository(self._session).enqueue_for_call(
                     ctx.tenant_id,
                     ctx.call_id,
                     reason=args.reason,
                     actor=ctx.actor_type,
                 )
-                if queued is not None:
-                    return ok_result({"status": "QUEUED"})
             except Exception as exc:
                 logger.warning(
                     "ai_handoff_queue_failed tenant_id=%s err=%s",
@@ -794,9 +797,23 @@ class AIToolHandlers:
                     type(exc).__name__,
                 )
 
-        if settings.get("escalation_phone_e164") or settings.get("mode"):
-            return ok_result({"status": "TRANSFER_INITIATED"})
-        return ok_result({"status": "QUEUED"})
+        transfer = result.get("transfer") or {}
+        status = transfer.get("status") or "QUEUED"
+        if status == "INITIATED":
+            return ok_result(
+                {
+                    "status": "TRANSFER_INITIATED",
+                    "handoff_id": result.get("id"),
+                    "priority": result.get("priority"),
+                }
+            )
+        return ok_result(
+            {
+                "status": "QUEUED",
+                "handoff_id": result.get("id"),
+                "priority": result.get("priority"),
+            }
+        )
 
     # --- products / inventory ---
 

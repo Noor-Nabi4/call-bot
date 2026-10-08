@@ -134,6 +134,12 @@ from callbot_platform.db.models.call_intelligence import (
     CallTranscript,
     CallTranscriptSegment,
 )
+from callbot_platform.db.models.human_handoff import (
+    Department,
+    HandoffAssignment,
+    HandoffHistory,
+    HandoffRequest,
+)
 from callbot_platform.db.models.recordings import RecordingObject
 from callbot_platform.db.models.scheduling import (
     Appointment,
@@ -192,6 +198,10 @@ __all__ = [
     "CallQueueItem",
     "CallTranscript",
     "CallTranscriptSegment",
+    "Department",
+    "HandoffAssignment",
+    "HandoffHistory",
+    "HandoffRequest",
     "CatalogSku",
     "CrmCustomFieldValue",
     "Customer",
