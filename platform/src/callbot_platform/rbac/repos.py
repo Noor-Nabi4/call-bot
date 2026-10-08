@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session, joinedload
 from callbot_platform.db.models.jobs import TenantUser
 from callbot_platform.rbac.catalog import (
     OWNER_ONLY_PERMISSIONS,
+    PLATFORM_PERMISSION_KEYS,
     PROTECTED_SYSTEM_ROLES,
     SCOPE_ALL,
     SOURCE_ORG_CUSTOM,
@@ -363,6 +364,12 @@ class RoleRepository:
         for item in permissions:
             key = (item.get("key") or "").strip()
             scope = (item.get("scope") or SCOPE_ALL).strip()
+            # Organization roles can never hold Call & Flow platform permissions.
+            if key in PLATFORM_PERMISSION_KEYS or key.startswith("platform."):
+                raise RbacError(
+                    "platform_permission_forbidden",
+                    "Organization roles cannot be granted platform permissions",
+                )
             if key not in valid_keys:
                 raise RbacError(
                     "unknown_permission",

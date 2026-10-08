@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, joinedload
 from callbot_platform.rbac.catalog import (
     LEGACY_ROLE_MAP,
     PERMISSION_CATALOG,
+    PLATFORM_PERMISSION_KEYS,
     SOURCE_SYSTEM_DEFAULT,
     SYSTEM_ROLE_ADMIN,
     SYSTEM_ROLE_AI_AGENT,
@@ -32,11 +33,18 @@ logger = logging.getLogger(__name__)
 def ensure_permission_catalog(
     session: Session,
 ) -> tuple[dict[str, Permission], frozenset[str]]:
-    """Upsert platform permissions; return (key→Permission, newly_created_keys)."""
+    """Upsert organization permission catalog; return (key→Permission, newly_created_keys).
+
+    Never seeds PLATFORM_PERMISSION_KEYS into the organization permission table.
+    """
     by_key: dict[str, Permission] = {}
     newly_created: set[str] = set()
     for resource, action, description in PERMISSION_CATALOG:
         key = permission_key(resource, action)
+        if key in PLATFORM_PERMISSION_KEYS or resource == "platform":
+            raise RuntimeError(
+                f"PERMISSION_CATALOG must not include platform key: {key}"
+            )
         row = session.scalar(
             select(Permission).where(
                 Permission.resource == resource, Permission.action == action

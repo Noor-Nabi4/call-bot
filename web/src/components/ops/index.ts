@@ -41,4 +41,5 @@ export {
   UsageSummaryPanel,
   seatsAtLimit,
 } from "./usage-summary";
-export { CogsDashboard } from "./cogs-dashboard";
+// CogsDashboard is platform-internal only — not exported for organization UI.
+// Organization users use UsageCostPanel via /settings/usage.

@@ -22,7 +22,6 @@ import {
   type UsageCostSummary,
 } from "@/lib/api/usage-cost";
 import {
-  formatNullablePct,
   formatNullableUsd,
   provenanceLabel,
 } from "@/lib/api/usage-cost-format";
@@ -42,14 +41,10 @@ function fmtBytes(n: number): string {
   return `${n} B`;
 }
 
-function Badge({ children }: { children: string }) {
-  return (
-    <span className="ml-1 rounded border border-border px-1 py-0.5 text-[10px] font-medium tracking-wide text-text-muted uppercase">
-      {children}
-    </span>
-  );
-}
-
+/**
+ * Organization-safe usage panel.
+ * Never renders platform COGS, provider costs, or gross margin.
+ */
 export function UsageCostPanel() {
   const [data, setData] = useState<UsageCostSummary | null>(null);
   const [limits, setLimits] = useState<LimitStatus | null>(null);
@@ -67,7 +62,7 @@ export function UsageCostPanel() {
         setError(null);
       })
       .catch((e) => {
-        if (!cancelled) setError(safeUserError(e, "Could not load usage costs."));
+        if (!cancelled) setError(safeUserError(e, "Could not load usage."));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -84,29 +79,26 @@ export function UsageCostPanel() {
     return <ErrorState message={error} />;
   }
   if (!data) {
-    return <ChartEmptyState message="No usage ledger data for this period." />;
+    return <ChartEmptyState message="No usage data for this period." />;
   }
 
   const u = data.usage;
-  const cost = data.cost;
-  const rev = data.revenue;
-  const margin = data.gross_margin;
-  const costProv = cost.provenance || {};
+  const billing = data.billing;
   const trend = data.daily_series.map((d) => ({
-    date: d.date.slice(5),
-    cost: d.cost_usd ?? 0,
+    date: (d.date || "").slice(5),
     voice: d.usage.VOICE_MINUTES ?? 0,
     requests: d.usage.AI_REQUESTS ?? 0,
+    sms: d.usage.SMS ?? 0,
   }));
 
   return (
     <div className="space-y-4">
       <Surface className="space-y-3 p-4">
         <div>
-          <h2 className="text-base font-semibold">Usage ledger (this month)</h2>
+          <h2 className="text-base font-semibold">Usage (this month)</h2>
           <p className="text-sm text-text-muted">
-            Values show provenance badges. Estimated overage is never labeled as
-            actual Stripe revenue. Missing infrastructure is N/A, not $0.
+            Your organization&apos;s consumption and plan limits. Estimated
+            overage is not a finalized invoice.
           </p>
         </div>
 
@@ -144,107 +136,29 @@ export function UsageCostPanel() {
 
         <div className="space-y-2">
           <p className="text-xs font-medium tracking-wide text-text-muted uppercase">
-            Revenue
+            Plan &amp; overage
           </p>
           <MetricSummary
             items={[
               {
-                label: "Actual revenue",
-                value: formatNullableUsd(rev.actual_revenue_usd ?? null),
-                hint: provenanceLabel(rev.actual_revenue_provenance),
+                label: "Included minutes",
+                value:
+                  data.limits.included_minutes != null
+                    ? String(data.limits.included_minutes)
+                    : "—",
               },
               {
-                label: "Configured subscription",
-                value: formatNullableUsd(
-                  rev.configured_subscription_revenue_usd ??
-                    (rev.subscription_cents != null
-                      ? rev.subscription_cents / 100
-                      : null),
-                ),
-                hint: provenanceLabel(rev.configured_subscription_provenance),
+                label: "Overage minutes",
+                value: String(data.limits.overage_minutes ?? 0),
               },
               {
                 label: "Estimated overage",
-                value: formatNullableUsd(
-                  rev.estimated_overage_revenue_usd ??
-                    (rev.estimated_overage_cents != null
-                      ? rev.estimated_overage_cents / 100
-                      : null),
-                ),
-                hint: `${provenanceLabel(rev.estimated_overage_provenance)} · not invoiced`,
+                value: formatNullableUsd(billing.estimated_overage_usd),
+                hint: "Estimated · not invoiced",
               },
             ]}
           />
-          <p className="text-xs text-text-muted">{rev.note}</p>
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-xs font-medium tracking-wide text-text-muted uppercase">
-            COGS
-          </p>
-          <MetricSummary
-            items={[
-              {
-                label: "Voice COGS",
-                value: formatNullableUsd(cost.voice_usd),
-                hint: provenanceLabel(costProv.voice),
-              },
-              {
-                label: "LLM COGS",
-                value: formatNullableUsd(cost.llm_usd),
-                hint: provenanceLabel(costProv.llm),
-              },
-              {
-                label: "SMS COGS",
-                value: formatNullableUsd(cost.sms_usd),
-                hint: provenanceLabel(costProv.sms),
-              },
-              {
-                label: "Infrastructure",
-                value: formatNullableUsd(cost.infrastructure_usd),
-                hint: provenanceLabel(costProv.infrastructure),
-              },
-              {
-                label: "Calculated COGS",
-                value: formatNullableUsd(cost.total_cogs_usd),
-                hint: "Configured + allocated (not vendor invoice)",
-              },
-            ]}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-xs font-medium tracking-wide text-text-muted uppercase">
-            Gross margin
-          </p>
-          <MetricSummary
-            items={[
-              {
-                label: "Actual gross margin",
-                value: formatNullableUsd(margin.actual_gross_margin_usd ?? null),
-                hint: margin.verified
-                  ? "Verified"
-                  : "Unavailable — needs Stripe invoice amounts",
-              },
-              {
-                label: "Calculated gross margin",
-                value: formatNullableUsd(
-                  margin.calculated_gross_margin_usd ?? margin.gross_margin_usd,
-                ),
-                hint: formatNullablePct(
-                  margin.calculated_gross_margin_pct ?? margin.gross_margin_pct,
-                ),
-              },
-              {
-                label: "Margin confidence",
-                value: margin.verified ? "Verified" : "Unverified",
-                hint: "Estimated overage excluded from calculated margin",
-              },
-            ]}
-          />
-          {margin.note ? (
-            <p className="text-xs text-text-muted">{margin.note}</p>
-          ) : null}
+          <p className="text-xs text-text-muted">{billing.note}</p>
         </div>
 
         {limits ? (
@@ -256,19 +170,11 @@ export function UsageCostPanel() {
             {limits.note}
           </p>
         ) : null}
-        {data.stripe_metering ? (
-          <p className="text-xs text-text-muted">
-            Stripe metering: {data.stripe_metering.status}
-            <Badge>{data.stripe_metering.wired ? "Wired" : "Not wired"}</Badge>
-            {" — "}
-            {data.stripe_metering.note}
-          </p>
-        ) : null}
       </Surface>
 
       <DashboardChartCard
-        title="Usage & calculated cost trend"
-        description="UTC calendar month · configured-rate COGS"
+        title="Usage trend"
+        description="UTC calendar month · organization consumption only"
       >
         {trend.length === 0 ? (
           <ChartEmptyState message="No daily usage yet this period." />
@@ -277,11 +183,9 @@ export function UsageCostPanel() {
             <AreaChart data={trend}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis yAxisId="left" tick={{ fontSize: 11 }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
               <Area
-                yAxisId="left"
                 type="monotone"
                 dataKey="voice"
                 name="Voice min"
@@ -290,7 +194,6 @@ export function UsageCostPanel() {
                 fillOpacity={0.15}
               />
               <Area
-                yAxisId="left"
                 type="monotone"
                 dataKey="requests"
                 name="AI requests"
@@ -299,12 +202,11 @@ export function UsageCostPanel() {
                 fillOpacity={0.12}
               />
               <Area
-                yAxisId="right"
                 type="monotone"
-                dataKey="cost"
-                name="Calculated COGS USD"
-                stroke="#b45309"
-                fill="#b45309"
+                dataKey="sms"
+                name="SMS"
+                stroke="#0f766e"
+                fill="#0f766e"
                 fillOpacity={0.1}
               />
             </AreaChart>

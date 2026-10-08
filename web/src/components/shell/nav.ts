@@ -341,8 +341,8 @@ const ADMIN_NAV: NavItem[] = [
     section: "admin",
   },
   {
-    href: "/settings/cogs",
-    label: "COGS & Profitability",
+    href: "/settings/usage",
+    label: "Usage",
     icon: CircleDollarSign,
     permission: "billing.read",
     section: "admin",

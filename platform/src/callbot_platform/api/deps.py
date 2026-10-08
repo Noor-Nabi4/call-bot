@@ -111,6 +111,19 @@ def require_internal_token(
         raise HTTPException(status_code=401, detail="Invalid internal service token")
 
 
+def require_platform_operator(
+    settings: Settings = Depends(settings_dep),
+    x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
+) -> None:
+    """Platform security boundary (Call & Flow operators only).
+
+    Organization Owner / Admin / any tenant session is NEVER sufficient.
+    Today this is the internal service token; future platform RBAC must remain
+    outside organization role templates (see PLATFORM_PERMISSION_KEYS).
+    """
+    require_internal_token(settings=settings, x_internal_token=x_internal_token)
+
+
 def require_tenant_user(
     request: Request,
     session: Session = Depends(db_dep),

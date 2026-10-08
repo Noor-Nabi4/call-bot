@@ -191,7 +191,11 @@ PERMISSION_CATALOG: Final[tuple[tuple[str, str, str], ...]] = (
     ("ai", "tools_handoff", "AI may request human handoff"),
     ("ai", "tools_sms", "AI may trigger SMS notifications"),
     ("ai", "tools_payments", "AI may create payment links and check payment status"),
-    ("ai", "tools_memberships", "AI may look up and mutate memberships with confirmation"),
+    (
+        "ai",
+        "tools_memberships",
+        "AI may look up and mutate memberships with confirmation",
+    ),
     ("organization", "read", "View organization profile"),
     ("organization", "update", "Update organization profile"),
     ("business_setup", "read", "View AI business setup state"),
@@ -236,6 +240,9 @@ PERMISSION_CATALOG: Final[tuple[tuple[str, str, str], ...]] = (
     ("integrations", "sync", "Trigger integration sync"),
 )
 
+# Organization Owner = highest authority INSIDE one tenant only.
+# Never treat this as Call & Flow Platform Owner / super-admin.
+# See docs/PLATFORM_VS_ORGANIZATION_AUTHORIZATION.md.
 SYSTEM_ROLE_OWNER = "Owner"
 SYSTEM_ROLE_ADMIN = "Admin"
 SYSTEM_ROLE_MANAGER = "Manager"
@@ -307,8 +314,42 @@ def all_permission_keys() -> frozenset[str]:
     return frozenset(permission_key(r, a) for r, a, _ in PERMISSION_CATALOG)
 
 
+# Platform-only permission keys — NEVER seeded onto organization roles.
+# Organization Owner receiving these would be a security bug.
+# Enforcement today: require_platform_operator (X-Internal-Token).
+PLATFORM_PERMISSION_KEYS: Final[frozenset[str]] = frozenset(
+    {
+        "platform.organizations.read",
+        "platform.organizations.manage",
+        "platform.usage.read",
+        "platform.cogs.read",
+        "platform.revenue.read",
+        "platform.margin.read",
+        "platform.providers.read",
+        "platform.providers.manage",
+        "platform.provider_costs.read",
+        "platform.billing.read",
+        "platform.billing.manage",
+        "platform.security.read",
+        "platform.security.manage",
+        "platform.integrations.read",
+        "platform.integrations.manage",
+        "platform.audit.read",
+        "platform.operations.read",
+        "platform.system.read",
+    }
+)
+
+
+def all_platform_permission_keys() -> frozenset[str]:
+    return PLATFORM_PERMISSION_KEYS
+
+
 def default_role_permissions(role_name: str) -> list[tuple[str, str]]:
-    """Return (permission_key, scope) pairs for a system role template."""
+    """Return (permission_key, scope) pairs for a system role template.
+
+    Never includes PLATFORM_PERMISSION_KEYS — org Owner ≠ platform operator.
+    """
     all_keys = sorted(all_permission_keys())
     if role_name == SYSTEM_ROLE_OWNER:
         return [(k, SCOPE_ALL) for k in all_keys]

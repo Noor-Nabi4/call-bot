@@ -77,7 +77,7 @@ Usage Ledger
       ↓
 Aggregations (provenance-aware)
       ↓
-Organization Dashboard (/settings/cogs)
+Organization Dashboard (/settings/usage — customer usage only; COGS is platform-only)
       ↓
 Admin COGS Fleet (X-Internal-Token)
 ```
@@ -124,9 +124,13 @@ Historical corrections use `entry_kind=adjustment` rows — originals are never 
 
 ## APIs
 
-- `GET /api/admin/usage-cost/summary` — org usage/COGS/revenue/margin with provenance
+- `GET /api/admin/usage-cost/summary` — **customer DTO**: usage/limits/estimated overage only (`billing.read`)
 - `GET /api/admin/usage-cost/alerts` — soft voice limits
-- `GET /api/admin/usage-cost/fleet` — internal token; no estimated→actual revenue aggregation
+- `GET /api/admin/usage-cost/platform-summary` — full COGS/margin for one tenant (`require_platform_operator`)
+- `GET /api/admin/usage-cost/fleet` — cross-tenant rollup (`require_platform_operator`)
+- `GET /api/admin/cogs/*` — platform-only rate cards / per-call COGS (`require_platform_operator`)
+
+Organization Owner is never sufficient for platform COGS endpoints. See `docs/PLATFORM_VS_ORGANIZATION_AUTHORIZATION.md`.
 
 ## Known provider verification limitations
 

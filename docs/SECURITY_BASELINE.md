@@ -81,9 +81,10 @@ UI-hidden controls are not security boundaries.
 |-------|----------|------|
 | PUBLIC | `/health`, `/liveness`, `/readiness`, `/auth/login`, `/auth/signup`, `/billing/plans` | None / auth rate limit where noted |
 | AUTHENTICATED | `/auth/me` | Session |
-| TENANT-SCOPED | CRM, billing, agents, usage-cost summary | Session + RBAC + tenant |
-| ADMIN (org) | `/api/admin/*` with entitled permissions | Session + permission |
-| INTERNAL | Fleet COGS, telephony provisioning, agent-profile fetch | `X-Internal-Token` (constant-time compare) |
+| TENANT-SCOPED | CRM, billing, agents, **customer** usage-cost summary | Session + RBAC + tenant |
+| ADMIN (org) | Most `/api/admin/*` with entitled permissions | Session + permission (**not** platform) |
+| PLATFORM | COGS, platform usage summary, fleet rollup | `require_platform_operator` (`X-Internal-Token`) — org Owner never sufficient |
+| INTERNAL | Telephony provisioning, agent-profile fetch, bootstrap | `X-Internal-Token` (constant-time compare) |
 | WEBHOOK | Stripe, Twilio SMS | Provider signature verification |
 | CALL-SCOPE | `/internal/*/…` voice tools | Internal token + call-scope HMAC |
 
@@ -208,12 +209,13 @@ AI tools must not bypass tenant isolation, RBAC, or confirmation gates.
 ## Billing / COGS security (Phase 32)
 
 - Usage ledger ingest is server-side only (call completion, tools, SMS, storage snapshot)
-- Org APIs are read-oriented (`/api/admin/usage-cost/summary|alerts`) with `billing.read`
-- Fleet rollup (`/usage-cost/fleet`) requires internal token — not tenant session
+- Org `usage-cost/summary` returns **customer DTO only** (usage/limits/estimated overage — no COGS/margin)
+- Platform COGS / `platform-summary` / fleet require `require_platform_operator` — org Owner is never sufficient
 - Clients cannot POST usage quantity, unit cost, pricing snapshot, revenue, or margin
 - Corrections use controlled adjustment entries (immutable history)
+- See `docs/PLATFORM_VS_ORGANIZATION_AUTHORIZATION.md`
 
-**Status:** APPLICATION VERIFIED (Phase 32 + Phase 33 billing isolation tests).
+**Status:** APPLICATION VERIFIED (Phase 32 + Phase 33 + platform/org boundary tests).
 
 ---
 

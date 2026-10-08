@@ -6,6 +6,7 @@ from callbot_platform.rbac.catalog import (
     AI_TOOL_PERMISSIONS,
     LEGACY_ROLE_MAP,
     PERMISSION_CATALOG,
+    PLATFORM_PERMISSION_KEYS,
     SYSTEM_ROLE_NAMES,
     VALID_SCOPES,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "AI_TOOL_PERMISSIONS",
     "LEGACY_ROLE_MAP",
     "PERMISSION_CATALOG",
+    "PLATFORM_PERMISSION_KEYS",
     "SYSTEM_ROLE_NAMES",
     "VALID_SCOPES",
     "AuthorizationService",

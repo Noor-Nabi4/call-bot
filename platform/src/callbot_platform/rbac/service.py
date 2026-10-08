@@ -78,6 +78,9 @@ class AuthorizationService:
         self._ai_perm_cache.pop(tenant_id, None)
 
     def list_permissions_catalog(self) -> list[dict[str, Any]]:
+        """Organization-assignable permissions only (never platform.* keys)."""
+        from callbot_platform.rbac.catalog import PLATFORM_PERMISSION_KEYS
+
         rows = self._session.scalars(
             select(Permission).order_by(Permission.resource, Permission.action)
         ).all()
@@ -90,6 +93,8 @@ class AuthorizationService:
                 "description": r.description,
             }
             for r in rows
+            if r.key not in PLATFORM_PERMISSION_KEYS
+            and not str(r.resource).startswith("platform")
         ]
 
     def resolve_member_permissions(

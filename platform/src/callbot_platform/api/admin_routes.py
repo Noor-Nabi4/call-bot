@@ -16,7 +16,7 @@ from callbot_platform.api.deps import (
     CurrentUser,
     db_dep,
     require_entitled_permission,
-    require_internal_token,
+    require_platform_operator,
 )
 from callbot_platform.auth.repos import AuthError, AuthRepository
 from callbot_platform.security.session import VALID_ROLES
@@ -206,15 +206,18 @@ def analytics_section(
         ) from exc
 
 
-@router.get("/cogs/summary")
+@router.get(
+    "/cogs/summary",
+    dependencies=[Depends(require_platform_operator)],
+)
 def cogs_summary(
-    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
     session: Session = Depends(db_dep),  # noqa: B008
+    tenant_id: UUID = Query(..., description="Target organization (platform only)"),
     period: str = Query(default="this_month", max_length=32),
     start: str | None = Query(default=None, max_length=64),
     end: str | None = Query(default=None, max_length=64),
 ) -> dict[str, Any]:
-    """Internal estimated voice COGS (not customer billing)."""
+    """Platform-only estimated voice COGS. Organization Owner is never sufficient."""
     from datetime import datetime
 
     from callbot_platform.billing.cogs.service import CogsService
@@ -227,7 +230,7 @@ def cogs_summary(
         if end:
             end_dt = datetime.fromisoformat(end.replace("Z", "+00:00"))
         summary = CogsService(session).tenant_summary(
-            user.tenant_id,
+            tenant_id,
             period=period,
             start=start_dt,
             end=end_dt,
@@ -236,7 +239,7 @@ def cogs_summary(
         raise HTTPException(
             status_code=400, detail={"code": "invalid_period", "message": str(exc)}
         ) from exc
-    return {"cogs": summary}
+    return {"cogs": summary, "boundary": "platform"}
 
 
 @router.get("/usage-cost/summary")
@@ -244,7 +247,7 @@ def usage_cost_summary(
     user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
     session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
-    """Phase 32 org usage ledger + COGS (tenant-scoped)."""
+    """Customer-facing usage + plan limits (no platform COGS/margin/provider costs)."""
     from callbot_platform.billing.usage_ledger import (
         UsageAlertService,
         UsageCostAggregationService,
@@ -255,7 +258,9 @@ def usage_cost_summary(
         ingest_storage_snapshot(session, user.tenant_id)
     except Exception:
         pass
-    summary = UsageCostAggregationService(session).organization_summary(user.tenant_id)
+    summary = UsageCostAggregationService(session).customer_usage_summary(
+        user.tenant_id
+    )
     limits = UsageAlertService(session).limit_status(user.tenant_id)
     return {"usage_cost": summary, "limit_status": limits}
 
@@ -282,33 +287,54 @@ def usage_cost_alerts(
 
 
 @router.get(
+    "/usage-cost/platform-summary",
+    dependencies=[Depends(require_platform_operator)],
+)
+def usage_cost_platform_summary(
+    session: Session = Depends(db_dep),  # noqa: B008
+    tenant_id: UUID = Query(..., description="Target organization (platform only)"),
+) -> dict[str, Any]:
+    """Full platform accounting for one org (COGS/margin). Not for organization sessions."""
+    from callbot_platform.billing.usage_ledger import UsageCostAggregationService
+
+    summary = UsageCostAggregationService(session).organization_summary(tenant_id)
+    summary["boundary"] = "platform"
+    return {"usage_cost": summary}
+
+
+@router.get(
     "/usage-cost/fleet",
-    dependencies=[Depends(require_internal_token)],
+    dependencies=[Depends(require_platform_operator)],
 )
 def usage_cost_fleet(
     session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
-    """Cross-tenant COGS rollup — internal token only (never tenant-scoped)."""
+    """Cross-tenant COGS rollup — platform operators only."""
     from callbot_platform.billing.usage_ledger import UsageCostAggregationService
 
     return {"fleet": UsageCostAggregationService(session).fleet_summary()}
 
 
-@router.get("/cogs/scenarios")
+@router.get(
+    "/cogs/scenarios",
+    dependencies=[Depends(require_platform_operator)],
+)
 def cogs_scenarios(
-    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
     session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
-    """Modeled 1k/10k/100k + OpenAI sensitivity + Ship vs Scale (config rates only)."""
+    """Platform-only rate-card modeling (config rates)."""
     from callbot_platform.billing.cogs.service import CogsService
 
-    return {"scenarios": CogsService(session).scenarios()}
+    return {"scenarios": CogsService(session).scenarios(), "boundary": "platform"}
 
 
-@router.get("/cogs/calls")
+@router.get(
+    "/cogs/calls",
+    dependencies=[Depends(require_platform_operator)],
+)
 def cogs_calls(
-    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
     session: Session = Depends(db_dep),  # noqa: B008
+    tenant_id: UUID = Query(..., description="Target organization (platform only)"),
     period: str = Query(default="this_month", max_length=32),
     start: str | None = Query(default=None, max_length=64),
     end: str | None = Query(default=None, max_length=64),
@@ -318,7 +344,7 @@ def cogs_calls(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
 ) -> dict[str, Any]:
-    """Paginated per-call estimated COGS for the tenant."""
+    """Platform-only paginated per-call estimated COGS."""
     from datetime import datetime
 
     from callbot_platform.billing.cogs.service import CogsService
@@ -331,7 +357,7 @@ def cogs_calls(
         if end:
             end_dt = datetime.fromisoformat(end.replace("Z", "+00:00"))
         payload = CogsService(session).list_call_cogs(
-            user.tenant_id,
+            tenant_id,
             period=period,
             start=start_dt,
             end=end_dt,
@@ -345,25 +371,30 @@ def cogs_calls(
         raise HTTPException(
             status_code=400, detail={"code": "invalid_query", "message": str(exc)}
         ) from exc
+    if isinstance(payload, dict):
+        payload["boundary"] = "platform"
     return payload
 
 
-@router.get("/cogs/calls/{call_id}")
+@router.get(
+    "/cogs/calls/{call_id}",
+    dependencies=[Depends(require_platform_operator)],
+)
 def cogs_call_detail(
     call_id: UUID,
-    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
     session: Session = Depends(db_dep),  # noqa: B008
+    tenant_id: UUID = Query(..., description="Target organization (platform only)"),
 ) -> dict[str, Any]:
-    """Single-call estimated COGS detail."""
+    """Platform-only single-call estimated COGS detail."""
     from callbot_platform.billing.cogs.service import CogsService
 
-    detail = CogsService(session).get_call_cogs(user.tenant_id, call_id)
+    detail = CogsService(session).get_call_cogs(tenant_id, call_id)
     if detail is None:
         raise HTTPException(
             status_code=404,
             detail={"code": "cogs_not_found", "message": "Call COGS not found"},
         )
-    return {"call": detail}
+    return {"call": detail, "boundary": "platform"}
 
 
 @router.get("/supervisor")

@@ -1,4 +1,4 @@
-/** Phase 32 usage ledger + org COGS API client. */
+/** Customer-facing organization usage API (no platform COGS/margin). */
 
 import { api } from "./client";
 export {
@@ -15,18 +15,13 @@ export type Provenance =
   | "ESTIMATED"
   | "UNAVAILABLE";
 
-export type MoneyProvenance = {
-  usd: number | null;
-  micros?: number | null;
-  provenance: Provenance;
-  available?: boolean;
-};
-
+/** Organization-boundary usage response — never includes provider COGS or margin. */
 export type UsageCostSummary = {
   period_start: string;
   period_end: string;
   period_kind: string;
   plan_key: string | null;
+  boundary?: "organization" | "platform";
   usage: {
     voice_minutes: number;
     llm_input_tokens: number;
@@ -45,46 +40,13 @@ export type UsageCostSummary = {
     overage_per_minute_cents: number | null;
     estimated_overage_cents: number | null;
   };
-  cost: {
-    voice_usd: number | null;
-    llm_usd: number | null;
-    sms_usd: number | null;
-    transcription_usd: number | null;
-    storage_usd: number | null;
-    infrastructure_usd: number | null;
-    total_cogs_usd: number | null;
-    cost_basis_note: string;
-    provenance?: Record<string, Provenance | string>;
-  };
-  revenue: {
-    actual_revenue_cents?: number | null;
-    actual_revenue_usd?: number | null;
-    actual_revenue_provenance?: Provenance | string;
-    configured_subscription_revenue_cents?: number | null;
-    configured_subscription_revenue_usd?: number | null;
-    configured_subscription_provenance?: Provenance | string;
-    estimated_overage_revenue_cents?: number | null;
-    estimated_overage_revenue_usd?: number | null;
-    estimated_overage_provenance?: Provenance | string;
-    estimated_overage_billing_status?: string;
-    subscription_cents: number | null;
-    estimated_overage_cents: number | null;
-    total_cents: number | null;
-    combined_configured_plus_estimated_cents?: number | null;
+  billing: {
     currency: string;
+    estimated_overage_cents: number | null;
+    estimated_overage_usd: number | null;
+    estimated_overage_status?: string;
+    plan_subscription_status?: string | null;
     note: string;
-  };
-  gross_margin: {
-    verified?: boolean;
-    actual_gross_margin_usd?: number | null;
-    actual_gross_margin_pct?: number | null;
-    calculated_gross_margin_usd?: number | null;
-    calculated_gross_margin_pct?: number | null;
-    revenue_usd: number | null;
-    cogs_usd: number | null;
-    gross_margin_usd: number | null;
-    gross_margin_pct: number | null;
-    note?: string;
   };
   stripe_metering?: {
     wired: boolean;
@@ -94,7 +56,6 @@ export type UsageCostSummary = {
   daily_series: Array<{
     date: string;
     usage: Record<string, number>;
-    cost_usd: number | null;
   }>;
 };
 

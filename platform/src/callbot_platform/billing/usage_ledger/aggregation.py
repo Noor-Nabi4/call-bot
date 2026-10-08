@@ -41,12 +41,87 @@ class UsageCostAggregationService:
         self._session = session
         self._usage = UsageService(session)
 
+    def customer_usage_summary(
+        self,
+        tenant_id: UUID,
+        *,
+        now: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Customer-facing usage/limits only — never platform COGS/margin/provider costs.
+
+        Organization Owner may call this. Platform financial fields are omitted
+        at the DTO boundary (not merely hidden in the UI).
+        """
+        full = self.organization_summary(tenant_id, now=now)
+        limits = full.get("limits") or {}
+        usage = full.get("usage") or {}
+        rev = full.get("revenue") or {}
+        daily = full.get("daily_series") or []
+        return {
+            "period_start": full.get("period_start"),
+            "period_end": full.get("period_end"),
+            "period_kind": full.get("period_kind"),
+            "plan_key": full.get("plan_key"),
+            "usage": {
+                "voice_minutes": usage.get("voice_minutes", 0),
+                "llm_input_tokens": usage.get("llm_input_tokens", 0),
+                "llm_output_tokens": usage.get("llm_output_tokens", 0),
+                "ai_requests": usage.get("ai_requests", 0),
+                "tool_calls": usage.get("tool_calls", 0),
+                "sms": usage.get("sms", 0),
+                "transcription_seconds": usage.get("transcription_seconds", 0),
+                "storage_bytes": usage.get("storage_bytes", 0),
+                "provenance": usage.get("provenance") or {},
+            },
+            "limits": {
+                "included_minutes": limits.get("included_minutes"),
+                "voice_minutes_used": limits.get("voice_minutes_used"),
+                "overage_minutes": limits.get("overage_minutes"),
+                "overage_per_minute_cents": limits.get("overage_per_minute_cents"),
+                "estimated_overage_cents": limits.get("estimated_overage_cents"),
+            },
+            "billing": {
+                "currency": rev.get("currency", "usd"),
+                "estimated_overage_cents": rev.get("estimated_overage_cents"),
+                "estimated_overage_usd": rev.get("estimated_overage_revenue_usd"),
+                "estimated_overage_status": rev.get(
+                    "estimated_overage_billing_status", BillingStatus.ESTIMATED.value
+                ),
+                "plan_subscription_status": rev.get("stripe_subscription_status"),
+                "note": (
+                    "Estimated overage is usage above plan limits and is not a "
+                    "finalized invoice. Provider COGS and platform margin are not "
+                    "included in customer billing views."
+                ),
+            },
+            "daily_series": [
+                {
+                    "date": d.get("date"),
+                    "usage": d.get("usage") or {},
+                }
+                for d in daily
+            ],
+            "stripe_metering": {
+                "wired": False,
+                "status": "NOT_WIRED",
+                "note": (
+                    "Estimated overage reflects detected usage, not Stripe-invoiced "
+                    "charges, until metering is connected."
+                ),
+            },
+            "boundary": "organization",
+        }
+
     def organization_summary(
         self,
         tenant_id: UUID,
         *,
         now: datetime | None = None,
     ) -> dict[str, Any]:
+        """Full platform accounting view for one tenant (COGS/margin included).
+
+        Must only be served on platform-operator routes — never to org sessions.
+        """
         period_start, period_end = calendar_month_bounds(now)
         usage = self._usage.usage_summary(tenant_id, now=now)
         by_type = self._aggregate_types(

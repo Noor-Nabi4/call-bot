@@ -581,3 +581,19 @@ Production gate: revisit only after staging/live security drills.
 ```
 
 See `docs/SECURITY_BASELINE.md`.
+
+### Platform vs organization Owner boundary
+
+```text
+Organization Owner ≠ Platform Owner
+
+Customer usage API: /api/admin/usage-cost/summary (customer DTO only)
+Platform COGS/fleet/platform-summary: require_platform_operator (X-Internal-Token)
+Org nav: /settings/usage (not COGS & Profitability)
+PLATFORM_PERMISSION_KEYS never seeded onto organization roles
+
+APPLICATION IMPLEMENTATION: complete
+STAGING / LIVE / PRODUCTION: NOT EXECUTED / BLOCKED
+```
+
+See `docs/PLATFORM_VS_ORGANIZATION_AUTHORIZATION.md`.
