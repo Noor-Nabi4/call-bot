@@ -139,6 +139,19 @@ class JobTransitionService:
             resource_ids={"job_id": str(job.id), "job_number": job.job_number},
             payload_summary={"from": current, "to": target},
         )
+        if target == JobStatus.ARRIVED.value:
+            from callbot_platform.automations.publishers import (
+                publish_technician_arrived,
+            )
+
+            publish_technician_arrived(
+                self._session,
+                tenant_id=tenant_id,
+                job_id=job.id,
+                customer_id=job.customer_id,
+                technician_id=job.assigned_technician_id,
+                job_number=job.job_number,
+            )
         if target == JobStatus.COMPLETED.value:
             from callbot_platform.automations.publishers import publish_job_completed
 

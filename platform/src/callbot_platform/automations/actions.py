@@ -43,9 +43,34 @@ def validate_action_config(
     if action_type == ActionType.WEBHOOK.value:
         return normalize_webhook_config(cfg)
     if action_type in {ActionType.SEND_SMS.value, ActionType.SEND_EMAIL.value}:
+        template_key = str(cfg.get("template_key") or "").strip().upper()
         body = str(cfg.get("body") or cfg.get("template") or "").strip()
-        if not body:
-            raise ActionError("invalid_action_config", "Message body/template required")
+        if not template_key and not body:
+            raise ActionError(
+                "invalid_action_config",
+                "template_key or message body/template required",
+            )
+        if template_key:
+            from callbot_platform.communication_templates.constants import (
+                EMAIL_TEMPLATE_KEYS,
+                SMS_TEMPLATE_KEYS,
+            )
+
+            allowed = (
+                SMS_TEMPLATE_KEYS
+                if action_type == ActionType.SEND_SMS.value
+                else EMAIL_TEMPLATE_KEYS
+            )
+            if template_key not in allowed:
+                raise ActionError(
+                    "invalid_action_config",
+                    f"Invalid template_key for {action_type}: {template_key}",
+                )
+            return {
+                "template_key": template_key,
+                "body": body[:2000] if body else "",
+                "subject": str(cfg.get("subject") or "")[:200],
+            }
         return {"body": body[:2000], "subject": str(cfg.get("subject") or "")[:200]}
     if action_type == ActionType.CREATE_TASK.value:
         title = str(cfg.get("title") or "Follow up").strip()[:255]
@@ -159,6 +184,34 @@ class ActionExecutor:
         cfg: dict[str, Any],
         action_row: AutomationActionExecution,
     ) -> dict[str, Any]:
+        if cfg.get("template_key"):
+            from callbot_platform.communication_templates import (
+                CommunicationTemplateError,
+                CommunicationTemplateService,
+            )
+
+            try:
+                row = CommunicationTemplateService(self._session).render_and_enqueue(
+                    tenant_id=tenant_id,
+                    channel="SMS",
+                    template_key=str(cfg["template_key"]),
+                    payload=dict(event.payload or {}),
+                    idempotency_key=action_row.idempotency_key,
+                    appointment_id=(
+                        UUID(str(event.payload["appointment_id"]))
+                        if (event.payload or {}).get("appointment_id")
+                        else None
+                    ),
+                )
+            except CommunicationTemplateError as exc:
+                raise ActionError(exc.code, str(exc), retryable=exc.retryable) from exc
+            return {
+                "notification_id": row.get("outbox_id") or row.get("id"),
+                "channel": "sms",
+                "template_key": row.get("template_key"),
+                "template_version": row.get("template_version"),
+                "status": row.get("status"),
+            }
         ctx = _customer_context(self._session, tenant_id, event.payload or {})
         to = ctx.get("customer.phone") or ""
         if not to:
@@ -170,7 +223,10 @@ class ActionExecutor:
             body=body,
             idempotency_key=action_row.idempotency_key,
         )
-        return {"notification_id": row.get("id"), "channel": "sms"}
+        return {
+            "notification_id": row.get("outbox_id") or row.get("id"),
+            "channel": "sms",
+        }
 
     def _send_email(
         self,
@@ -179,6 +235,34 @@ class ActionExecutor:
         cfg: dict[str, Any],
         action_row: AutomationActionExecution,
     ) -> dict[str, Any]:
+        if cfg.get("template_key"):
+            from callbot_platform.communication_templates import (
+                CommunicationTemplateError,
+                CommunicationTemplateService,
+            )
+
+            try:
+                row = CommunicationTemplateService(self._session).render_and_enqueue(
+                    tenant_id=tenant_id,
+                    channel="EMAIL",
+                    template_key=str(cfg["template_key"]),
+                    payload=dict(event.payload or {}),
+                    idempotency_key=action_row.idempotency_key,
+                    appointment_id=(
+                        UUID(str(event.payload["appointment_id"]))
+                        if (event.payload or {}).get("appointment_id")
+                        else None
+                    ),
+                )
+            except CommunicationTemplateError as exc:
+                raise ActionError(exc.code, str(exc), retryable=exc.retryable) from exc
+            return {
+                "notification_id": row.get("outbox_id") or row.get("id"),
+                "channel": "email",
+                "template_key": row.get("template_key"),
+                "template_version": row.get("template_version"),
+                "status": row.get("status"),
+            }
         ctx = _customer_context(self._session, tenant_id, event.payload or {})
         to = ctx.get("customer.email") or ""
         if not to:
@@ -190,7 +274,10 @@ class ActionExecutor:
             body=body,
             idempotency_key=action_row.idempotency_key,
         )
-        return {"notification_id": row.get("id"), "channel": "email"}
+        return {
+            "notification_id": row.get("outbox_id") or row.get("id"),
+            "channel": "email",
+        }
 
     def _create_task(
         self,

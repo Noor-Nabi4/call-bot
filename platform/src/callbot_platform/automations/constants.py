@@ -24,6 +24,7 @@ class AutomationEventType(StrEnum):
     APPOINTMENT_CREATED = "APPOINTMENT_CREATED"
     APPOINTMENT_REMINDER = "APPOINTMENT_REMINDER"
     TECHNICIAN_DISPATCHED = "TECHNICIAN_DISPATCHED"
+    TECHNICIAN_ARRIVED = "TECHNICIAN_ARRIVED"
     JOB_COMPLETED = "JOB_COMPLETED"
     ESTIMATE_SENT = "ESTIMATE_SENT"
     ESTIMATE_APPROVED = "ESTIMATE_APPROVED"
@@ -123,18 +124,45 @@ CONDITION_FIELDS: frozenset[str] = frozenset(
     }
 )
 
+# Keep in sync with communication_templates.constants.ALL_VARIABLES (+ legacy aliases).
 SAFE_TEMPLATE_KEYS: frozenset[str] = frozenset(
     {
         "customer.first_name",
+        "customer.last_name",
+        "customer.full_name",
         "customer.name",
         "customer.email",
         "customer.phone",
+        "appointment.id",
+        "appointment.date",
+        "appointment.time",
+        "appointment.service",
+        "appointment.address",
+        "appointment.confirmation_code",
+        "job.id",
         "job.number",
         "job.status",
+        "job.service",
+        "technician.name",
+        "technician.phone",
         "invoice.number",
+        "invoice.total",
         "invoice.balance_due",
-        "appointment.confirmation_code",
+        "invoice.due_date",
+        "invoice.payment_url",
+        "estimate.number",
+        "estimate.total",
+        "estimate.status",
+        "estimate.approval_url",
+        "payment.amount",
+        "payment.date",
+        "payment.status",
+        "payment.receipt_url",
         "business.name",
+        "business.phone",
+        "business.email",
+        "business.website",
+        "business.address",
         "review.url",
     }
 )

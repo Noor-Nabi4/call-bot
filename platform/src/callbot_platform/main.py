@@ -66,6 +66,9 @@ from callbot_platform.api.call_intelligence_routes import (  # noqa: E402
 from callbot_platform.api.human_handoff_routes import (  # noqa: E402
     router as human_handoff_router,
 )
+from callbot_platform.api.communication_templates_routes import (  # noqa: E402
+    router as communication_templates_router,
+)
 from callbot_platform.api.equipment_routes import (  # noqa: E402
     router as equipment_router,
 )
@@ -177,6 +180,7 @@ app.include_router(memberships_router)
 app.include_router(equipment_router)
 app.include_router(call_intelligence_router)
 app.include_router(human_handoff_router)
+app.include_router(communication_templates_router)
 app.include_router(automations_crm_router)
 app.include_router(rbac_router)
 app.include_router(jobs_router)

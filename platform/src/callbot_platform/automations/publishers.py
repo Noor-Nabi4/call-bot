@@ -147,6 +147,33 @@ def publish_technician_dispatched(
     )
 
 
+def publish_technician_arrived(
+    session: Session,
+    *,
+    tenant_id: UUID,
+    job_id: UUID,
+    customer_id: UUID | None = None,
+    technician_id: UUID | None = None,
+    job_number: str | None = None,
+) -> None:
+    emit_automation_event(
+        session,
+        tenant_id=tenant_id,
+        event_type=AutomationEventType.TECHNICIAN_ARRIVED.value,
+        source="jobs",
+        entity_type="job",
+        entity_id=job_id,
+        payload={
+            "job_id": str(job_id),
+            "customer_id": str(customer_id) if customer_id else None,
+            "technician_id": str(technician_id) if technician_id else None,
+            "job_number": job_number or "",
+            "job_status": "ARRIVED",
+        },
+        idempotency_key=f"tech-arrived:{job_id}",
+    )
+
+
 def publish_estimate_event(
     session: Session,
     *,

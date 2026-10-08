@@ -226,6 +226,13 @@ const AI_NAV: NavItem[] = [
     permission: "handoffs.read",
     section: "ai",
   },
+  {
+    href: "/crm/communication-templates",
+    label: "Comm templates",
+    icon: MessageSquare,
+    permission: "communication_templates.read",
+    section: "ai",
+  },
 ];
 
 const ADMIN_NAV: NavItem[] = [

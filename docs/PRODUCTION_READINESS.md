@@ -459,3 +459,45 @@ Primary production blockers: live voice transfer + PG race verification
 ```
 
 See `docs/HUMAN_HANDOFF.md`.
+
+### Phase 25 Communication Templates — freeze / handoff
+
+```text
+Phase 25 — APPLICATION COMPLETE / FROZEN (local)
+Migration: 0053_communication_templates (head) — VERIFIED (alembic heads)
+
+Local / disposable PostgreSQL verification (call_bot_comm_verify):
+  - upgrade 0052→0053: PASS
+  - downgrade 0053→0052: PASS
+  - re-upgrade →0053: PASS
+  - unique (tenant,channel,template_key): PASS
+  - template_key check constraint: PASS
+  - version unique (template_id,version): PASS
+  - EXPLAIN hot paths: Index Scan on ix_communication_templates_tenant_channel_key
+    and ix_comm_template_versions_template_status — PASS
+  NOTE: full empty-DB alembic upgrade from base is BLOCKED by pre-existing
+  ORM/migration mismatch at 0024_organization_rbac (tenants.business_size);
+  Phase 25 verified in isolation from stamped 0052.
+
+Automated tests:
+  - test_communication_templates(+pg) + automations_engine + human_handoff:
+    VERIFIED (focused suite PASS; includes security injection cases,
+    seed coverage, recipient isolation, PG constraints/EXPLAIN)
+  - web tsc --noEmit: VERIFIED
+  - eslint (template paths): VERIFIED
+  - web production build: VERIFIED
+
+Twilio live SMS E2E: BLOCKED — no TWILIO_* credentials in environment
+Email provider E2E: BLOCKED — outbox raises email_provider_not_configured
+Admin HTTP TestClient suite: NOT EXECUTED (service/RBAC covered in unit tests)
+Frontend component tests: NOT EXECUTED
+Staging environment: NOT EXECUTED
+Production: NOT EXECUTED
+
+Freeze: do not add a second notification pipeline or campaign builder.
+
+Overall: PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN
+Primary blockers: Twilio E2E, email provider E2E, staging
+```
+
+See `docs/COMMUNICATION_TEMPLATES.md`.

@@ -140,6 +140,10 @@ from callbot_platform.db.models.human_handoff import (
     HandoffHistory,
     HandoffRequest,
 )
+from callbot_platform.db.models.communication_templates import (
+    CommunicationTemplate,
+    CommunicationTemplateVersion,
+)
 from callbot_platform.db.models.recordings import RecordingObject
 from callbot_platform.db.models.scheduling import (
     Appointment,
@@ -198,6 +202,8 @@ __all__ = [
     "CallQueueItem",
     "CallTranscript",
     "CallTranscriptSegment",
+    "CommunicationTemplate",
+    "CommunicationTemplateVersion",
     "Department",
     "HandoffAssignment",
     "HandoffHistory",

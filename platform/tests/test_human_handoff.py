@@ -280,8 +280,15 @@ def test_departments_seed_and_hours(session: Session, tenant: Tenant) -> None:
     slugs = {d["slug"] for d in depts}
     assert {"sales", "support", "dispatch", "billing", "emergency"} <= slugs
 
+    from callbot_platform.scheduling.repos.settings_repo import (
+        ScheduleSettingsRepository,
+    )
+
+    settings = ScheduleSettingsRepository(session).get_or_create(tenant.id)
+    settings.weekly_hours = {}  # force closed
+    session.flush()
+
     hours = HandoffHoursService(session)
-    # Empty weekly hours → after hours
     status = hours.status_at(tenant.id, when=datetime.now(UTC))
     assert status["after_hours"] is True
 

@@ -2518,29 +2518,33 @@ Before transfer provide:
 
 # PHASE 25 — COMMUNICATION AUTOMATION
 
+> Application implementation frozen (migration `0053_communication_templates`).
+> See `docs/COMMUNICATION_TEMPLATES.md`.
+> Production gate: **PRODUCTION BLOCKED — APPLICATION COMPLETE / FROZEN**.
+
 ## TASK 25.1 — SMS Templates
 
 Templates:
 
-- [ ] Booking confirmation
-- [ ] Reminder
-- [ ] Technician en route
-- [ ] Technician arrived
-- [ ] Job completed
-- [ ] Invoice
-- [ ] Payment
-- [ ] Review request
+- [x] Booking confirmation
+- [x] Reminder
+- [x] Technician en route
+- [x] Technician arrived
+- [x] Job completed
+- [x] Invoice
+- [x] Payment
+- [x] Review request
 
 ---
 
 ## TASK 25.2 — Email Templates
 
-- [ ] Booking
-- [ ] Estimate
-- [ ] Invoice
-- [ ] Receipt
-- [ ] Reminder
-- [ ] Review
+- [x] Booking
+- [x] Estimate
+- [x] Invoice
+- [x] Receipt
+- [x] Reminder
+- [x] Review
 
 ---
 

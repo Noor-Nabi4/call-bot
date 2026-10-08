@@ -122,6 +122,14 @@ class Customer(Base):
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="ACTIVE")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sms_allowed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    email_allowed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    marketing_sms_allowed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+    marketing_email_allowed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
     archived_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
