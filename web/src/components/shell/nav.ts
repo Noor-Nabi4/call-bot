@@ -140,7 +140,7 @@ const STATIC_WORK_NAV: NavItem[] = [
     section: "work",
   },
   {
-    href: "/metrics",
+    href: "/analytics",
     label: "Analytics",
     icon: ChartNoAxesCombined,
     permission: "analytics.read",
@@ -417,6 +417,9 @@ export function navFor(
 
 export function isActivePath(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
+  if (href === "/analytics") {
+    return pathname === "/analytics" || pathname.startsWith("/analytics/");
+  }
   if (href === "/crm/scheduling") {
     return (
       pathname === "/crm/scheduling" || pathname.startsWith("/crm/scheduling/")

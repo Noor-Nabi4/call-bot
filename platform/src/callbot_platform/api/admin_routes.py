@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+from datetime import date
+from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from callbot_platform.admin.repos import AdminError, AdminRepository
+from callbot_platform.analytics import AnalyticsRangeError, AnalyticsService
 from callbot_platform.api.deps import CurrentUser, db_dep, require_entitled_permission
 from callbot_platform.auth.repos import AuthError, AuthRepository
 from callbot_platform.security.session import VALID_ROLES
@@ -30,7 +32,6 @@ _require_org_update = require_entitled_permission("organization.update")
 _require_org_read = require_entitled_permission("organization.read")
 _require_ai_read = require_entitled_permission("ai.read")
 _require_ai_configure = require_entitled_permission("ai.configure")
-
 
 
 class InviteUserBody(BaseModel):
@@ -136,6 +137,68 @@ def metrics(
     return {
         "metrics": AdminRepository(session).metrics_summary(user.tenant_id, days=days)
     }
+
+
+def _parse_optional_date(value: str | None, *, field: str) -> date | None:
+    if value is None or not value.strip():
+        return None
+    try:
+        return date.fromisoformat(value.strip())
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "invalid_date", "message": f"Invalid {field} (YYYY-MM-DD)"},
+        ) from exc
+
+
+@router.get("/analytics")
+def analytics_overview(
+    preset: str = Query(default="last_30_days", max_length=32),
+    from_date: str | None = Query(default=None, max_length=16),
+    to_date: str | None = Query(default=None, max_length=16),
+    user: CurrentUser = Depends(_require_analytics_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    """Phase 27 overview: calls + sales + operations for a tenant-local range."""
+    try:
+        return AnalyticsService(session).overview(
+            user.tenant_id,
+            preset=preset,
+            from_date=_parse_optional_date(from_date, field="from_date"),
+            to_date=_parse_optional_date(to_date, field="to_date"),
+        )
+    except AnalyticsRangeError as exc:
+        raise HTTPException(
+            status_code=400, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+
+
+@router.get("/analytics/{section}")
+def analytics_section(
+    section: Literal["calls", "sales", "operations"],
+    preset: str = Query(default="last_30_days", max_length=32),
+    from_date: str | None = Query(default=None, max_length=16),
+    to_date: str | None = Query(default=None, max_length=16),
+    user: CurrentUser = Depends(_require_analytics_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    """Phase 27 section analytics (calls | sales | operations)."""
+    svc = AnalyticsService(session)
+    kwargs = {
+        "preset": preset,
+        "from_date": _parse_optional_date(from_date, field="from_date"),
+        "to_date": _parse_optional_date(to_date, field="to_date"),
+    }
+    try:
+        if section == "calls":
+            return svc.calls_section(user.tenant_id, **kwargs)
+        if section == "sales":
+            return svc.sales_section(user.tenant_id, **kwargs)
+        return svc.operations_section(user.tenant_id, **kwargs)
+    except AnalyticsRangeError as exc:
+        raise HTTPException(
+            status_code=400, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
 
 
 @router.get("/cogs/summary")

@@ -276,8 +276,9 @@ class AdminRepository:
             .select_from(Job)
             .where(
                 Job.tenant_id == tenant_id,
-                Job.status == "completed",
-                Job.updated_at >= since,
+                Job.status == "COMPLETED",
+                Job.completed_at.is_not(None),
+                Job.completed_at >= since,
             )
         )
         appts = self._session.scalar(

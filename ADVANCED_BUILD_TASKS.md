@@ -2609,37 +2609,42 @@ Display:
 
 # PHASE 27 — ANALYTICS
 
+> Application implementation complete (`/api/admin/analytics`, `/analytics` UI).
+> See `docs/ANALYTICS.md` for formulas and unavailable metrics.
+> Gate: **APPLICATION COMPLETE / STAGING SMOKE READY**.
+> Explicitly unavailable (not fabricated): revenue/lead, revenue/call, technician utilization %; answer/missed when no QA dispositions.
+
 ## TASK 27.1 — Call Analytics
 
-- [ ] Total calls
-- [ ] Answer rate
-- [ ] Missed calls
-- [ ] Average duration
-- [ ] Transfer rate
-- [ ] AI resolution rate
+- [x] Total calls
+- [x] Answer rate
+- [x] Missed calls
+- [x] Average duration
+- [x] Transfer rate
+- [x] AI resolution rate
 
 ---
 
 ## TASK 27.2 — Sales Analytics
 
-- [ ] Leads
-- [ ] Qualified leads
-- [ ] Bookings
-- [ ] Conversion
-- [ ] Revenue per lead
-- [ ] Revenue per call
-- [ ] Product sales
+- [x] Leads
+- [x] Qualified leads
+- [x] Bookings
+- [x] Conversion
+- [x] Revenue per lead
+- [x] Revenue per call
+- [x] Product sales
 
 ---
 
 ## TASK 27.3 — Operations Analytics
 
-- [ ] Jobs completed
-- [ ] Cancellation rate
-- [ ] No-show rate
-- [ ] Technician utilization
-- [ ] Average job duration
-- [ ] Response time
+- [x] Jobs completed
+- [x] Cancellation rate
+- [x] No-show rate
+- [x] Technician utilization
+- [x] Average job duration
+- [x] Response time
 
 ---
 
