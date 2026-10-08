@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from callbot_platform.async_jobs.handlers.call_intelligence import (
     CallIntelligenceJobHandler,
 )
+from callbot_platform.async_jobs.handlers.integrations import IntegrationJobHandler
 from callbot_platform.async_jobs.handlers.knowledge import KnowledgeIngestHandler
 from callbot_platform.async_jobs.handlers.stripe_billing import StripeProvisionHandler
 from callbot_platform.async_jobs.handlers.telephony import TelephonyProvisionHandler
@@ -28,6 +29,7 @@ def build_default_handlers(
     stripe_h = stripe_handler or StripeProvisionHandler(settings=settings)
     knowledge_h = KnowledgeIngestHandler(settings=settings)
     call_intel_h = CallIntelligenceJobHandler(settings=settings)
+    integrations_h = IntegrationJobHandler(settings=settings)
 
     def _purchase(session: Session, job: AsyncJob) -> dict:
         try:
@@ -69,6 +71,12 @@ def build_default_handlers(
     def _call_retention(session: Session, job: AsyncJob) -> dict:
         return call_intel_h.handle_retention(session, job)
 
+    def _integration_sync(session: Session, job: AsyncJob) -> dict:
+        return integrations_h.handle_sync(session, job)
+
+    def _integration_oauth_refresh(session: Session, job: AsyncJob) -> dict:
+        return integrations_h.handle_oauth_refresh(session, job)
+
     return {
         JobType.TELEPHONY_PROVISION_PURCHASE: _purchase,
         JobType.TELEPHONY_PROVISION_CONNECT: _connect,
@@ -80,6 +88,8 @@ def build_default_handlers(
         JobType.CALL_TRANSCRIBE: _call_transcribe,
         JobType.CALL_ANALYZE: _call_analyze,
         JobType.CALL_INTELLIGENCE_RETENTION: _call_retention,
+        JobType.INTEGRATION_SYNC: _integration_sync,
+        JobType.INTEGRATION_OAUTH_REFRESH: _integration_oauth_refresh,
     }
 
 

@@ -2665,34 +2665,34 @@ CRMProvider
 
 ### Checklist
 
-- [ ] Provider interface
-- [ ] OAuth
-- [ ] Credential storage
-- [ ] Connection status
-- [ ] Sync status
-- [ ] Error handling
-- [ ] Retry
+- [x] Provider interface
+- [x] OAuth
+- [x] Credential storage
+- [x] Connection status
+- [x] Sync status
+- [x] Error handling
+- [x] Retry
 
 ---
 
 ## TASK 28.2 — Calendar Integrations
 
-- [ ] Google Calendar
-- [ ] Outlook Calendar
+- [x] Google Calendar (adapter implemented — sandbox verification blocked)
+- [x] Outlook Calendar (adapter implemented — sandbox verification blocked)
 
 ---
 
 ## TASK 28.3 — Commerce Integrations
 
-- [ ] Shopify
-- [ ] WooCommerce
+- [x] Shopify (adapter implemented — sandbox verification blocked)
+- [x] WooCommerce (API-key connect + adapter — sandbox verification blocked)
 
 ---
 
 ## TASK 28.4 — Accounting
 
-- [ ] QuickBooks
-- [ ] Xero
+- [x] QuickBooks (adapter implemented — sandbox verification blocked)
+- [x] Xero (adapter implemented — sandbox verification blocked)
 
 ---
 

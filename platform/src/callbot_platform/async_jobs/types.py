@@ -24,3 +24,5 @@ class JobType:
     CALL_TRANSCRIBE = "call.transcribe"
     CALL_ANALYZE = "call.analyze"
     CALL_INTELLIGENCE_RETENTION = "call.intelligence_retention"
+    INTEGRATION_SYNC = "integration.sync"
+    INTEGRATION_OAUTH_REFRESH = "integration.oauth_refresh"

@@ -81,6 +81,9 @@ from callbot_platform.api.handoff_routes import (  # noqa: E402
 from callbot_platform.api.handoff_routes import (
     ops_router as handoff_ops_router,
 )
+from callbot_platform.api.integrations_routes import (  # noqa: E402
+    router as integrations_router,
+)
 from callbot_platform.api.inventory_routes import (  # noqa: E402
     router as inventory_router,
 )
@@ -193,6 +196,7 @@ app.include_router(knowledge_ops_router)
 app.include_router(handoff_internal_router)
 app.include_router(handoff_ops_router)
 app.include_router(admin_router)
+app.include_router(integrations_router)
 app.include_router(agent_admin_router)
 app.include_router(api_key_admin_router)
 app.include_router(automation_router)

@@ -111,6 +111,52 @@ class Settings(BaseSettings):
     credentials_encryption_key: str = Field(
         default="", alias="CREDENTIALS_ENCRYPTION_KEY"
     )
+    # Phase 28 — platform OAuth app credentials (tenant tokens stored encrypted in DB)
+    integrations_google_client_id: str = Field(
+        default="", alias="INTEGRATIONS_GOOGLE_CLIENT_ID"
+    )
+    integrations_google_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_GOOGLE_CLIENT_SECRET"
+    )
+    integrations_microsoft_client_id: str = Field(
+        default="", alias="INTEGRATIONS_MICROSOFT_CLIENT_ID"
+    )
+    integrations_microsoft_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_MICROSOFT_CLIENT_SECRET"
+    )
+    integrations_hubspot_client_id: str = Field(
+        default="", alias="INTEGRATIONS_HUBSPOT_CLIENT_ID"
+    )
+    integrations_hubspot_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_HUBSPOT_CLIENT_SECRET"
+    )
+    integrations_salesforce_client_id: str = Field(
+        default="", alias="INTEGRATIONS_SALESFORCE_CLIENT_ID"
+    )
+    integrations_salesforce_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_SALESFORCE_CLIENT_SECRET"
+    )
+    integrations_shopify_client_id: str = Field(
+        default="", alias="INTEGRATIONS_SHOPIFY_CLIENT_ID"
+    )
+    integrations_shopify_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_SHOPIFY_CLIENT_SECRET"
+    )
+    integrations_quickbooks_client_id: str = Field(
+        default="", alias="INTEGRATIONS_QUICKBOOKS_CLIENT_ID"
+    )
+    integrations_quickbooks_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_QUICKBOOKS_CLIENT_SECRET"
+    )
+    integrations_xero_client_id: str = Field(
+        default="", alias="INTEGRATIONS_XERO_CLIENT_ID"
+    )
+    integrations_xero_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_XERO_CLIENT_SECRET"
+    )
+    integrations_oauth_redirect_base: str = Field(
+        default="http://localhost:8000", alias="INTEGRATIONS_OAUTH_REDIRECT_BASE"
+    )
     metadata_hmac_secret: str = Field(default="", alias="METADATA_HMAC_SECRET")
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     knowledge_embedding_model: str = Field(

@@ -42,6 +42,7 @@ import {
   Zap,
   CircleDollarSign,
   Box,
+  Blocks,
   type LucideIcon,
 } from "lucide-react";
 import type { OpsUser } from "@/lib/api";
@@ -350,6 +351,13 @@ const ADMIN_NAV: NavItem[] = [
     label: "API keys",
     icon: KeyRound,
     permission: "api_keys.manage",
+    section: "admin",
+  },
+  {
+    href: "/settings/integrations",
+    label: "Integrations",
+    icon: Blocks,
+    permission: "integrations.read",
     section: "admin",
   },
   {

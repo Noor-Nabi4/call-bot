@@ -220,6 +220,11 @@ PERMISSION_CATALOG: Final[tuple[tuple[str, str, str], ...]] = (
     ("agents", "manage", "Manage agent profiles"),
     ("api_keys", "manage", "Manage API keys"),
     ("branding", "manage", "Manage tenant branding"),
+    ("integrations", "read", "View integrations"),
+    ("integrations", "connect", "Connect integrations"),
+    ("integrations", "update", "Update integrations"),
+    ("integrations", "delete", "Disconnect integrations"),
+    ("integrations", "sync", "Trigger integration sync"),
 )
 
 SYSTEM_ROLE_OWNER = "Owner"
@@ -380,6 +385,11 @@ def default_role_permissions(role_name: str) -> list[tuple[str, str]]:
             "communication_templates.update",
             "communication_templates.delete",
             "communication_templates.publish",
+            "integrations.read",
+            "integrations.connect",
+            "integrations.update",
+            "integrations.delete",
+            "integrations.sync",
             "leads.read",
             "leads.create",
             "leads.update",

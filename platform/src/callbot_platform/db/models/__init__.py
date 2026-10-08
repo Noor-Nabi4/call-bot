@@ -144,6 +144,14 @@ from callbot_platform.db.models.communication_templates import (
     CommunicationTemplate,
     CommunicationTemplateVersion,
 )
+from callbot_platform.db.models.integrations import (
+    IntegrationConnection,
+    IntegrationCredential,
+    IntegrationExternalMapping,
+    IntegrationOauthState,
+    IntegrationSyncRun,
+    IntegrationWebhookEvent,
+)
 from callbot_platform.db.models.recordings import RecordingObject
 from callbot_platform.db.models.scheduling import (
     Appointment,
@@ -204,6 +212,12 @@ __all__ = [
     "CallTranscriptSegment",
     "CommunicationTemplate",
     "CommunicationTemplateVersion",
+    "IntegrationConnection",
+    "IntegrationCredential",
+    "IntegrationExternalMapping",
+    "IntegrationOauthState",
+    "IntegrationSyncRun",
+    "IntegrationWebhookEvent",
     "Department",
     "HandoffAssignment",
     "HandoffHistory",
