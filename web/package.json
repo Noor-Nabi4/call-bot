@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start --port 3002",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/lib/site-urls.test.ts src/lib/cogs-format.test.ts src/lib/seo.test.ts src/lib/permissions.test.ts src/lib/nav-permissions.test.ts src/lib/onboarding.test.ts src/lib/api/orders.test.ts src/lib/api/job-constants.test.ts src/lib/api/appointment-constants.test.ts src/lib/api/metrics.test.ts src/lib/api/analytics.test.ts src/lib/api/integrations.test.ts src/lib/api/business-setup.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/site-urls.test.ts src/lib/cogs-format.test.ts src/lib/seo.test.ts src/lib/permissions.test.ts src/lib/nav-permissions.test.ts src/lib/onboarding.test.ts src/lib/api/orders.test.ts src/lib/api/job-constants.test.ts src/lib/api/appointment-constants.test.ts src/lib/api/metrics.test.ts src/lib/api/analytics.test.ts src/lib/api/integrations.test.ts src/lib/api/business-setup.test.ts src/lib/api/agent-config.test.ts"
   },
   "dependencies": {
     "@livekit/components-react": "^2.9.23",

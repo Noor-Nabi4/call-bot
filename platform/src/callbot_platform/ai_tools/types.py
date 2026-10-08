@@ -16,6 +16,7 @@ ERROR_CODES: frozenset[str] = frozenset(
     {
         "invalid_arguments",
         "permission_denied",
+        "capability_disabled",
         "tenant_access_denied",
         "not_found",
         "ambiguous_result",
@@ -173,6 +174,7 @@ def err_result(
 _ERROR_META: dict[str, tuple[bool, bool]] = {
     "invalid_arguments": (False, True),
     "permission_denied": (False, True),
+    "capability_disabled": (False, True),
     "tenant_access_denied": (False, True),
     "not_found": (False, True),
     "ambiguous_result": (False, True),

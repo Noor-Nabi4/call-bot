@@ -17,6 +17,9 @@ from callbot_platform.api.agent_admin_routes import (
 from callbot_platform.api.ai_business_setup_routes import (  # noqa: E402
     router as ai_business_setup_router,
 )
+from callbot_platform.api.agent_config_routes import (  # noqa: E402
+    router as agent_config_router,
+)
 from callbot_platform.api.ai_tools_routes import (  # noqa: E402
     router as ai_tools_router,
 )
@@ -201,6 +204,7 @@ app.include_router(handoff_ops_router)
 app.include_router(admin_router)
 app.include_router(integrations_router)
 app.include_router(ai_business_setup_router)
+app.include_router(agent_config_router)
 app.include_router(agent_admin_router)
 app.include_router(api_key_admin_router)
 app.include_router(automation_router)

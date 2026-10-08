@@ -127,6 +127,29 @@ class AIToolExecutor:
                 started=started,
             )
 
+        # Phase 30: capability gate before confirmation / RBAC / mutation.
+        try:
+            from callbot_platform.agent_config.enforcement import (
+                assert_tool_capability,
+            )
+            from callbot_platform.agent_config.errors import AgentConfigError
+
+            assert_tool_capability(self._session, tenant_id, tool_name)
+        except AgentConfigError as exc:
+            code = (
+                "capability_disabled"
+                if exc.code == "CAPABILITY_DISABLED"
+                else "system_unavailable"
+            )
+            return self._finish(
+                tool_error(code).to_dict(),
+                tool_name=tool_name,
+                tenant_id=tenant_id,
+                call_id=call_id,
+                operation_id=operation_id,
+                started=started,
+            )
+
         if spec.confirmation_required:
             if operation_id is None:
                 return self._finish(

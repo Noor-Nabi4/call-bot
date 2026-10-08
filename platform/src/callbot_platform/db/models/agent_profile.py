@@ -34,6 +34,7 @@ def default_enabled_tools() -> dict[str, bool]:
         "knowledge": True,
         "handoff": True,
         "sms": True,
+        "payments": False,
     }
 
 

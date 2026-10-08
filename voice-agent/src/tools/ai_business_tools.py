@@ -35,6 +35,7 @@ _SAFE_BY_CODE: dict[str, str] = {
         "with caller_confirmed=true."
     ),
     "permission_denied": "I can't complete that request.",
+    "capability_disabled": "I can't complete that request.",
     "availability_empty": "I don't see an opening that matches those times.",
     "inventory_unavailable": "That item isn't available right now.",
     "not_found": "I couldn't find that record.",

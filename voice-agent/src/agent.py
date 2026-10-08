@@ -146,12 +146,16 @@ class VoiceAssistant(Agent):
             logger.exception("service_unavailable_speech_failed")
 
 
-def _build_realtime_model(settings: Settings) -> openai.realtime.RealtimeModel:
+def _build_realtime_model(
+    settings: Settings, *, voice: str | None = None
+) -> openai.realtime.RealtimeModel:
     # Docs: OpenAI Realtime plugin + semantic VAD turn detection
     # https://docs.livekit.io/agents/models/realtime/plugins/openai/
+    # Voice must be applied before the first audio response (OpenAI session constraint).
+    resolved_voice = (voice or settings.openai_voice or "marin").strip() or "marin"
     return realtime.RealtimeModel(
         model=settings.openai_realtime_model,
-        voice=settings.openai_voice,
+        voice=resolved_voice,
         temperature=settings.temperature,
         api_key=settings.openai_api_key,
         turn_detection=TurnDetection(
@@ -161,6 +165,24 @@ def _build_realtime_model(settings: Settings) -> openai.realtime.RealtimeModel:
             interrupt_response=True,
         ),
     )
+
+
+def _apply_profile_voice(
+    session: AgentSession, profile: AgentProfile, settings: Settings
+) -> str:
+    """Apply tenant profile voice before greeting (LiveKit RealtimeModel.update_options)."""
+    voice = (profile.voice or settings.openai_voice or "marin").strip() or "marin"
+    llm = getattr(session, "llm", None)
+    update = getattr(llm, "update_options", None)
+    if callable(update):
+        try:
+            update(voice=voice)
+        except Exception:
+            logger.exception(
+                "profile_voice_update_failed",
+                extra={"voice": voice, "tenant_id": profile.tenant_id},
+            )
+    return voice
 
 
 def _build_session(
@@ -630,6 +652,18 @@ async def entrypoint(ctx: JobContext) -> None:
         called_number=called_number,
         early_prepare=not sip,
         marketing_demo=is_marketing,
+    )
+
+    # Apply profile voice before first audio response (OpenAI Realtime constraint).
+    # Docs: https://docs.livekit.io/agents/models/realtime/plugins/openai/
+    applied_voice = _apply_profile_voice(session, profile, settings)
+    log_event(
+        logger,
+        "profile_voice_applied",
+        call_id=call_id,
+        tenant_id=resolution.tenant_id,
+        voice=applied_voice,
+        agent_profile_version=profile.profile_version,
     )
 
     # Greeting only after successful tenant + profile resolution (or marketing demo).

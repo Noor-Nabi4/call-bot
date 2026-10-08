@@ -2756,14 +2756,16 @@ Docs: `docs/AI_BUSINESS_SETUP.md`
 
 Allow business owner to configure:
 
-- [ ] Agent name
-- [ ] Voice
-- [ ] Language
-- [ ] Tone
-- [ ] Greeting
-- [ ] Business hours
-- [ ] Transfer rules
-- [ ] Escalation rules
+- [x] Agent name
+- [x] Voice
+- [x] Language
+- [x] Tone
+- [x] Greeting
+- [x] Business hours
+- [x] Transfer rules
+- [x] Escalation rules
+
+Docs: `docs/AI_AGENT_CONFIGURATION.md`
 
 ---
 
@@ -2771,19 +2773,19 @@ Allow business owner to configure:
 
 Allow:
 
-- [ ] Answer calls
-- [ ] Book appointments
-- [ ] Reschedule
-- [ ] Cancel
-- [ ] Product search
-- [ ] Inventory lookup
-- [ ] Pricing
-- [ ] Lead creation
-- [ ] Lead qualification
-- [ ] Order lookup
-- [ ] Payment links
-- [ ] SMS
-- [ ] Human transfer
+- [x] Answer calls
+- [x] Book appointments
+- [x] Reschedule
+- [x] Cancel
+- [x] Product search
+- [x] Inventory lookup
+- [x] Pricing
+- [x] Lead creation
+- [x] Lead qualification
+- [x] Order lookup
+- [x] Payment links
+- [x] SMS
+- [x] Human transfer
 
 ---
 
