@@ -18,33 +18,17 @@ import {
   StatusPill,
   Surface,
 } from "@/components/ui";
+import {
+  formatMoney,
+  formatPercent,
+  type AdminMetrics,
+} from "@/lib/api/metrics";
 
 const API =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
   "http://localhost:8000";
 
-type DayPoint = { date: string; calls: number };
-
-type Metrics = {
-  window_days: number;
-  calls: number;
-  calls_ended: number;
-  calls_active: number;
-  voice_minutes: number;
-  avg_call_duration_seconds: number;
-  avg_quality_score?: number | null;
-  quality_reviews?: number;
-  handoffs_requested: number;
-  handoff_rate: number;
-  appointment_booked_calls: number;
-  appointments: number;
-  jobs: number;
-  jobs_completed: number;
-  customers: number;
-  jobs_by_status: Record<string, number>;
-  disconnect_reasons: Record<string, number>;
-  calls_by_day: DayPoint[];
-};
+type Metrics = AdminMetrics;
 
 const DAY_OPTIONS = [7, 30, 90];
 
@@ -188,6 +172,20 @@ export default function MetricsPage() {
                 value: formatDuration(metrics.avg_call_duration_seconds),
               },
               { label: copy.handoffs, value: metrics.handoffs_requested },
+              {
+                label: "AI resolution",
+                value: formatPercent(metrics.ai_resolution_rate),
+              },
+              { label: "Leads", value: metrics.leads },
+              {
+                label: "Revenue",
+                value: formatMoney(metrics.revenue),
+              },
+              {
+                label: "Outstanding",
+                value: formatMoney(metrics.outstanding_balance),
+                hint: `${metrics.outstanding_invoices} invoices`,
+              },
               {
                 label: copy.avgQuality,
                 value:

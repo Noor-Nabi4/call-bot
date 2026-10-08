@@ -11,10 +11,13 @@ import {
   SummaryStrip,
 } from "@/components/ops/dashboard";
 import {
+  AdminCallsVolumeChart,
   CallsBookingChart,
   JobsActivityChart,
+  RevenueChart,
   TechnicianWorkloadChart,
 } from "@/components/ops/charts";
+import { buildDashboardKpis, KpiGrid } from "@/components/ops/kpi-cards";
 import { DistributionPieChart } from "@/components/ops/raffle-charts";
 import { CreateJobDrawer } from "@/components/ops/create-job-drawer";
 import {
@@ -29,6 +32,7 @@ import {
 import { useAuth } from "@/lib/use-auth";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { dashboard as copy } from "@/lib/ops-copy";
+import { useMemo } from "react";
 
 function greetingFor(now: Date): string {
   const h = now.getHours();
@@ -42,6 +46,10 @@ export default function DashboardPage() {
   const router = useRouter();
   const toast = useToast();
   const dash = useDashboardData(user);
+  const kpiItems = useMemo(
+    () => buildDashboardKpis(dash.metrics, dash.chartRange),
+    [dash.metrics, dash.chartRange],
+  );
 
   if (loading || !user) {
     return (
@@ -89,7 +97,7 @@ export default function DashboardPage() {
               Add customer
             </Button>
           </Link>
-          <Link href="/appointments">
+          <Link href="/crm/scheduling">
             <Button variant="secondary" size="sm">
               <CalendarPlus className="size-3.5" aria-hidden />
               Schedule
@@ -114,6 +122,8 @@ export default function DashboardPage() {
         <LoadingSkeleton rows={6} />
       ) : (
         <div className="grid gap-4">
+          <KpiGrid items={kpiItems} loading={dash.metricsLoading} />
+
           <SummaryStrip
             items={[
               { label: copy.activeJobs, value: dash.activeJobs.length },
@@ -133,6 +143,21 @@ export default function DashboardPage() {
               },
             ]}
           />
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <RevenueChart
+              data={dash.revenueSeries}
+              rangeDays={dash.chartRange}
+              onRangeChange={dash.setChartRange}
+              loading={dash.metricsLoading}
+            />
+            <AdminCallsVolumeChart
+              data={dash.metricsCallsSeries}
+              rangeDays={dash.chartRange}
+              onRangeChange={dash.setChartRange}
+              loading={dash.metricsLoading}
+            />
+          </div>
 
           <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
             <Panel title={copy.needsAttention}>
@@ -214,7 +239,7 @@ export default function DashboardPage() {
           <div className="grid gap-4 lg:grid-cols-2">
             <DistributionPieChart
               title="Jobs by status"
-              description={`Job mix for the last ${dash.chartRange} days. Click a slice to open dispatch.`}
+              description="Current job pipeline. Click a slice to open dispatch."
               data={dash.jobsByStatusPie}
               loading={dash.fetching && dash.jobs.length === 0}
               onSliceClick={(point) => {
@@ -222,6 +247,20 @@ export default function DashboardPage() {
                 router.push(`/dispatch?status=${encodeURIComponent(status)}`);
               }}
             />
+            <DistributionPieChart
+              title="Lead conversion"
+              description="Open leads by CRM status (NEW → WON / LOST)."
+              data={dash.leadFunnel}
+              loading={dash.metricsLoading}
+              emptyMessage="No leads in the pipeline yet."
+              onSliceClick={(point) => {
+                const status = point.status || point.name.replace(/ /g, "_");
+                router.push(`/crm/leads?status=${encodeURIComponent(status)}`);
+              }}
+            />
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
             <DistributionPieChart
               title="Calls by status"
               description={`Call outcomes for the last ${dash.chartRange} days. Click a slice to open the call log.`}
@@ -233,19 +272,19 @@ export default function DashboardPage() {
                 router.push(`/calls?status=${encodeURIComponent(status)}`);
               }}
             />
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-            <Panel title={copy.recentActivity}>
-              <ActivityFeed items={dash.activity} />
-            </Panel>
             <Panel title="Quick links">
               <div className="flex flex-wrap gap-2">
                 <Link
-                  href="/dispatch"
+                  href="/crm/dispatch"
                   className="rounded-[10px] border border-border px-3 py-2 text-sm text-text-primary hover:bg-surface-muted"
                 >
                   Open dispatch
+                </Link>
+                <Link
+                  href="/crm/scheduling"
+                  className="rounded-[10px] border border-border px-3 py-2 text-sm text-text-primary hover:bg-surface-muted"
+                >
+                  Scheduling
                 </Link>
                 <Link
                   href="/metrics"
@@ -262,6 +301,10 @@ export default function DashboardPage() {
               </div>
             </Panel>
           </div>
+
+          <Panel title={copy.recentActivity}>
+            <ActivityFeed items={dash.activity} />
+          </Panel>
         </div>
       )}
 

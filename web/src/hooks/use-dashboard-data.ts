@@ -23,6 +23,10 @@ import {
   listTechnicians,
 } from "@/lib/api";
 import { getInventoryDashboard } from "@/lib/api/inventory";
+import {
+  getAdminMetrics,
+  type AdminMetrics,
+} from "@/lib/api/metrics";
 import { JOB_TERMINAL_STATUSES } from "@/lib/api/job-constants";
 import { buildAttentionItems } from "@/lib/attention";
 import { deriveUrgency } from "@/lib/schedule";
@@ -65,17 +69,21 @@ export function useDashboardData(user: OpsUser | null) {
   const [jobForm, setJobForm] = useState<CreateJobForm>(EMPTY_JOB_FORM);
   const [inventoryLow, setInventoryLow] = useState(0);
   const [inventoryOut, setInventoryOut] = useState(0);
+  const [metrics, setMetrics] = useState<AdminMetrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
   const now = useMemo(() => new Date(), []);
 
   const load = useCallback(async () => {
-    const [j, t, appts, callData, custs, invDash] = await Promise.all([
-      listJobs(),
-      listTechnicians(),
-      listAppointments().catch(() => ({ appointments: [] as Appointment[] })),
-      listCalls().catch(() => ({ calls: [] as Call[] })),
-      listCustomers().catch(() => ({ customers: [] as CustomerOption[] })),
-      getInventoryDashboard().catch(() => null),
-    ]);
+    const [j, t, appts, callData, custs, invDash, adminMetrics] =
+      await Promise.all([
+        listJobs(),
+        listTechnicians(),
+        listAppointments().catch(() => ({ appointments: [] as Appointment[] })),
+        listCalls().catch(() => ({ calls: [] as Call[] })),
+        listCustomers().catch(() => ({ customers: [] as CustomerOption[] })),
+        getInventoryDashboard().catch(() => null),
+        getAdminMetrics(chartRange).catch(() => null),
+      ]);
     setJobs(j.jobs);
     setTechs(t.technicians);
     setAppointments(appts.appointments || []);
@@ -83,7 +91,9 @@ export function useDashboardData(user: OpsUser | null) {
     setCustomers(custs.customers || []);
     setInventoryLow(invDash?.low_stock_balances ?? 0);
     setInventoryOut(invDash?.out_of_stock_balances ?? 0);
-  }, []);
+    setMetrics(adminMetrics);
+    setMetricsLoading(false);
+  }, [chartRange]);
 
   useEffect(() => {
     if (!user) return;
@@ -420,10 +430,40 @@ export function useDashboardData(user: OpsUser | null) {
   function retryLoad() {
     setError(null);
     setFetching(true);
+    setMetricsLoading(true);
     load()
       .catch((e) => setError(safeUserError(e, errors.loadFailed)))
       .finally(() => setFetching(false));
   }
+
+  const leadFunnel = useMemo(() => {
+    // Actual LeadStatus values from the CRM model (not invented).
+    const order = ["NEW", "CONTACTED", "QUALIFIED", "BOOKED", "WON", "LOST"];
+    const byStatus = metrics?.leads_by_status || {};
+    const hasAny = Object.values(byStatus).some((n) => n > 0);
+    if (!hasAny) return [];
+    return order.map((status) => ({
+      name: status.replace(/_/g, " "),
+      status,
+      value: byStatus[status] || 0,
+    }));
+  }, [metrics]);
+
+  const revenueSeries = useMemo(() => {
+    if (!metrics?.revenue_by_day?.length) return [];
+    return metrics.revenue_by_day.map((d) => ({
+      label: d.date.slice(5),
+      revenue: d.revenue,
+    }));
+  }, [metrics]);
+
+  const metricsCallsSeries = useMemo(() => {
+    if (!metrics?.calls_by_day?.length) return [];
+    return metrics.calls_by_day.map((d) => ({
+      label: d.date.slice(5),
+      calls: d.calls,
+    }));
+  }, [metrics]);
 
   return {
     jobs,
@@ -454,5 +494,10 @@ export function useDashboardData(user: OpsUser | null) {
     retryLoad,
     inventoryLow,
     inventoryOut,
+    metrics,
+    metricsLoading,
+    leadFunnel,
+    revenueSeries,
+    metricsCallsSeries,
   };
 }

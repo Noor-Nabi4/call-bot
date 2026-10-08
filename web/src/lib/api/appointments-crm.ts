@@ -70,6 +70,8 @@ export async function listCrmAppointments(params: {
   customer_id?: string;
   technician_id?: string;
   service_id?: string;
+  starts_from?: string;
+  starts_to?: string;
   limit?: number;
   cursor?: string;
   include_archived?: boolean;
@@ -84,6 +86,8 @@ export async function listCrmAppointments(params: {
   if (params.customer_id) sp.set("customer_id", params.customer_id);
   if (params.technician_id) sp.set("technician_id", params.technician_id);
   if (params.service_id) sp.set("service_id", params.service_id);
+  if (params.starts_from) sp.set("starts_from", params.starts_from);
+  if (params.starts_to) sp.set("starts_to", params.starts_to);
   if (params.limit) sp.set("limit", String(params.limit));
   if (params.cursor) sp.set("cursor", params.cursor);
   if (params.include_archived) sp.set("include_archived", "true");

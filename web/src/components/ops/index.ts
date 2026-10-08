@@ -22,10 +22,13 @@ export {
   type CreateTechForm,
 } from "./create-tech-drawer";
 export {
+  AdminCallsVolumeChart,
   CallsBookingChart,
   JobsActivityChart,
+  RevenueChart,
   TechnicianWorkloadChart,
 } from "./charts";
+export { KpiGrid, buildDashboardKpis, type KpiItem } from "./kpi-cards";
 export {
   ChartEmptyState,
   ChartSkeleton,

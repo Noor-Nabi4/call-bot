@@ -2550,54 +2550,60 @@ Templates:
 
 # PHASE 26 — ADMIN DASHBOARD
 
+> Application implementation complete (metrics KPIs, scheduling calendar, nav polish; CRM/dispatch reused).
+> No further Phase 26 feature work.
+> Gate: **APPLICATION COMPLETE / STAGING SMOKE READY**.
+> Staging next: KPI accuracy vs DB, revenue/outstanding/AI resolution, calendar views, reschedule/assign, dispatch sync, responsive + tenant/RBAC.
+> Known limitations (accepted): no prior-period trend %, long appointments show at start hour, CRM tenant config still drives nav when present.
+
 ## TASK 26.1 — Dashboard
 
 Display:
 
-- [ ] Calls
-- [ ] Leads
-- [ ] Bookings
-- [ ] Jobs
-- [ ] Revenue
-- [ ] Outstanding invoices
-- [ ] AI resolution rate
+- [x] Calls
+- [x] Leads
+- [x] Bookings
+- [x] Jobs
+- [x] Revenue
+- [x] Outstanding invoices
+- [x] AI resolution rate
 
 ---
 
 ## TASK 26.2 — CRM UI
 
-- [ ] Customers
-- [ ] Leads
-- [ ] Products
-- [ ] Services
-- [ ] Orders
-- [ ] Jobs
-- [ ] Appointments
-- [ ] Calls
-- [ ] Invoices
+- [x] Customers
+- [x] Leads
+- [x] Products
+- [x] Services
+- [x] Orders
+- [x] Jobs
+- [x] Appointments
+- [x] Calls
+- [x] Invoices
 
 ---
 
 ## TASK 26.3 — Scheduling UI
 
-- [ ] Calendar
-- [ ] Day view
-- [ ] Week view
-- [ ] Technician view
-- [ ] Drag/drop
-- [ ] Reschedule
+- [x] Calendar
+- [x] Day view
+- [x] Week view
+- [x] Technician view
+- [x] Drag/drop
+- [x] Reschedule
 
 ---
 
 ## TASK 26.4 — Dispatch UI
 
-- [ ] Technician columns
-- [ ] Job cards
-- [ ] Unassigned jobs
-- [ ] Assignment
-- [ ] Reassignment
-- [ ] Status
-- [ ] ETA
+- [x] Technician columns
+- [x] Job cards
+- [x] Unassigned jobs
+- [x] Assignment
+- [x] Reassignment
+- [x] Status
+- [x] ETA
 
 ---
 

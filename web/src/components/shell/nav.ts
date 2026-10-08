@@ -3,8 +3,11 @@ import {
   Bot,
   BookOpen,
   Briefcase,
+  BriefcaseBusiness,
   Building2,
   Calendar,
+  CalendarDays,
+  ChartNoAxesCombined,
   CheckSquare,
   ClipboardList,
   CreditCard,
@@ -36,7 +39,6 @@ import {
   Users,
   UserPlus,
   Wrench,
-  BarChart3,
   Zap,
   CircleDollarSign,
   Box,
@@ -68,6 +70,9 @@ const ICON_BY_NAME: Record<string, LucideIcon> = {
   "shopping-cart": ShoppingCart,
   briefcase: Briefcase,
   calendar: Calendar,
+  "calendar-days": CalendarDays,
+  "briefcase-business": BriefcaseBusiness,
+  truck: Truck,
   "file-text": FileText,
   receipt: Receipt,
   "credit-card": CreditCard,
@@ -81,7 +86,6 @@ const ICON_BY_NAME: Record<string, LucideIcon> = {
   map: LayoutGrid,
   "hard-hat": HardHat,
   home: Home,
-  truck: Truck,
   "rotate-ccw": RotateCcw,
   percent: Percent,
   box: Box,
@@ -108,6 +112,20 @@ const STATIC_WORK_NAV: NavItem[] = [
     section: "work",
   },
   {
+    href: "/crm/scheduling",
+    label: "Scheduling",
+    icon: CalendarDays,
+    permission: "appointments.read",
+    section: "work",
+  },
+  {
+    href: "/crm/dispatch",
+    label: "Dispatch",
+    icon: Truck,
+    permission: "dispatch.read",
+    section: "work",
+  },
+  {
     href: "/supervisor",
     label: "Supervisor",
     icon: Shield,
@@ -123,8 +141,8 @@ const STATIC_WORK_NAV: NavItem[] = [
   },
   {
     href: "/metrics",
-    label: "Metrics",
-    icon: BarChart3,
+    label: "Analytics",
+    icon: ChartNoAxesCombined,
     permission: "analytics.read",
     section: "work",
   },
@@ -133,24 +151,52 @@ const STATIC_WORK_NAV: NavItem[] = [
 /** Legacy hardcoded CRM paths — used only when effective config is unavailable. */
 const FALLBACK_CRM_NAV: NavItem[] = [
   {
-    href: "/crm/dispatch",
-    label: "Dispatch board",
-    icon: LayoutGrid,
-    permission: "dispatch.read",
-    section: "work",
-  },
-  {
-    href: "/dispatch",
-    label: "Dispatch",
-    icon: LayoutGrid,
-    permission: "jobs.read",
-    section: "work",
-  },
-  {
     href: "/customers",
     label: "Customers",
     icon: Users,
     permission: "customers.read",
+    section: "work",
+  },
+  {
+    href: "/crm/leads",
+    label: "Leads",
+    icon: UserPlus,
+    permission: "leads.read",
+    section: "work",
+  },
+  {
+    href: "/crm/products",
+    label: "Products",
+    icon: Package,
+    permission: "products.read",
+    section: "work",
+  },
+  {
+    href: "/crm/services",
+    label: "Services",
+    icon: Wrench,
+    permission: "services.read",
+    section: "work",
+  },
+  {
+    href: "/crm/orders",
+    label: "Orders",
+    icon: ShoppingCart,
+    permission: "orders.read",
+    section: "work",
+  },
+  {
+    href: "/crm/jobs",
+    label: "Jobs",
+    icon: BriefcaseBusiness,
+    permission: "jobs.read",
+    section: "work",
+  },
+  {
+    href: "/crm/appointments",
+    label: "Appointments",
+    icon: CalendarDays,
+    permission: "appointments.read",
     section: "work",
   },
   {
@@ -161,10 +207,17 @@ const FALLBACK_CRM_NAV: NavItem[] = [
     section: "work",
   },
   {
-    href: "/appointments",
-    label: "Appointments",
-    icon: Calendar,
-    permission: "appointments.read",
+    href: "/crm/invoices",
+    label: "Invoices",
+    icon: Receipt,
+    permission: "invoices.read",
+    section: "work",
+  },
+  {
+    href: "/dispatch",
+    label: "Jobs board",
+    icon: LayoutGrid,
+    permission: "jobs.read",
     section: "work",
   },
   {
@@ -347,16 +400,28 @@ export function navFor(
     crmNavigation && crmNavigation.length > 0
       ? crmNavToItems(crmNavigation)
       : FALLBACK_CRM_NAV;
-  return filterNavByPermission(user, [
+  const seen = new Set<string>();
+  const merged: NavItem[] = [];
+  for (const item of [
     ...STATIC_WORK_NAV,
     ...crmItems,
     ...AI_NAV,
     ...ADMIN_NAV,
-  ]);
+  ]) {
+    if (seen.has(item.href)) continue;
+    seen.add(item.href);
+    merged.push(item);
+  }
+  return filterNavByPermission(user, merged);
 }
 
 export function isActivePath(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
+  if (href === "/crm/scheduling") {
+    return (
+      pathname === "/crm/scheduling" || pathname.startsWith("/crm/scheduling/")
+    );
+  }
   if (href === "/crm/dispatch") {
     return pathname === "/crm/dispatch" || pathname.startsWith("/crm/dispatch/");
   }

@@ -59,6 +59,14 @@ def test_advanced_call_metrics(session: Session, tenant: Tenant) -> None:
     assert metrics["voice_minutes"] >= 2
     assert metrics["handoffs_requested"] >= 1
     assert metrics["handoff_rate"] > 0
+    assert metrics["ai_resolution_rate"] is not None
+    assert 0.0 <= float(metrics["ai_resolution_rate"]) <= 1.0
+    assert "leads" in metrics
+    assert "leads_by_status" in metrics
+    assert "revenue" in metrics
+    assert isinstance(metrics["revenue_by_day"], list)
+    assert "outstanding_invoices" in metrics
+    assert "outstanding_balance" in metrics
     assert "participant_disconnected" in metrics["disconnect_reasons"]
     assert isinstance(metrics["calls_by_day"], list)
     assert len(metrics["calls_by_day"]) >= 1

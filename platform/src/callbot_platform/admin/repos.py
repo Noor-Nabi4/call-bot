@@ -18,7 +18,10 @@ from callbot_platform.db.models import (
     Appointment,
     Call,
     Customer,
+    Invoice,
     Job,
+    Lead,
+    Payment,
     TelephonyAuditEvent,
     TenantRetentionSettings,
     TenantUser,
@@ -287,6 +290,25 @@ class AdminRepository:
             .select_from(Customer)
             .where(Customer.tenant_id == tenant_id)
         )
+        leads = self._session.scalar(
+            select(func.count())
+            .select_from(Lead)
+            .where(
+                Lead.tenant_id == tenant_id,
+                Lead.created_at >= since,
+                Lead.archived_at.is_(None),
+            )
+        )
+        leads_by_status = dict(
+            self._session.execute(
+                select(Lead.status, func.count())
+                .where(
+                    Lead.tenant_id == tenant_id,
+                    Lead.archived_at.is_(None),
+                )
+                .group_by(Lead.status)
+            ).all()
+        )
         by_status = dict(
             self._session.execute(
                 select(Job.status, func.count())
@@ -294,6 +316,36 @@ class AdminRepository:
                 .group_by(Job.status)
             ).all()
         )
+
+        # Revenue from succeeded customer payments in the window (Phase 19).
+        payment_rows = self._session.execute(
+            select(Payment.amount, Payment.succeeded_at, Payment.created_at).where(
+                Payment.tenant_id == tenant_id,
+                Payment.status == "SUCCEEDED",
+                func.coalesce(Payment.succeeded_at, Payment.created_at) >= since,
+            )
+        ).all()
+        revenue_total = 0.0
+        revenue_by_day: dict[str, float] = {}
+        for amount, succeeded_at, created_at in payment_rows:
+            ts = succeeded_at or created_at
+            if ts is None:
+                continue
+            day_key = ts.astimezone(UTC).date().isoformat()
+            value = float(amount or 0)
+            revenue_total += value
+            revenue_by_day[day_key] = revenue_by_day.get(day_key, 0.0) + value
+
+        # Outstanding = open invoice balances (exclude draft/void/fully paid).
+        outstanding_rows = self._session.execute(
+            select(func.count(), func.coalesce(func.sum(Invoice.balance_due), 0)).where(
+                Invoice.tenant_id == tenant_id,
+                Invoice.balance_due > 0,
+                Invoice.status.in_(("SENT", "PARTIALLY_PAID", "OVERDUE")),
+            )
+        ).one()
+        outstanding_count = int(outstanding_rows[0] or 0)
+        outstanding_balance = float(outstanding_rows[1] or 0)
 
         call_rows = self._session.scalars(
             select(Call).where(
@@ -335,13 +387,25 @@ class AdminRepository:
             if quality_scores
             else None
         )
+        # AI resolved without human handoff among ended calls in the window.
+        resolved_without_handoff = max(0, ended_count - handoffs)
+        ai_resolution_rate = (
+            round(resolved_without_handoff / ended_count, 3) if ended_count else None
+        )
         # Fill every calendar day in the window so the Ops chart has a continuous axis.
         series: list[dict[str, Any]] = []
+        revenue_series: list[dict[str, Any]] = []
         cursor = since.astimezone(UTC).date()
         today = datetime.now(UTC).date()
         while cursor <= today:
             key = cursor.isoformat()
             series.append({"date": key, "calls": calls_by_day.get(key, 0)})
+            revenue_series.append(
+                {
+                    "date": key,
+                    "revenue": round(revenue_by_day.get(key, 0.0), 4),
+                }
+            )
             cursor += timedelta(days=1)
 
         return {
@@ -356,11 +420,18 @@ class AdminRepository:
             "quality_reviews": len(quality_scores),
             "handoffs_requested": handoffs,
             "handoff_rate": round(handoffs / ended_count, 3) if ended_count else 0.0,
+            "ai_resolution_rate": ai_resolution_rate,
             "appointment_booked_calls": appointments_booked_flag,
             "appointments": int(appts or 0),
             "jobs": int(jobs or 0),
             "jobs_completed": int(completed or 0),
             "customers": int(customers or 0),
+            "leads": int(leads or 0),
+            "leads_by_status": {str(k): int(v) for k, v in leads_by_status.items()},
+            "revenue": round(revenue_total, 4),
+            "revenue_by_day": revenue_series,
+            "outstanding_invoices": outstanding_count,
+            "outstanding_balance": round(outstanding_balance, 4),
             "jobs_by_status": {str(k): int(v) for k, v in by_status.items()},
             "disconnect_reasons": disconnect_reasons,
             "calls_by_day": series,
