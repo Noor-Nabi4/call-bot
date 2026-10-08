@@ -524,3 +524,28 @@ Freeze: no second executor/confirmation architecture; next step is staging/provi
 ```
 
 See `docs/AI_GUARDRAILS.md`.
+
+### Phase 32 AI Cost Tracking — freeze / handoff
+
+```text
+Phase 32 — APPLICATION COMPLETE / USAGE + COGS VERIFIED / LIVE PROVIDER VERIFICATION BLOCKED / PRODUCTION BLOCKED
+
+Migrations: 0055_usage_ledger → 0056_usage_ledger_provenance
+Accounting hardening: provenance-aware revenue/COGS/margin; estimated overage excluded from actual revenue;
+Stripe metering boundary NOT_WIRED; missing infrastructure = UNAVAILABLE (not $0)
+
+Application accounting (local pytest): VERIFIED
+  - usage ledger idempotency, categories, margin, alerts, isolation
+  - Phase 14/30/31 + usage + cogs regressions green in focused suite
+  - Org API: /api/admin/usage-cost/summary (+ alerts)
+  - Fleet API: /api/admin/usage-cost/fleet (X-Internal-Token only)
+  - UI: usage ledger panel on /settings/cogs
+
+Live OpenAI / LiveKit / Twilio / storage / Stripe invoice verification: NOT EXECUTED
+Infrastructure allocation: configured rates only (null when unset — not fabricated)
+Stripe metered overage invoices: still unwired (catalog estimate)
+
+Freeze: no second billing/notification stack; next step is staging/provider verification.
+```
+
+See `docs/AI_COST_TRACKING.md`.

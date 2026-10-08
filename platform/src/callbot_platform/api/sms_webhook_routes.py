@@ -173,6 +173,15 @@ async def twilio_sms_status(
                     tenant_id,
                     row.id,
                 )
+            if row.status in {"SENT", "DELIVERED"}:
+                try:
+                    from callbot_platform.billing.usage_ledger import ingest_sms_message
+
+                    ingest_sms_message(session, row)
+                except Exception:
+                    logger.exception(
+                        "usage_ledger_sms_ingest_failed message_id=%s", row.id
+                    )
             session.commit()
         else:
             session.commit()

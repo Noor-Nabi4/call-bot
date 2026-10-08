@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -15,6 +16,8 @@ from callbot_platform.crm.errors import CrmError
 from callbot_platform.db.models import Call, Customer
 from callbot_platform.domain.phone import PhoneNumberError, normalize_e164
 from callbot_platform.telephony.audit import write_audit
+
+logger = logging.getLogger(__name__)
 
 
 class CallRepository:
@@ -110,7 +113,19 @@ class CallRepository:
             call.customer_id = customer_id
         self._session.flush()
         # Internal COGS estimate — does not affect customer billable_seconds / Stripe.
-        self._cogs.persist_for_call(call)
+        cogs_row = self._cogs.persist_for_call(call)
+        try:
+            from callbot_platform.billing.usage_ledger import (
+                ingest_call_end,
+                ingest_infrastructure_period,
+            )
+
+            ingest_call_end(self._session, call, cogs=cogs_row)
+            ingest_infrastructure_period(self._session, call.tenant_id)
+        except Exception:
+            logger.exception(
+                "usage_ledger_call_ingest_failed call_id=%s", call.id
+            )
         write_audit(
             self._session,
             tenant_id=tenant_id,

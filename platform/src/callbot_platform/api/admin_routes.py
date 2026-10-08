@@ -12,7 +12,12 @@ from sqlalchemy.orm import Session
 
 from callbot_platform.admin.repos import AdminError, AdminRepository
 from callbot_platform.analytics import AnalyticsRangeError, AnalyticsService
-from callbot_platform.api.deps import CurrentUser, db_dep, require_entitled_permission
+from callbot_platform.api.deps import (
+    CurrentUser,
+    db_dep,
+    require_entitled_permission,
+    require_internal_token,
+)
 from callbot_platform.auth.repos import AuthError, AuthRepository
 from callbot_platform.security.session import VALID_ROLES
 
@@ -232,6 +237,61 @@ def cogs_summary(
             status_code=400, detail={"code": "invalid_period", "message": str(exc)}
         ) from exc
     return {"cogs": summary}
+
+
+@router.get("/usage-cost/summary")
+def usage_cost_summary(
+    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    """Phase 32 org usage ledger + COGS (tenant-scoped)."""
+    from callbot_platform.billing.usage_ledger import (
+        UsageAlertService,
+        UsageCostAggregationService,
+        ingest_storage_snapshot,
+    )
+
+    try:
+        ingest_storage_snapshot(session, user.tenant_id)
+    except Exception:
+        pass
+    summary = UsageCostAggregationService(session).organization_summary(user.tenant_id)
+    limits = UsageAlertService(session).limit_status(user.tenant_id)
+    return {"usage_cost": summary, "limit_status": limits}
+
+
+@router.get("/usage-cost/alerts")
+def usage_cost_alerts(
+    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+    evaluate: bool = Query(default=False),
+) -> dict[str, Any]:
+    """Usage limit status; optionally evaluate and enqueue threshold alerts."""
+    from callbot_platform.billing.usage_ledger import UsageAlertService
+
+    svc = UsageAlertService(session)
+    status = svc.limit_status(user.tenant_id)
+    fired: list[dict[str, Any]] = []
+    if evaluate:
+        fired = svc.evaluate_voice_limits(
+            user.tenant_id,
+            notify_email=getattr(user, "email", None),
+        )
+        session.commit()
+    return {"limit_status": status, "alerts_fired": fired}
+
+
+@router.get(
+    "/usage-cost/fleet",
+    dependencies=[Depends(require_internal_token)],
+)
+def usage_cost_fleet(
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    """Cross-tenant COGS rollup — internal token only (never tenant-scoped)."""
+    from callbot_platform.billing.usage_ledger import UsageCostAggregationService
+
+    return {"fleet": UsageCostAggregationService(session).fleet_summary()}
 
 
 @router.get("/cogs/scenarios")

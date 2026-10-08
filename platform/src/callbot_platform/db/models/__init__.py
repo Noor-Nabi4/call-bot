@@ -180,6 +180,7 @@ from callbot_platform.db.models.services import (
     ServiceCategory,
 )
 from callbot_platform.db.models.sms import SmsConversation, SmsMessage
+from callbot_platform.db.models.usage_ledger import UsageAlertDelivery, UsageLedgerEntry
 from callbot_platform.db.models.tenant import (
     TelephonyAuditEvent,
     TelephonyIdempotencyKey,
@@ -206,6 +207,8 @@ __all__ = [
     "BusinessHoliday",
     "Call",
     "CallCogs",
+    "UsageAlertDelivery",
+    "UsageLedgerEntry",
     "CallIntelligence",
     "CallQueueItem",
     "CallTranscript",

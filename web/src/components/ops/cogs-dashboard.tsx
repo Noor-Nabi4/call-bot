@@ -47,6 +47,7 @@ import {
 } from "@/lib/cogs-format";
 import { safeUserError } from "@/lib/safe-error";
 import { cogs as copy } from "@/lib/ops-copy";
+import { UsageCostPanel } from "@/components/ops/usage-cost-panel";
 import {
   Button,
   DataTable,
@@ -357,6 +358,8 @@ export function CogsDashboard() {
           </Button>
         }
       />
+
+      <UsageCostPanel />
 
       <FilterBar>
         <div

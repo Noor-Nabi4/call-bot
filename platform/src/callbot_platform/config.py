@@ -293,6 +293,16 @@ class Settings(BaseSettings):
         default=0.0, alias="COGS_PHONE_RENTAL_MONTHLY_USD"
     )
     cogs_sms_monthly_usd: float = Field(default=0.0, alias="COGS_SMS_MONTHLY_USD")
+    # Phase 32 ledger unit rates (configured estimates — not live vendor invoices).
+    cogs_sms_per_message_usd: float = Field(
+        default=0.0, alias="COGS_SMS_PER_MESSAGE_USD"
+    )
+    cogs_transcription_per_minute_usd: float = Field(
+        default=0.0, alias="COGS_TRANSCRIPTION_PER_MINUTE_USD"
+    )
+    cogs_storage_per_gb_month_usd: float = Field(
+        default=0.0, alias="COGS_STORAGE_PER_GB_MONTH_USD"
+    )
 
     @property
     def ops_cors_origin_list(self) -> list[str]:

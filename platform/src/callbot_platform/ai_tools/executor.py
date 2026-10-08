@@ -392,6 +392,21 @@ class AIToolExecutor:
             )
         except Exception:
             logger.exception("ai_tool_audit_failed tool=%s", tool_name)
+        if not replay:
+            try:
+                from callbot_platform.billing.usage_ledger import ingest_tool_call
+
+                ingest_tool_call(
+                    self._session,
+                    tenant_id=tenant_id,
+                    tool_name=tool_name,
+                    operation_id=operation_id,
+                    call_id=call_id,
+                    ok=ok,
+                    error_code=error_code,
+                )
+            except Exception:
+                logger.exception("usage_ledger_tool_ingest_failed tool=%s", tool_name)
         result = dict(result)
         result["meta"] = {
             "durationMs": duration_ms,

@@ -2852,17 +2852,21 @@ Every tool call must verify:
 
 # PHASE 32 — AI COST TRACKING
 
+> **FREEZE:** `APPLICATION COMPLETE / USAGE + COGS VERIFIED / LIVE PROVIDER VERIFICATION BLOCKED / PRODUCTION BLOCKED`  
+> Next: staging/provider verification — not another accounting architecture.  
+> See `docs/AI_COST_TRACKING.md`. Migration: `0055_usage_ledger`.
+
 ## TASK 32.1 — Usage Tracking
 
 Track per organization:
 
-- [ ] Voice minutes
-- [ ] LLM tokens
-- [ ] AI requests
-- [ ] Tool calls
-- [ ] SMS
-- [ ] Transcription
-- [ ] Storage
+- [x] Voice minutes
+- [x] LLM tokens
+- [x] AI requests
+- [x] Tool calls
+- [x] SMS
+- [x] Transcription
+- [x] Storage
 
 ---
 
@@ -2884,12 +2888,12 @@ Gross Margin
 
 ### Checklist
 
-- [ ] Usage records
-- [ ] Cost calculation
-- [ ] Organization dashboard
-- [ ] Admin COGS dashboard
-- [ ] Billing limits
-- [ ] Alerts
+- [x] Usage records (`usage_ledger_entries`)
+- [x] Cost calculation (versioned micros snapshots)
+- [x] Organization dashboard (`/settings/cogs` usage ledger panel)
+- [x] Admin COGS dashboard (`/usage-cost/fleet` internal token)
+- [x] Billing limits (existing soft voice minutes + alert states)
+- [x] Alerts (50/75/90/100 deduped)
 
 ---
 

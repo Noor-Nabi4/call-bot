@@ -452,6 +452,16 @@ class NotificationOutboxWorker:
                         tenant_id,
                         sms.id,
                     )
+                    try:
+                        from callbot_platform.billing.usage_ledger import (
+                            ingest_sms_message,
+                        )
+
+                        ingest_sms_message(session, sms)
+                    except Exception:
+                        logger.exception(
+                            "usage_ledger_sms_ingest_failed message_id=%s", sms.id
+                        )
             session.commit()
         except Exception:
             session.rollback()
