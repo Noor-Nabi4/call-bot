@@ -136,7 +136,7 @@ export default function AiBusinessSetupPage() {
           onboarding?: { state_data?: Record<string, unknown>; status?: string };
         };
         const status = body.onboarding?.status;
-        if (status === "COMPLETED" || status === "SKIPPED") return;
+        if (status === "COMPLETED") return;
         if (body.onboarding?.state_data?.[SETUP_PATH_KEY] === "ai") return;
         await fetch(`${API}/api/admin/organization/onboarding`, {
           method: "PATCH",

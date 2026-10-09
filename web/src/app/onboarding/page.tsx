@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { OnboardingChoice } from "@/components/onboarding/onboarding-choice";
 import { OnboardingShell } from "@/components/shell";
@@ -9,6 +16,7 @@ import { errors } from "@/lib/ops-copy";
 import { safeUserError } from "@/lib/safe-error";
 import {
   isAiSetupConfirmed,
+  isOnboardingComplete,
   ONBOARDING_AI_PATH,
   progressLabel,
   resumeTarget,
@@ -126,6 +134,7 @@ function OnboardingPageInner() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pathBusy, setPathBusy] = useState(false);
+  const leftCompletedRef = useRef(false);
 
   const load = useCallback(async () => {
     const [ob, bp, cfg] = await Promise.all([
@@ -163,13 +172,25 @@ function OnboardingPageInner() {
       .finally(() => setFetching(false));
   }, [user, load]);
 
-  const closed =
-    onboarding?.status === "COMPLETED" || onboarding?.status === "SKIPPED";
+  const closed = onboarding?.status === "COMPLETED";
   const setupPath = setupPathFromState(onboarding);
   const aiConfirmed = isAiSetupConfirmed(onboarding);
   const showChoice = Boolean(
     onboarding && !closed && !setupPath && !forceManual,
   );
+
+  // Completed orgs leave the wizard only when /auth/me agrees — otherwise
+  // a status/auth race ping-pongs /onboarding ↔ /dashboard.
+  useEffect(() => {
+    if (loading || fetching || !onboarding || !closed || !user) return;
+    if (leftCompletedRef.current) return;
+    if (!isOnboardingComplete(user)) {
+      void refresh();
+      return;
+    }
+    leftCompletedRef.current = true;
+    router.replace("/dashboard");
+  }, [loading, fetching, onboarding, closed, user, refresh, router]);
 
   // Resume AI path when draft not yet confirmed.
   useEffect(() => {

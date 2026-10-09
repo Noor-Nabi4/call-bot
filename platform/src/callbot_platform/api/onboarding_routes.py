@@ -32,9 +32,13 @@ def _http(exc: OnboardingError) -> HTTPException:
     status = 400
     if exc.code in {"not_found"}:
         status = 404
-    elif exc.code in {"onboarding_closed", "invalid_transition"}:
+    elif exc.code in {
+        "onboarding_closed",
+        "invalid_transition",
+        "mandatory_onboarding",
+    }:
         status = 409
-    elif exc.code == "step_required":
+    elif exc.code in {"step_required", "invalid_setup_path"}:
         status = 400
     return HTTPException(
         status_code=status,

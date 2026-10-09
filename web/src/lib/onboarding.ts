@@ -42,6 +42,10 @@ export const ONBOARDING_AI_PATH = "/onboarding/ai-setup";
 export const SETUP_PATH_KEY = "setup_path";
 export type OnboardingSetupPath = "ai" | "manual";
 
+/**
+ * Authoritative completion for routing. Matches backend gate:
+ * only COMPLETED satisfies mandatory onboarding (SKIPPED does not).
+ */
 export function isOnboardingComplete(
   user: Pick<OpsUser, "onboarding_complete" | "onboarding_status"> | null | undefined,
 ): boolean {
@@ -49,14 +53,13 @@ export function isOnboardingComplete(
   if (typeof user.onboarding_complete === "boolean") {
     return user.onboarding_complete;
   }
-  const status = user.onboarding_status;
-  return status === "COMPLETED" || status === "SKIPPED";
+  return user.onboarding_status === "COMPLETED";
 }
 
 export function setupPathFromState(
   state: Pick<OnboardingState, "state_data" | "status"> | null | undefined,
 ): OnboardingSetupPath | null {
-  if (!state || state.status === "COMPLETED" || state.status === "SKIPPED") {
+  if (!state || state.status === "COMPLETED") {
     return null;
   }
   const raw = state.state_data?.[SETUP_PATH_KEY];
@@ -78,6 +81,6 @@ export function progressLabel(state: OnboardingState): string {
 }
 
 export function resumeTarget(state: OnboardingState): string | null {
-  if (state.status === "COMPLETED" || state.status === "SKIPPED") return null;
+  if (state.status === "COMPLETED") return null;
   return state.resume_step ?? state.current_step;
 }

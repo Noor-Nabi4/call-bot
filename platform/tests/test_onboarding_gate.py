@@ -21,12 +21,14 @@ from callbot_platform.onboarding import (
     STATUS_COMPLETED,
     STATUS_IN_PROGRESS,
     STATUS_NOT_STARTED,
+    STATUS_SKIPPED,
     OnboardingService,
 )
 from callbot_platform.onboarding.access import (
     is_onboarding_satisfied,
     mark_legacy_tenant_onboarding_complete,
 )
+from callbot_platform.onboarding.errors import OnboardingError
 from callbot_platform.onboarding.repos import OnboardingRepository
 from callbot_platform.onboarding.steps import REQUIRED_STEPS
 from callbot_platform.rbac.seed import ensure_system_roles_for_tenant
@@ -225,6 +227,51 @@ def test_billing_allowed_while_incomplete(
         get_settings.cache_clear()
 
 
+def test_team_routes_blocked_while_incomplete(
+    session: Session, settings: Settings
+) -> None:
+    """Org profile is exempt; team membership mutations stay gated."""
+    tenant = Tenant(name="Team Gate", slug=f"teamg-{uuid.uuid4().hex[:8]}")
+    session.add(tenant)
+    session.flush()
+    OnboardingRepository(session).ensure(tenant.id)
+    client, _user = _admin_client(session, settings, tenant)
+    try:
+        members = client.get("/api/admin/organization/members")
+        assert members.status_code == 403
+        assert members.json()["detail"]["code"] == "ONBOARDING_REQUIRED"
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
+
+
+def test_signup_queues_billing_without_completing_onboarding(
+    session: Session, settings: Settings
+) -> None:
+    """Signup may queue Stripe provisioning; onboarding stays NOT_STARTED."""
+    svc = BillingService(session, settings)
+    with patch.object(svc, "_require_stripe"), patch(
+        "callbot_platform.async_jobs.service.AsyncJobService.enqueue",
+        return_value=MagicMock(id=uuid.uuid4()),
+    ):
+        result = svc.signup(
+            business_name="Checkout Co",
+            slug=f"chk-{uuid.uuid4().hex[:8]}",
+            timezone="UTC",
+            name="Owner",
+            email=f"owner-{uuid.uuid4().hex[:8]}@chk.test",
+            password="password12345",
+            plan_key="starter",
+        )
+    assert result.get("checkout_url") is None
+    assert result.get("provisioning") == "queued"
+    tenant_id = uuid.UUID(str(result["tenant_id"]))
+    row = OnboardingRepository(session).get(tenant_id)
+    assert row is not None
+    assert row.status == STATUS_NOT_STARTED
+    assert is_onboarding_satisfied(session, tenant_id) is False
+
+
 def test_signup_slug_taken_does_not_create_orphan(
     session: Session, settings: Settings, tenant: Tenant
 ) -> None:
@@ -274,3 +321,81 @@ def test_setup_path_persists_without_completing(
     finally:
         app.dependency_overrides.clear()
         get_settings.cache_clear()
+
+
+def test_skipped_does_not_satisfy_gate(
+    session: Session, settings: Settings
+) -> None:
+    tenant = Tenant(name="Skipped Co", slug=f"skip-{uuid.uuid4().hex[:8]}")
+    session.add(tenant)
+    session.flush()
+    row = OnboardingRepository(session).ensure(tenant.id)
+    row.status = STATUS_SKIPPED
+    OnboardingRepository(session).touch(row)
+    assert is_onboarding_satisfied(session, tenant.id) is False
+
+    client, _user = _admin_client(session, settings, tenant)
+    try:
+        res = client.get("/api/admin/organization/roles")
+        assert res.status_code == 403
+        assert res.json()["detail"]["code"] == "ONBOARDING_REQUIRED"
+        me = client.get("/auth/me")
+        assert me.json()["user"]["onboarding_complete"] is False
+        assert me.json()["user"]["onboarding_status"] == STATUS_SKIPPED
+
+        skip = client.post("/api/admin/organization/onboarding/skip")
+        assert skip.status_code == 409
+        assert skip.json()["detail"]["code"] == "mandatory_onboarding"
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
+
+
+def test_client_cannot_patch_status_to_completed(
+    session: Session, settings: Settings
+) -> None:
+    tenant = Tenant(name="Hack Co", slug=f"hack-{uuid.uuid4().hex[:8]}")
+    session.add(tenant)
+    session.flush()
+    OnboardingRepository(session).ensure(tenant.id)
+    client, _user = _admin_client(session, settings, tenant)
+    try:
+        # Patch schema forbids status; extra fields rejected.
+        res = client.patch(
+            "/api/admin/organization/onboarding",
+            json={"status": "COMPLETED", "state_data": {"setup_path": "manual"}},
+        )
+        assert res.status_code == 422
+        assert is_onboarding_satisfied(session, tenant.id) is False
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
+
+
+def test_invalid_setup_path_rejected(session: Session, tenant: Tenant) -> None:
+    # Use incomplete tenant via local row (conftest tenant is COMPLETED).
+    incomplete = Tenant(name="Bad Path", slug=f"badpath-{uuid.uuid4().hex[:8]}")
+    session.add(incomplete)
+    session.flush()
+    OnboardingRepository(session).ensure(incomplete.id)
+    with pytest.raises(OnboardingError) as exc:
+        OnboardingService(session).patch(
+            incomplete.id,
+            actor="a@t.test",
+            state_data={"setup_path": "magic"},
+        )
+    assert exc.value.code == "invalid_setup_path"
+
+
+def test_0057_backfill_sql_targets_missing_rows_only() -> None:
+    """Static check: migration only INSERT … WHERE NOT EXISTS onboarding row."""
+    from pathlib import Path
+
+    sql = (
+        Path(__file__).resolve().parents[1]
+        / "src/alembic/versions/0057_onboarding_mandatory_backfill.py"
+    ).read_text(encoding="utf-8")
+    assert "INSERT INTO organization_onboarding" in sql
+    assert "WHERE NOT EXISTS" in sql
+    assert "'COMPLETED'" in sql
+    assert "UPDATE organization_onboarding" not in sql

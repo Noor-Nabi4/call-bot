@@ -91,10 +91,20 @@ class OnboardingService:
             for key, value in state_data.items():
                 if not isinstance(key, str) or not key.strip():
                     continue
+                cleaned_key = key.strip()
+                if (
+                    cleaned_key == "setup_path"
+                    and value is not None
+                    and value not in {"ai", "manual"}
+                ):
+                    raise OnboardingError(
+                        "invalid_setup_path",
+                        "setup_path must be 'ai' or 'manual'",
+                    )
                 if value is None:
-                    merged.pop(key.strip(), None)
+                    merged.pop(cleaned_key, None)
                 else:
-                    merged[key.strip()] = value
+                    merged[cleaned_key] = value
             row.state_data = merged
             changed.append("state_data")
 
@@ -140,15 +150,6 @@ class OnboardingService:
         self._mark_started(row)
         self._advance_current(row, key)
         self._recompute(row)
-        # Auto-complete when all required steps are done.
-        # Callers that finalize via mark_completed() should pass
-        # allow_auto_complete=False to avoid double CRM setup.
-        if allow_auto_complete and REQUIRED_STEPS.issubset(set(row.completed_steps)):
-            self._require_business_ready(tenant_id)
-            self._run_crm_setup(tenant_id, actor=actor)
-            row.status = STATUS_COMPLETED
-            if row.completed_at is None:
-                row.completed_at = datetime.now(UTC)
         self._repo.touch(row)
         write_audit(
             self._session,
@@ -157,6 +158,12 @@ class OnboardingService:
             action="onboarding_step_completed",
             resource_ids={"onboarding_id": str(row.id), "step": key},
         )
+        # Single completion path: mark_completed owns CRM + COMPLETED.
+        # Callers that finalize via mark_completed() pass allow_auto_complete=False.
+        if allow_auto_complete and REQUIRED_STEPS.issubset(
+            set(_as_str_list(row.completed_steps))
+        ):
+            return self.mark_completed(tenant_id, actor=actor)
         return self._serialize(row)
 
     def skip_step(self, tenant_id: UUID, step: str, *, actor: str) -> dict[str, Any]:
@@ -248,23 +255,15 @@ class OnboardingService:
             raise OnboardingError(exc.code, str(exc)) from exc
 
     def mark_skipped(self, tenant_id: UUID, *, actor: str) -> dict[str, Any]:
-        """Skip the entire onboarding wizard (org chooses to configure later)."""
-        row = self._repo.ensure(tenant_id, for_update=True)
-        if row.status == STATUS_SKIPPED:
-            return self._serialize(row)
-        assert_can_transition(row.status, STATUS_SKIPPED)
-        row.status = STATUS_SKIPPED
-        row.completed_at = datetime.now(UTC)
-        self._recompute(row)
-        self._repo.touch(row)
-        write_audit(
-            self._session,
-            tenant_id=tenant_id,
-            actor=actor,
-            action="onboarding_skipped",
-            resource_ids={"onboarding_id": str(row.id)},
+        """Rejected under mandatory onboarding — SKIPPED does not grant access.
+
+        Historical SKIPPED rows remain readable; clients must resume and complete.
+        """
+        del tenant_id, actor  # API-compatible signature; never mutates state.
+        raise OnboardingError(
+            "mandatory_onboarding",
+            "Organization onboarding is mandatory and cannot be skipped",
         )
-        return self._serialize(row)
 
     def _mark_started(self, row: Any) -> None:
         if row.status == STATUS_NOT_STARTED:
@@ -272,6 +271,15 @@ class OnboardingService:
             row.started_at = datetime.now(UTC)
             if row.current_step is None:
                 row.current_step = STEP_ORDER[0]
+        elif row.status == STATUS_SKIPPED:
+            # Resume previously skipped orgs so they can finish mandatory setup.
+            row.status = STATUS_IN_PROGRESS
+            if row.started_at is None:
+                row.started_at = datetime.now(UTC)
+            if row.current_step is None:
+                pending = self._pending_steps(row)
+                row.current_step = pending[0] if pending else STEP_ORDER[0]
+            row.completed_at = None
 
     def _advance_current(self, row: Any, settled_step: str) -> None:
         pending = self._pending_steps(row)
@@ -329,7 +337,10 @@ class OnboardingService:
         if resume_step not in STEP_BY_KEY or resume_step in settled:
             resume_step = pending[0] if pending else None
 
-        can_resume = row.status == STATUS_IN_PROGRESS and resume_step is not None
+        can_resume = (
+            row.status in {STATUS_IN_PROGRESS, STATUS_SKIPPED}
+            and resume_step is not None
+        )
         total = len(STEP_ORDER)
         settled_count = sum(1 for k in STEP_ORDER if k in settled)
 

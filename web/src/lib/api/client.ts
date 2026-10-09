@@ -60,6 +60,12 @@ async function handleApiResponse<T>(res: Response): Promise<T> {
         window.location.assign("/settings/billing");
       }
     }
+    if (code === "ONBOARDING_REQUIRED" && typeof window !== "undefined") {
+      const pathNow = window.location.pathname;
+      if (!pathNow.startsWith("/onboarding")) {
+        window.location.assign("/onboarding");
+      }
+    }
     throw new ApiError(safeUserError(message, errors.generic), res.status, code);
   }
   if (res.status === 204) return undefined as T;

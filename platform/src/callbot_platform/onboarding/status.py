@@ -19,16 +19,19 @@ VALID_STATUSES = frozenset(
 )
 
 # Allowed explicit status targets from API (not every transition).
+# SKIPPED may resume into IN_PROGRESS or complete via mark_completed;
+# new transitions *into* SKIPPED are rejected by the service (mandatory policy).
 _ALLOWED_EXPLICIT = {
-    STATUS_NOT_STARTED: frozenset({STATUS_IN_PROGRESS, STATUS_SKIPPED}),
-    STATUS_IN_PROGRESS: frozenset({STATUS_COMPLETED, STATUS_SKIPPED}),
+    STATUS_NOT_STARTED: frozenset({STATUS_IN_PROGRESS, STATUS_COMPLETED}),
+    STATUS_IN_PROGRESS: frozenset({STATUS_COMPLETED}),
     STATUS_COMPLETED: frozenset(),
-    STATUS_SKIPPED: frozenset(),
+    STATUS_SKIPPED: frozenset({STATUS_IN_PROGRESS, STATUS_COMPLETED}),
 }
 
 
 def assert_can_mutate(status: str) -> None:
-    if status in {STATUS_COMPLETED, STATUS_SKIPPED}:
+    """Only COMPLETED is closed. SKIPPED may resume under mandatory onboarding."""
+    if status == STATUS_COMPLETED:
         raise OnboardingError(
             "onboarding_closed",
             "Onboarding is closed and cannot be modified",

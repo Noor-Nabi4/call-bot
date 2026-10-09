@@ -177,13 +177,35 @@ def test_completion_requires_mandatory_steps(session: Session, tenant: Tenant) -
     assert again["status"] == STATUS_COMPLETED
 
 
-def test_skip_entire_onboarding(session: Session, tenant: Tenant) -> None:
+def test_skip_entire_onboarding_rejected(session: Session, tenant: Tenant) -> None:
+    """Mandatory onboarding: entire-wizard skip is not allowed."""
     svc = OnboardingService(session)
-    state = svc.mark_skipped(tenant.id, actor="a@t.test")
-    assert state["status"] == STATUS_SKIPPED
     with pytest.raises(OnboardingError) as exc:
-        svc.complete_step(tenant.id, "industry", actor="a@t.test")
-    assert exc.value.code == "onboarding_closed"
+        svc.mark_skipped(tenant.id, actor="a@t.test")
+    assert exc.value.code == "mandatory_onboarding"
+    assert svc.get(tenant.id)["status"] == STATUS_NOT_STARTED
+
+
+def test_skipped_status_can_resume(session: Session, tenant: Tenant) -> None:
+    """Historical SKIPPED rows may resume; they do not grant app access."""
+    from callbot_platform.onboarding.access import is_onboarding_satisfied
+    from callbot_platform.onboarding.repos import OnboardingRepository
+
+    repo = OnboardingRepository(session)
+    row = repo.ensure(tenant.id)
+    row.status = STATUS_SKIPPED
+    repo.touch(row)
+    assert is_onboarding_satisfied(session, tenant.id) is False
+
+    svc = OnboardingService(session)
+    patched = svc.patch(
+        tenant.id,
+        actor="a@t.test",
+        state_data={"setup_path": "manual"},
+        current_step="business_profile",
+    )
+    assert patched["status"] == STATUS_IN_PROGRESS
+    assert patched["state_data"]["setup_path"] == "manual"
 
 
 def test_api_session_scoped_and_rbac(

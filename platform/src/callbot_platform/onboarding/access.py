@@ -8,13 +8,11 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from callbot_platform.onboarding.repos import OnboardingRepository
-from callbot_platform.onboarding.status import (
-    STATUS_COMPLETED,
-    STATUS_SKIPPED,
-)
+from callbot_platform.onboarding.status import STATUS_COMPLETED
 
-# Terminal statuses that allow normal application access.
-ONBOARDING_SATISFIED_STATUSES = frozenset({STATUS_COMPLETED, STATUS_SKIPPED})
+# Mandatory onboarding: only COMPLETED satisfies the application gate.
+# SKIPPED is retained as a historical status but does not grant access.
+ONBOARDING_SATISFIED_STATUSES = frozenset({STATUS_COMPLETED})
 
 ONBOARDING_REQUIRED_DETAIL = {
     "code": "ONBOARDING_REQUIRED",
@@ -55,7 +53,7 @@ def mark_legacy_tenant_onboarding_complete(
     row = repo.get(tenant_id)
     if row is None:
         row = repo.ensure(tenant_id)
-    if row.status in ONBOARDING_SATISFIED_STATUSES:
+    if row.status == STATUS_COMPLETED:
         return
     if row.status == STATUS_NOT_STARTED or row.started_at is None:
         row.started_at = datetime.now(UTC)

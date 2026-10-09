@@ -98,14 +98,35 @@ describe("onboarding helpers", () => {
     );
   });
 
-  it("incomplete status is not complete; COMPLETED/SKIPPED are", () => {
+  it("only COMPLETED satisfies mandatory onboarding (not SKIPPED)", () => {
     assert.equal(
       isOnboardingComplete(user({ onboarding_status: "NOT_STARTED" })),
       false,
     );
     assert.equal(
+      isOnboardingComplete(user({ onboarding_status: "IN_PROGRESS" })),
+      false,
+    );
+    assert.equal(
+      isOnboardingComplete(user({ onboarding_status: "SKIPPED" })),
+      false,
+    );
+    assert.equal(
       isOnboardingComplete(user({ onboarding_status: "COMPLETED" })),
       true,
+    );
+    assert.equal(
+      isOnboardingComplete(
+        user({ onboarding_complete: false, onboarding_status: "SKIPPED" }),
+      ),
+      false,
+    );
+  });
+
+  it("resumeTarget allows SKIPPED orgs to resume", () => {
+    assert.equal(
+      resumeTarget(state({ status: "SKIPPED", resume_step: "industry" })),
+      "industry",
     );
   });
 });

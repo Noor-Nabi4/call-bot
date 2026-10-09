@@ -99,7 +99,7 @@ export function useAuth(opts?: {
     pathname,
   ]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<OpsUser | null> => {
     try {
       const u = await load();
       if (
@@ -110,8 +110,10 @@ export function useAuth(opts?: {
       ) {
         router.replace(ONBOARDING_PATH);
       }
+      return u;
     } catch {
       router.replace(redirectTo || "/login");
+      return null;
     }
   }, [
     load,
