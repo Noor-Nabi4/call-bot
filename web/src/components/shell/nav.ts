@@ -52,6 +52,20 @@ import {
   isTechnicianShell,
 } from "@/lib/permissions";
 import type { CrmNavItem } from "@/lib/crm/use-crm-configuration";
+import {
+  AI_LEAVES,
+  ADMIN_LEAVES,
+  CRM_LEAVES,
+  NAV_SECTION_LABELS,
+  NAV_SECTION_ORDER,
+  WORK_LEAVES,
+  defaultOrgLeaves,
+  sectionsFromLeaves,
+  type NavLeaf,
+  type NavSectionId,
+} from "@/lib/nav-model";
+
+export type { NavSectionId };
 
 export type NavItem = {
   href: string;
@@ -59,7 +73,15 @@ export type NavItem = {
   icon: LucideIcon;
   /** Effective permission key required to show this item (UX only). */
   permission?: string;
-  section?: "work" | "ai" | "admin";
+  /** Visual grouping only — never used as authorization. */
+  section?: NavSectionId;
+};
+
+export type NavSection = {
+  id: NavSectionId;
+  label: string;
+  icon: LucideIcon;
+  items: NavItem[];
 };
 
 const ICON_BY_NAME: Record<string, LucideIcon> = {
@@ -81,16 +103,44 @@ const ICON_BY_NAME: Record<string, LucideIcon> = {
   cpu: Cpu,
   badge: Badge,
   phone: Phone,
+  "phone-call": PhoneCall,
+  "phone-forwarded": PhoneForwarded,
   "message-square": MessageSquare,
   "check-square": CheckSquare,
   folder: Folder,
   layers: Layers,
   map: LayoutGrid,
+  "layout-grid": LayoutGrid,
+  "layout-dashboard": LayoutDashboard,
   "hard-hat": HardHat,
   home: Home,
   "rotate-ccw": RotateCcw,
   percent: Percent,
   box: Box,
+  bot: Bot,
+  store: Store,
+  "book-open": BookOpen,
+  shield: Shield,
+  "list-ordered": ListOrdered,
+  chart: ChartNoAxesCombined,
+  settings: Settings,
+  "clipboard-list": ClipboardList,
+  sparkles: Sparkles,
+  zap: Zap,
+  "key-round": KeyRound,
+  blocks: Blocks,
+  palette: Palette,
+  "circle-dollar": CircleDollarSign,
+};
+
+export const NAV_SECTION_META: Record<
+  NavSectionId,
+  { label: string; icon: LucideIcon }
+> = {
+  work: { label: NAV_SECTION_LABELS.work, icon: LayoutDashboard },
+  crm: { label: NAV_SECTION_LABELS.crm, icon: BriefcaseBusiness },
+  ai: { label: NAV_SECTION_LABELS.ai, icon: Bot },
+  admin: { label: NAV_SECTION_LABELS.admin, icon: Settings },
 };
 
 export function iconForCrm(name?: string | null): LucideIcon {
@@ -98,291 +148,15 @@ export function iconForCrm(name?: string | null): LucideIcon {
   return ICON_BY_NAME[name] || Box;
 }
 
-/** Non-CRM workspace items that stay static. */
-const STATIC_WORK_NAV: NavItem[] = [
-  {
-    href: "/dashboard",
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    section: "work",
-  },
-  {
-    href: "/live",
-    label: "Live",
-    icon: PhoneCall,
-    permission: "calls.read",
-    section: "work",
-  },
-  {
-    href: "/crm/scheduling",
-    label: "Scheduling",
-    icon: CalendarDays,
-    permission: "appointments.read",
-    section: "work",
-  },
-  {
-    href: "/crm/dispatch",
-    label: "Dispatch",
-    icon: Truck,
-    permission: "dispatch.read",
-    section: "work",
-  },
-  {
-    href: "/supervisor",
-    label: "Supervisor",
-    icon: Shield,
-    permission: "handoff.read",
-    section: "work",
-  },
-  {
-    href: "/queue",
-    label: "Queue",
-    icon: ListOrdered,
-    permission: "handoff.read",
-    section: "work",
-  },
-  {
-    href: "/analytics",
-    label: "Analytics",
-    icon: ChartNoAxesCombined,
-    permission: "analytics.read",
-    section: "work",
-  },
-];
-
-/** Legacy hardcoded CRM paths — used only when effective config is unavailable. */
-const FALLBACK_CRM_NAV: NavItem[] = [
-  {
-    href: "/customers",
-    label: "Customers",
-    icon: Users,
-    permission: "customers.read",
-    section: "work",
-  },
-  {
-    href: "/crm/leads",
-    label: "Leads",
-    icon: UserPlus,
-    permission: "leads.read",
-    section: "work",
-  },
-  {
-    href: "/crm/products",
-    label: "Products",
-    icon: Package,
-    permission: "products.read",
-    section: "work",
-  },
-  {
-    href: "/crm/services",
-    label: "Services",
-    icon: Wrench,
-    permission: "services.read",
-    section: "work",
-  },
-  {
-    href: "/crm/orders",
-    label: "Orders",
-    icon: ShoppingCart,
-    permission: "orders.read",
-    section: "work",
-  },
-  {
-    href: "/crm/jobs",
-    label: "Jobs",
-    icon: BriefcaseBusiness,
-    permission: "jobs.read",
-    section: "work",
-  },
-  {
-    href: "/crm/appointments",
-    label: "Appointments",
-    icon: CalendarDays,
-    permission: "appointments.read",
-    section: "work",
-  },
-  {
-    href: "/calls",
-    label: "Calls",
-    icon: Phone,
-    permission: "calls.read",
-    section: "work",
-  },
-  {
-    href: "/crm/invoices",
-    label: "Invoices",
-    icon: Receipt,
-    permission: "invoices.read",
-    section: "work",
-  },
-  {
-    href: "/dispatch",
-    label: "Jobs board",
-    icon: LayoutGrid,
-    permission: "jobs.read",
-    section: "work",
-  },
-  {
-    href: "/crm/handoffs",
-    label: "Handoffs queue",
-    icon: PhoneForwarded,
-    permission: "handoffs.read",
-    section: "work",
-  },
-];
-
-const AI_NAV: NavItem[] = [
-  {
-    href: "/playground",
-    label: "Playground",
-    icon: PhoneCall,
-    permission: "ai.configure",
-    section: "ai",
-  },
-  {
-    href: "/agents",
-    label: "Agents",
-    icon: Bot,
-    permission: "agents.manage",
-    section: "ai",
-  },
-  {
-    href: "/marketplace",
-    label: "Marketplace",
-    icon: Store,
-    permission: "agents.manage",
-    section: "ai",
-  },
-  {
-    href: "/phones",
-    label: "Phones",
-    icon: Phone,
-    permission: "phones.manage",
-    section: "ai",
-  },
-  {
-    href: "/knowledge",
-    label: "Knowledge",
-    icon: BookOpen,
-    permission: "knowledge.read",
-    section: "ai",
-  },
-  {
-    href: "/handoff",
-    label: "Handoff settings",
-    icon: PhoneForwarded,
-    permission: "handoff.read",
-    section: "ai",
-  },
-  {
-    href: "/crm/handoffs",
-    label: "Handoffs queue",
-    icon: Handshake,
-    permission: "handoffs.read",
-    section: "ai",
-  },
-  {
-    href: "/crm/communication-templates",
-    label: "Comm templates",
-    icon: MessageSquare,
-    permission: "communication_templates.read",
-    section: "ai",
-  },
-];
-
-const ADMIN_NAV: NavItem[] = [
-  {
-    href: "/settings",
-    label: "Settings",
-    icon: Settings,
-    permission: "organization.read",
-    section: "admin",
-  },
-  {
-    href: "/settings/crm",
-    label: "CRM modules",
-    icon: LayoutGrid,
-    permission: "crm.configure",
-    section: "admin",
-  },
-  {
-    href: "/onboarding",
-    label: "Onboarding",
-    icon: ClipboardList,
-    permission: "organization.read",
-    section: "admin",
-  },
-  {
-    href: "/onboarding/ai-setup",
-    label: "AI setup",
-    icon: Sparkles,
-    permission: "business_setup.read",
-    section: "admin",
-  },
-  {
-    href: "/settings/team",
-    label: "Team",
-    icon: Users,
-    permission: "team.read",
-    section: "admin",
-  },
-  {
-    href: "/settings/roles",
-    label: "Roles",
-    icon: Shield,
-    permission: "roles.read",
-    section: "admin",
-  },
-  {
-    href: "/settings/billing",
-    label: "Billing",
-    icon: CreditCard,
-    permission: "billing.read",
-    section: "admin",
-  },
-  {
-    href: "/settings/usage",
-    label: "Usage",
-    icon: CircleDollarSign,
-    permission: "billing.read",
-    section: "admin",
-  },
-  {
-    href: "/settings/automations",
-    label: "Automations",
-    icon: Zap,
-    permission: "automations.read",
-    section: "admin",
-  },
-  {
-    href: "/settings/api-keys",
-    label: "API keys",
-    icon: KeyRound,
-    permission: "api_keys.manage",
-    section: "admin",
-  },
-  {
-    href: "/settings/integrations",
-    label: "Integrations",
-    icon: Blocks,
-    permission: "integrations.read",
-    section: "admin",
-  },
-  {
-    href: "/settings/branding",
-    label: "Branding",
-    icon: Palette,
-    permission: "branding.manage",
-    section: "admin",
-  },
-  {
-    href: "/tech",
-    label: "Tech",
-    icon: Wrench,
-    permission: "jobs.read",
-    section: "admin",
-  },
-];
+function leafToItem(leaf: NavLeaf): NavItem {
+  return {
+    href: leaf.href,
+    label: leaf.label,
+    icon: ICON_BY_NAME[leaf.icon] || Box,
+    permission: leaf.permission,
+    section: leaf.section,
+  };
+}
 
 const TECH_NAV: NavItem[] = [
   { href: "/tech", label: "Jobs", icon: Briefcase, permission: "jobs.read" },
@@ -399,12 +173,36 @@ export function crmNavToItems(items: CrmNavItem[]): NavItem[] {
       label: item.label,
       icon: iconForCrm(item.icon),
       permission: item.permission || undefined,
-      section: "work",
+      section: "crm",
     });
   }
   return out;
 }
 
+function orgLeaves(crmNavigation?: CrmNavItem[] | null): NavLeaf[] {
+  if (crmNavigation && crmNavigation.length > 0) {
+    const crmLeaves: NavLeaf[] = crmNavigation
+      .filter((item) => Boolean(item.href))
+      .map((item) => ({
+        href: item.href,
+        label: item.label,
+        icon: item.icon || "box",
+        permission: item.permission || undefined,
+        section: "crm" as const,
+      }));
+    const seen = new Set<string>();
+    const out: NavLeaf[] = [];
+    for (const item of [...WORK_LEAVES, ...crmLeaves, ...AI_LEAVES, ...ADMIN_LEAVES]) {
+      if (seen.has(item.href)) continue;
+      seen.add(item.href);
+      out.push(item);
+    }
+    return out;
+  }
+  return defaultOrgLeaves();
+}
+
+/** Flat permission-filtered nav (command palette, tech shell, etc.). */
 export function navFor(
   user: OpsUser,
   crmNavigation?: CrmNavItem[] | null,
@@ -412,23 +210,64 @@ export function navFor(
   if (isTechnicianShell(user)) {
     return filterNavByPermission(user, TECH_NAV);
   }
-  const crmItems =
-    crmNavigation && crmNavigation.length > 0
-      ? crmNavToItems(crmNavigation)
-      : FALLBACK_CRM_NAV;
-  const seen = new Set<string>();
-  const merged: NavItem[] = [];
-  for (const item of [
-    ...STATIC_WORK_NAV,
-    ...crmItems,
-    ...AI_NAV,
-    ...ADMIN_NAV,
-  ]) {
-    if (seen.has(item.href)) continue;
-    seen.add(item.href);
-    merged.push(item);
+  return filterNavByPermission(user, orgLeaves(crmNavigation).map(leafToItem));
+}
+
+/**
+ * Group already-filtered items into sections.
+ * Sections are visual only — empty sections are dropped.
+ */
+export function groupNavIntoSections(items: NavItem[]): NavSection[] {
+  return NAV_SECTION_ORDER.map((id) => {
+    const meta = NAV_SECTION_META[id];
+    return {
+      id,
+      label: meta.label,
+      icon: meta.icon,
+      items: items.filter((item) => (item.section || "work") === id),
+    };
+  }).filter((section) => section.items.length > 0);
+}
+
+/**
+ * Section-wise nav: filter EACH page by permission, then drop empty sections.
+ * Never hide an entire section because one child permission is missing.
+ */
+export function navSectionsFor(
+  user: OpsUser,
+  crmNavigation?: CrmNavItem[] | null,
+): NavSection[] {
+  if (isTechnicianShell(user)) {
+    const items = filterNavByPermission(user, TECH_NAV);
+    if (!items.length) return [];
+    return [
+      {
+        id: "work",
+        label: "Work",
+        icon: Briefcase,
+        items,
+      },
+    ];
   }
-  return filterNavByPermission(user, merged);
+  const sections = sectionsFromLeaves(user, orgLeaves(crmNavigation));
+  return sections.map((section) => ({
+    id: section.id,
+    label: section.label,
+    icon: NAV_SECTION_META[section.id].icon,
+    items: section.items.map(leafToItem),
+  }));
+}
+
+export function sectionContainingPath(
+  sections: NavSection[],
+  pathname: string,
+): NavSectionId | null {
+  for (const section of sections) {
+    if (section.items.some((item) => isActivePath(pathname, item.href))) {
+      return section.id;
+    }
+  }
+  return null;
 }
 
 export function isActivePath(pathname: string, href: string): boolean {
@@ -458,3 +297,6 @@ export function isActivePath(pathname: string, href: string): boolean {
   }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
+
+// Re-export leaf catalogs for tests / diagnostics (icons attached in shell).
+export { CRM_LEAVES, WORK_LEAVES, AI_LEAVES, ADMIN_LEAVES };

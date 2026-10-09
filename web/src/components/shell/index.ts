@@ -1,2 +1,9 @@
 export { AppShell } from "./app-shell";
-export { navFor, type NavItem } from "./nav";
+export {
+  groupNavIntoSections,
+  navFor,
+  navSectionsFor,
+  type NavItem,
+  type NavSection,
+  type NavSectionId,
+} from "./nav";
