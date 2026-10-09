@@ -21,8 +21,14 @@ from callbot_platform.security.session import VALID_ROLES
 
 router = APIRouter(prefix="/api/admin/organization", tags=["organization"])
 
-_require_org_read = require_permission("organization.read")
-_require_org_update = require_permission("organization.update")
+# Org profile read/update is used during mandatory onboarding.
+_require_org_read = require_permission(
+    "organization.read", allow_incomplete_onboarding=True
+)
+_require_org_update = require_permission(
+    "organization.update", allow_incomplete_onboarding=True
+)
+# Team management stays behind completed onboarding.
 _require_team_read = require_entitled_permission("team.read")
 _require_team_manage = require_entitled_permission("team.manage")
 

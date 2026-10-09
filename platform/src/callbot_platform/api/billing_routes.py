@@ -23,8 +23,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
-_require_billing_read = require_permission("billing.read")
-_require_billing_manage = require_permission("billing.manage")
+# Billing must remain reachable so signup checkout can finish before onboarding.
+_require_billing_read = require_permission(
+    "billing.read", allow_incomplete_onboarding=True
+)
+_require_billing_manage = require_permission(
+    "billing.manage", allow_incomplete_onboarding=True
+)
 
 
 class CheckoutBody(BaseModel):

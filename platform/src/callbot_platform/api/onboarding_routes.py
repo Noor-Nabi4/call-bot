@@ -13,8 +13,12 @@ from callbot_platform.onboarding import OnboardingError, OnboardingService
 
 router = APIRouter(prefix="/api/admin/organization/onboarding", tags=["onboarding"])
 
-_require_org_read = require_permission("organization.read")
-_require_org_update = require_permission("organization.update")
+_require_org_read = require_permission(
+    "organization.read", allow_incomplete_onboarding=True
+)
+_require_org_update = require_permission(
+    "organization.update", allow_incomplete_onboarding=True
+)
 
 
 class OnboardingPatchBody(BaseModel):

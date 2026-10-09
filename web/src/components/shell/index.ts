@@ -1,4 +1,5 @@
 export { AppShell } from "./app-shell";
+export { OnboardingShell } from "./onboarding-shell";
 export {
   groupNavIntoSections,
   navFor,

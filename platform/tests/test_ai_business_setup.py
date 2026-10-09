@@ -352,6 +352,54 @@ def test_cross_tenant_state_isolation(
         app.dependency_overrides.clear()
 
 
+def test_analyze_does_not_complete_onboarding(
+    session: Session, session_settings: Settings
+) -> None:
+    """AI draft generation must not satisfy the mandatory onboarding gate."""
+    from callbot_platform.db.models import OrganizationOnboarding
+    from callbot_platform.onboarding.status import STATUS_COMPLETED, STATUS_NOT_STARTED
+
+    tenant = Tenant(name="Draft Only", slug=f"draft-{uuid.uuid4().hex[:8]}")
+    session.add(tenant)
+    session.flush()
+    # Explicit incomplete row (override any legacy completed assumption).
+    session.add(
+        OrganizationOnboarding(
+            tenant_id=tenant.id,
+            status=STATUS_NOT_STARTED,
+            completed_steps=[],
+            skipped_steps=[],
+            progress_percent=0,
+            state_data={},
+        )
+    )
+    session.flush()
+    admin = _admin(session, tenant, email=f"draft-{uuid.uuid4().hex[:8]}@ai29.test")
+    token = _token_for(session_settings, admin, tenant)
+    client = _client_for(session, session_settings, token=token)
+    try:
+        analyzed = client.post(
+            "/api/admin/business-setup/analyze",
+            json={
+                "description": (
+                    "We are an HVAC company in Texas. We install and repair "
+                    "residential AC systems and offer membership maintenance plans."
+                )
+            },
+        )
+        assert analyzed.status_code == 200, analyzed.text
+        assert analyzed.json()["setup"]["status"] in {"REVIEW", "CLARIFY"}
+
+        from callbot_platform.onboarding import OnboardingService
+
+        ob = OnboardingService(session).get(tenant.id)
+        assert ob["status"] != STATUS_COMPLETED
+        assert "ai_business_setup" in (ob.get("state_data") or {})
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
+
+
 def test_confirm_request_schema_roundtrip() -> None:
     rec = build_heuristic_recommendation(
         "Plumbing company offering drain cleaning and memberships."

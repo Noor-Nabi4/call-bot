@@ -1,13 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AppShell } from "@/components/shell";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { OnboardingChoice } from "@/components/onboarding/onboarding-choice";
+import { OnboardingShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
 import { errors } from "@/lib/ops-copy";
 import { safeUserError } from "@/lib/safe-error";
 import {
+  isAiSetupConfirmed,
+  ONBOARDING_AI_PATH,
   progressLabel,
   resumeTarget,
+  SETUP_PATH_KEY,
+  setupPathFromState,
+  type OnboardingSetupPath,
   type OnboardingState,
 } from "@/lib/onboarding";
 import {
@@ -82,8 +89,26 @@ const WIZARD_STEPS = [
 ] as const;
 
 export default function OnboardingPage() {
-  const { user, loading, forbidden } = useAuth({
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6">
+          <LoadingSkeleton rows={6} />
+        </div>
+      }
+    >
+      <OnboardingPageInner />
+    </Suspense>
+  );
+}
+
+function OnboardingPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const forceManual = searchParams.get("manual") === "1";
+  const { user, loading, forbidden, refresh } = useAuth({
     permission: "organization.read",
+    allowIncompleteOnboarding: true,
   });
   const canUpdate = Boolean(
     user?.permissions?.some((p) => p.key === "organization.update"),
@@ -100,6 +125,7 @@ export default function OnboardingPage() {
   const [fetching, setFetching] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pathBusy, setPathBusy] = useState(false);
 
   const load = useCallback(async () => {
     const [ob, bp, cfg] = await Promise.all([
@@ -127,6 +153,7 @@ export default function OnboardingPage() {
     const resume = resumeTarget(ob.onboarding);
     setActiveStep(resume || "business_profile");
     setLoadError(null);
+    return ob.onboarding;
   }, []);
 
   useEffect(() => {
@@ -138,6 +165,90 @@ export default function OnboardingPage() {
 
   const closed =
     onboarding?.status === "COMPLETED" || onboarding?.status === "SKIPPED";
+  const setupPath = setupPathFromState(onboarding);
+  const aiConfirmed = isAiSetupConfirmed(onboarding);
+  const showChoice = Boolean(
+    onboarding && !closed && !setupPath && !forceManual,
+  );
+
+  // Resume AI path when draft not yet confirmed.
+  useEffect(() => {
+    if (fetching || !onboarding || closed || forceManual) return;
+    if (setupPath === "ai" && !aiConfirmed) {
+      router.replace(ONBOARDING_AI_PATH);
+    }
+  }, [
+    fetching,
+    onboarding,
+    closed,
+    forceManual,
+    setupPath,
+    aiConfirmed,
+    router,
+  ]);
+
+  async function persistSetupPath(path: OnboardingSetupPath) {
+    const data = await api<{ onboarding: OnboardingState }>(
+      "/api/admin/organization/onboarding",
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          state_data: { [SETUP_PATH_KEY]: path },
+          current_step: path === "manual" ? "business_profile" : "ai_configuration",
+        }),
+      },
+    );
+    setOnboarding(data.onboarding);
+    return data.onboarding;
+  }
+
+  async function chooseAi() {
+    if (!canUpdate) return;
+    setPathBusy(true);
+    try {
+      await persistSetupPath("ai");
+      router.push(ONBOARDING_AI_PATH);
+    } catch (e) {
+      toast.push(safeUserError(e, errors.saveFailed), "error");
+    } finally {
+      setPathBusy(false);
+    }
+  }
+
+  async function chooseManual() {
+    if (!canUpdate) return;
+    setPathBusy(true);
+    try {
+      await persistSetupPath("manual");
+      setActiveStep("business_profile");
+      // Path is already "manual" — no query flag needed for resume.
+      router.replace("/onboarding");
+    } catch (e) {
+      toast.push(safeUserError(e, errors.saveFailed), "error");
+    } finally {
+      setPathBusy(false);
+    }
+  }
+
+  async function changeSetupMethod() {
+    if (!canUpdate || !onboarding) return;
+    setPathBusy(true);
+    try {
+      const data = await api<{ onboarding: OnboardingState }>(
+        "/api/admin/organization/onboarding",
+        {
+          method: "PATCH",
+          body: JSON.stringify({ state_data: { [SETUP_PATH_KEY]: null } }),
+        },
+      );
+      setOnboarding(data.onboarding);
+      router.replace("/onboarding");
+    } catch (e) {
+      toast.push(safeUserError(e, errors.saveFailed), "error");
+    } finally {
+      setPathBusy(false);
+    }
+  }
 
   const stepIndex = useMemo(
     () => Math.max(0, WIZARD_STEPS.indexOf(activeStep as (typeof WIZARD_STEPS)[number])),
@@ -240,7 +351,9 @@ export default function OnboardingPage() {
       );
       setOnboarding(data.onboarding);
       await refreshCrm();
+      await refresh();
       toast.push("Onboarding completed", "success");
+      router.replace("/dashboard");
     } catch (e) {
       toast.push(safeUserError(e, errors.saveFailed), "error");
     } finally {
@@ -262,7 +375,7 @@ export default function OnboardingPage() {
     if (next) setActiveStep(next);
   }
 
-  if (loading || !user) {
+  if (loading || !user || fetching) {
     return (
       <div className="p-6">
         <LoadingSkeleton rows={6} />
@@ -271,22 +384,14 @@ export default function OnboardingPage() {
   }
   if (forbidden) {
     return (
-      <AppShell user={user}>
+      <OnboardingShell user={user}>
         <ForbiddenState />
-      </AppShell>
+      </OnboardingShell>
     );
   }
-
-  return (
-    <AppShell user={user}>
-      <PageHeader
-        title="Business onboarding"
-        description="Configure your organization profile, industry, business model, and CRM modules."
-      />
-
-      {fetching ? (
-        <LoadingSkeleton rows={8} />
-      ) : loadError ? (
+  if (loadError) {
+    return (
+      <OnboardingShell user={user}>
         <ErrorState
           title="Could not load onboarding"
           message={loadError}
@@ -297,14 +402,70 @@ export default function OnboardingPage() {
               .finally(() => setFetching(false));
           }}
         />
-      ) : onboarding ? (
+      </OnboardingShell>
+    );
+  }
+
+  if (showChoice) {
+    return (
+      <OnboardingShell user={user}>
+        <OnboardingChoice
+          busy={pathBusy || !canUpdate}
+          onChooseAi={() => void chooseAi()}
+          onChooseManual={() => void chooseManual()}
+        />
+      </OnboardingShell>
+    );
+  }
+
+  // Avoid flashing the manual wizard while redirecting into AI setup.
+  if (
+    onboarding &&
+    !closed &&
+    setupPath === "ai" &&
+    !aiConfirmed &&
+    !forceManual
+  ) {
+    return (
+      <OnboardingShell user={user}>
+        <LoadingSkeleton rows={6} />
+      </OnboardingShell>
+    );
+  }
+
+  return (
+    <OnboardingShell user={user}>
+      <PageHeader
+        title="Business onboarding"
+        description="Configure your organization profile, industry, business model, and CRM modules. Required steps must be completed before using the dashboard."
+      />
+
+      {onboarding ? (
         <div className="space-y-6">
           <Surface className="space-y-3 p-5">
-            <div className="flex flex-wrap items-center gap-3">
-              <StatusPill status={onboarding.status} />
-              <span className="text-sm text-text-secondary">
-                {progressLabel(onboarding)}
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <StatusPill status={onboarding.status} />
+                <span className="text-sm text-text-secondary">
+                  {progressLabel(onboarding)}
+                </span>
+                {setupPath ? (
+                  <span className="text-xs text-text-muted uppercase tracking-wide">
+                    {setupPath === "ai" ? "AI setup" : "Manual setup"}
+                  </span>
+                ) : null}
+              </div>
+              {canUpdate && !closed ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={pathBusy}
+                  onClick={() => void changeSetupMethod()}
+                >
+                  Change setup method
+                </Button>
+              ) : null}
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-surface-muted">
               <div
@@ -612,39 +773,67 @@ export default function OnboardingPage() {
                     idempotently from the industry template.
                   </p>
                 )}
-                {canUpdate && !closed ? (
-                  <Button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void finishOnboarding()}
-                  >
-                    Complete onboarding
-                  </Button>
-                ) : null}
               </>
             ) : null}
 
-            <div className="flex justify-between border-t border-border pt-4">
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={stepIndex === 0}
-                onClick={() => go(-1)}
-              >
-                Back
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={stepIndex >= WIZARD_STEPS.length - 1}
-                onClick={() => go(1)}
-              >
-                Next
-              </Button>
+            <div className="flex flex-col gap-2 border-t border-border pt-4">
+              <div className="flex justify-between gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={stepIndex === 0 || busy}
+                  onClick={() => go(-1)}
+                >
+                  Back
+                </Button>
+                {activeStep === "review" ? (
+                  closed ? (
+                    <Button
+                      type="button"
+                      onClick={() => router.replace("/dashboard")}
+                    >
+                      Go to dashboard
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      disabled={busy || !canUpdate}
+                      onClick={() => void finishOnboarding()}
+                    >
+                      {busy ? "Finishing…" : "Finish"}
+                    </Button>
+                  )
+                ) : (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={stepIndex >= WIZARD_STEPS.length - 1 || busy}
+                    onClick={() => go(1)}
+                  >
+                    Next
+                  </Button>
+                )}
+              </div>
+              {activeStep === "review" && !closed && !canUpdate ? (
+                <p className="text-sm text-danger">
+                  Finish needs the organization.update permission. Ask an Owner
+                  or Admin to complete onboarding, or re-login after roles are
+                  assigned.
+                </p>
+              ) : null}
+              {activeStep === "review" &&
+              !closed &&
+              canUpdate &&
+              (onboarding.required_remaining?.length ?? 0) > 0 ? (
+                <p className="text-sm text-text-secondary">
+                  Still required: {onboarding.required_remaining.join(", ")}.
+                  Finish will validate these on the server.
+                </p>
+              ) : null}
             </div>
           </Surface>
         </div>
       ) : null}
-    </AppShell>
+    </OnboardingShell>
   );
 }

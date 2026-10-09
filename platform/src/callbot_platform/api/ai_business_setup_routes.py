@@ -24,10 +24,18 @@ from callbot_platform.config import Settings
 
 router = APIRouter(prefix="/api/admin/business-setup", tags=["business-setup"])
 
-_require_read = require_permission("business_setup.read")
-_require_generate = require_permission("business_setup.generate")
-_require_update = require_permission("business_setup.update")
-_require_confirm = require_permission("business_setup.confirm")
+_require_read = require_permission(
+    "business_setup.read", allow_incomplete_onboarding=True
+)
+_require_generate = require_permission(
+    "business_setup.generate", allow_incomplete_onboarding=True
+)
+_require_update = require_permission(
+    "business_setup.update", allow_incomplete_onboarding=True
+)
+_require_confirm = require_permission(
+    "business_setup.confirm", allow_incomplete_onboarding=True
+)
 
 
 class AnalyzeBody(BaseModel):

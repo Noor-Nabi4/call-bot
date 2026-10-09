@@ -186,6 +186,9 @@ def require_api_key(
             status_code=401,
             detail={"code": "unauthorized", "message": "Invalid API key"},
         )
+    from callbot_platform.onboarding.access import assert_onboarding_satisfied
+
+    assert_onboarding_satisfied(session, row.tenant_id)
     principal = ApiKeyPrincipal(
         key_id=row.id,
         tenant_id=row.tenant_id,
@@ -223,13 +226,23 @@ def require_ops_roles(*roles: str) -> Callable[..., CurrentUser]:
     return _dep
 
 
-def require_permission(permission_key: str) -> Callable[..., CurrentUser]:
-    """Session-scoped permission check (RBAC). Entitlement not required here."""
+def require_permission(
+    permission_key: str,
+    *,
+    allow_incomplete_onboarding: bool = False,
+) -> Callable[..., CurrentUser]:
+    """Session-scoped permission check (RBAC). Entitlement not required here.
+
+    By default, organization onboarding must be COMPLETED or SKIPPED.
+    Pass ``allow_incomplete_onboarding=True`` for onboarding/billing/auth
+    setup endpoints only.
+    """
 
     def _dep(
         user: CurrentUser = Depends(require_tenant_user),  # noqa: B008
         session: Session = Depends(db_dep),  # noqa: B008
     ) -> CurrentUser:
+        from callbot_platform.onboarding.access import assert_onboarding_satisfied
         from callbot_platform.rbac.errors import RbacError
         from callbot_platform.rbac.service import AuthorizationService
 
@@ -242,13 +255,22 @@ def require_permission(permission_key: str) -> Callable[..., CurrentUser]:
                 status_code=403,
                 detail={"code": exc.code, "message": str(exc)},
             ) from exc
+        if not allow_incomplete_onboarding:
+            assert_onboarding_satisfied(session, user.tenant_id)
         return user
 
     return _dep
 
 
-def require_entitled_permission(permission_key: str) -> Callable[..., CurrentUser]:
-    perm_dep = require_permission(permission_key)
+def require_entitled_permission(
+    permission_key: str,
+    *,
+    allow_incomplete_onboarding: bool = False,
+) -> Callable[..., CurrentUser]:
+    perm_dep = require_permission(
+        permission_key,
+        allow_incomplete_onboarding=allow_incomplete_onboarding,
+    )
 
     def _dep(
         user: CurrentUser = Depends(perm_dep),  # noqa: B008
@@ -304,6 +326,7 @@ def require_entitled_tenant_user(
 ) -> CurrentUser:
     """Any authenticated tenant user with an entitled subscription."""
     from callbot_platform.billing.service import BillingService
+    from callbot_platform.onboarding.access import assert_onboarding_satisfied
 
     if not BillingService(session, settings).tenant_is_entitled(user.tenant_id):
         raise HTTPException(
@@ -313,6 +336,7 @@ def require_entitled_tenant_user(
                 "message": "An active subscription is required. Complete billing setup.",
             },
         )
+    assert_onboarding_satisfied(session, user.tenant_id)
     return user
 
 

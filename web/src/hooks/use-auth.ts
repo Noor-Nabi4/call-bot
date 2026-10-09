@@ -1,8 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { me, type OpsUser } from "@/lib/api";
+import {
+  isOnboardingComplete,
+  ONBOARDING_PATH,
+} from "@/lib/onboarding";
 import {
   hasAllPermissions,
   hasAnyPermission,
@@ -23,8 +27,14 @@ export function useAuth(opts?: {
    */
   roles?: string[];
   redirectTo?: string;
+  /**
+   * When false (default), incomplete onboarding redirects to /onboarding.
+   * Set true for onboarding wizard, billing checkout, and auth-adjacent pages.
+   */
+  allowIncompleteOnboarding?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<OpsUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
@@ -32,6 +42,7 @@ export function useAuth(opts?: {
   const permission = opts?.permission;
   const permissionsKey = opts?.permissions?.join(",") ?? "";
   const requireAllKey = opts?.requireAll?.join(",") ?? "";
+  const allowIncompleteOnboarding = Boolean(opts?.allowIncompleteOnboarding);
 
   const load = useCallback(async () => {
     const anyOf = permissionsKey ? permissionsKey.split(",") : [];
@@ -60,6 +71,16 @@ export function useAuth(opts?: {
       if (cancelled) return;
       setLoading(true);
       load()
+        .then((u) => {
+          if (cancelled || !u) return;
+          if (
+            !allowIncompleteOnboarding &&
+            !isOnboardingComplete(u) &&
+            !pathname.startsWith(ONBOARDING_PATH)
+          ) {
+            router.replace(ONBOARDING_PATH);
+          }
+        })
         .catch(() => {
           if (!cancelled) router.replace(redirectTo || "/login");
         })
@@ -70,15 +91,35 @@ export function useAuth(opts?: {
     return () => {
       cancelled = true;
     };
-  }, [load, router, redirectTo]);
+  }, [
+    load,
+    router,
+    redirectTo,
+    allowIncompleteOnboarding,
+    pathname,
+  ]);
 
   const refresh = useCallback(async () => {
     try {
-      await load();
+      const u = await load();
+      if (
+        u &&
+        !allowIncompleteOnboarding &&
+        !isOnboardingComplete(u) &&
+        !pathname.startsWith(ONBOARDING_PATH)
+      ) {
+        router.replace(ONBOARDING_PATH);
+      }
     } catch {
       router.replace(redirectTo || "/login");
     }
-  }, [load, router, redirectTo]);
+  }, [
+    load,
+    router,
+    redirectTo,
+    allowIncompleteOnboarding,
+    pathname,
+  ]);
 
   return {
     user,

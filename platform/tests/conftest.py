@@ -42,7 +42,11 @@ def cipher() -> CredentialCipher:
 
 @pytest.fixture()
 def tenant(session: Session) -> Tenant:
+    from callbot_platform.onboarding.access import mark_legacy_tenant_onboarding_complete
+
     row = Tenant(name="Acme HVAC", slug=f"acme-{uuid.uuid4().hex[:8]}")
     session.add(row)
     session.flush()
+    # Existing test tenants represent established orgs (pre-mandatory onboarding).
+    mark_legacy_tenant_onboarding_complete(session, row.id)
     return row

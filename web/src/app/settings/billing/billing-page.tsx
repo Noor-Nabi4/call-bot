@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { isOnboardingComplete, ONBOARDING_PATH } from "@/lib/onboarding";
 import {
   BookOpen,
   CreditCard,
@@ -51,7 +52,11 @@ function planDisplayName(planKey: string): string {
 }
 
 export default function BillingPage() {
-  const { user, loading, forbidden } = useAuth({ permission: "billing.read" });
+  const router = useRouter();
+  const { user, loading, forbidden } = useAuth({
+    permission: "billing.read",
+    allowIncompleteOnboarding: true,
+  });
   const toast = useToast();
   const searchParams = useSearchParams();
   const checkoutSuccess = searchParams.get("checkout") === "success";
@@ -100,6 +105,15 @@ export default function BillingPage() {
     }, 2500);
     return () => window.clearInterval(id);
   }, [user, checkoutSuccess, subscription?.is_entitled, refresh]);
+
+  // After signup checkout, continue mandatory onboarding (not the dashboard).
+  useEffect(() => {
+    if (!user || !subscription?.is_entitled) return;
+    if (isOnboardingComplete(user)) return;
+    router.replace(
+      checkoutSuccess ? `${ONBOARDING_PATH}?checkout=success` : ONBOARDING_PATH,
+    );
+  }, [user, subscription?.is_entitled, checkoutSuccess, router]);
 
   async function onPortal() {
     setPortalBusy(true);

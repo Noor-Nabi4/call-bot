@@ -36,6 +36,15 @@ def session_settings() -> Settings:
 
 
 @pytest.fixture()
+def tenant(session: Session) -> Tenant:
+    """Incomplete org — override conftest so onboarding lifecycle tests stay valid."""
+    row = Tenant(name="Acme Onboard", slug=f"acme-ob-{uuid.uuid4().hex[:8]}")
+    session.add(row)
+    session.flush()
+    return row
+
+
+@pytest.fixture()
 def tenant_b(session: Session) -> Tenant:
     row = Tenant(name="Beta Onboard", slug=f"beta-ob-{uuid.uuid4().hex[:8]}")
     session.add(row)

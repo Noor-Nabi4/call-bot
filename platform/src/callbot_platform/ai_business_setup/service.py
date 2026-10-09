@@ -254,14 +254,51 @@ class AiBusinessSetupService:
             logger.warning(
                 "ai_business_setup_onboarding_patch_failed tenant_id=%s", tenant_id
             )
-        for step in ("industry", "business_model", "ai_configuration"):
+        onboarding_svc = OnboardingService(self._session)
+        # Mark steps without auto-finalizing — mark_completed owns CRM + COMPLETED.
+        for step in (
+            "business_profile",
+            "industry",
+            "business_model",
+            "business_hours",
+            "ai_configuration",
+            "review",
+        ):
             try:
-                OnboardingService(self._session).complete_step(
-                    tenant_id, step, actor=actor
+                onboarding_svc.complete_step(
+                    tenant_id,
+                    step,
+                    actor=actor,
+                    allow_auto_complete=False,
                 )
             except Exception:
+                logger.warning(
+                    "ai_business_setup_step_complete_failed tenant_id=%s step=%s",
+                    tenant_id,
+                    step,
+                    exc_info=True,
+                )
                 continue
         result["ai_configuration_stored"] = True
+
+        # Shared completion gate — never force COMPLETED on AI draft alone.
+        try:
+            completed = onboarding_svc.mark_completed(tenant_id, actor=actor)
+            result["onboarding_status"] = completed.get("status")
+            result["onboarding_complete"] = completed.get("status") == "COMPLETED"
+        except Exception:
+            current = onboarding_svc.get(tenant_id)
+            result["onboarding_status"] = current.get("status")
+            result["onboarding_complete"] = False
+            result["onboarding_required_remaining"] = current.get(
+                "required_remaining"
+            )
+            logger.warning(
+                "ai_business_setup_onboarding_incomplete tenant_id=%s status=%s remaining=%s",
+                tenant_id,
+                current.get("status"),
+                current.get("required_remaining"),
+            )
 
         self._write_state(
             tenant_id,

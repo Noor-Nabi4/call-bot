@@ -115,6 +115,7 @@ def test_business_profile_validation(session: Session, tenant: Tenant) -> None:
 def test_business_profile_api_and_step_completion(
     session: Session, tenant: Tenant, session_settings: Settings
 ) -> None:
+    _clear_onboarding(session, tenant.id)
     admin = AuthRepository(session).bootstrap_admin(
         tenant_id=tenant.id,
         email="admin@biz.test",
@@ -258,7 +259,21 @@ def test_crm_setup_tenant_isolation(
     assert b["template_key"] == "ecommerce"
 
 
+def _clear_onboarding(session: Session, tenant_id: uuid.UUID) -> None:
+    from callbot_platform.db.models import OrganizationOnboarding
+
+    row = session.scalar(
+        select(OrganizationOnboarding).where(
+            OrganizationOnboarding.tenant_id == tenant_id
+        )
+    )
+    if row is not None:
+        session.delete(row)
+        session.flush()
+
+
 def test_onboarding_complete_runs_crm_setup(session: Session, tenant: Tenant) -> None:
+    _clear_onboarding(session, tenant.id)
     _seed_profile(session, tenant)
     svc = OnboardingService(session)
     for step in sorted(REQUIRED_STEPS - {"review"}):
@@ -276,6 +291,7 @@ def test_onboarding_complete_fails_without_industry(
 ) -> None:
     from callbot_platform.onboarding import OnboardingError
 
+    _clear_onboarding(session, tenant.id)
     svc = OnboardingService(session)
     for step in sorted(REQUIRED_STEPS - {"review"}):
         svc.complete_step(tenant.id, step, actor="a")

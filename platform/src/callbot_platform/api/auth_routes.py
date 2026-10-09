@@ -55,12 +55,24 @@ def _enforce_auth_rate_limit(limiter: SlidingWindowRateLimiter, key: str) -> Non
 
 def _enrich_user_session(session: Session, user: dict[str, Any]) -> dict[str, Any]:
     """Attach effective RBAC roles/permissions for frontend UX (not authority)."""
+    from callbot_platform.onboarding.access import (
+        ONBOARDING_SATISFIED_STATUSES,
+        onboarding_status_for_tenant,
+    )
+
     authz = AuthorizationService(session)
     access = authz.serialize_effective_access(
         UUID(str(user["tenant_id"])),
         UUID(str(user["id"])),
     )
-    return {**user, **access}
+    tenant_id = UUID(str(user["tenant_id"]))
+    onboarding_status = onboarding_status_for_tenant(session, tenant_id)
+    return {
+        **user,
+        **access,
+        "onboarding_status": onboarding_status,
+        "onboarding_complete": onboarding_status in ONBOARDING_SATISFIED_STATUSES,
+    }
 
 
 class LoginBody(BaseModel):

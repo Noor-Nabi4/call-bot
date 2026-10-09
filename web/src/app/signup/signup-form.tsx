@@ -149,7 +149,8 @@ export default function SignupForm() {
         password: values.password,
         plan_key: values.plan_key,
       });
-      window.location.assign(checkout_url);
+      // Session cookie is set by signup; Stripe then returns to /onboarding.
+      window.location.assign(checkout_url || "/onboarding");
     } catch (err) {
       track("signup_error");
       setError("root", {

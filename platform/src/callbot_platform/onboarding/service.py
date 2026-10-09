@@ -115,7 +115,12 @@ class OnboardingService:
         return self._serialize(row)
 
     def complete_step(
-        self, tenant_id: UUID, step: str, *, actor: str
+        self,
+        tenant_id: UUID,
+        step: str,
+        *,
+        actor: str,
+        allow_auto_complete: bool = True,
     ) -> dict[str, Any]:
         key = step.strip()
         if not known_step(key):
@@ -136,7 +141,9 @@ class OnboardingService:
         self._advance_current(row, key)
         self._recompute(row)
         # Auto-complete when all required steps are done.
-        if REQUIRED_STEPS.issubset(set(row.completed_steps)):
+        # Callers that finalize via mark_completed() should pass
+        # allow_auto_complete=False to avoid double CRM setup.
+        if allow_auto_complete and REQUIRED_STEPS.issubset(set(row.completed_steps)):
             self._require_business_ready(tenant_id)
             self._run_crm_setup(tenant_id, actor=actor)
             row.status = STATUS_COMPLETED

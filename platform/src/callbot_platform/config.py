@@ -192,7 +192,7 @@ class Settings(BaseSettings):
     stripe_secret_key: str = Field(default="", alias="STRIPE_SECRET_KEY")
     stripe_webhook_secret: str = Field(default="", alias="STRIPE_WEBHOOK_SECRET")
     stripe_checkout_success_url: str = Field(
-        default="http://localhost:3002/settings/billing?checkout=success",
+        default="http://localhost:3002/onboarding?checkout=success",
         alias="STRIPE_CHECKOUT_SUCCESS_URL",
     )
     stripe_checkout_cancel_url: str = Field(

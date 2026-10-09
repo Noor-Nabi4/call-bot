@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bot,
   Check,
@@ -10,9 +11,10 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { AppShell } from "@/components/shell";
+import { OnboardingShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
 import { hasPermission } from "@/lib/permissions";
+import { ONBOARDING_PATH, SETUP_PATH_KEY } from "@/lib/onboarding";
 import { errors } from "@/lib/ops-copy";
 import { safeUserError } from "@/lib/safe-error";
 import {
@@ -60,14 +62,21 @@ function cloneRec(rec: SetupRecommendation): SetupRecommendation {
   return structuredClone(rec);
 }
 
+const API =
+  process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
+  "http://localhost:8000";
+
 export default function AiBusinessSetupPage() {
-  const { user, loading, forbidden } = useAuth({
+  const router = useRouter();
+  const { user, loading, forbidden, refresh } = useAuth({
     permission: "business_setup.read",
+    allowIncompleteOnboarding: true,
   });
   const toast = useToast();
   const canGenerate = hasPermission(user, "business_setup.generate");
   const canUpdate = hasPermission(user, "business_setup.update");
   const canConfirm = hasPermission(user, "business_setup.confirm");
+  const canOrgUpdate = hasPermission(user, "organization.update");
 
   const [setup, setSetup] = useState<BusinessSetupState | null>(null);
   const [description, setDescription] = useState("");
@@ -112,6 +121,40 @@ export default function AiBusinessSetupPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Ensure setup_path is persisted when landing here from bookmarks/deep links.
+  useEffect(() => {
+    if (!user || !canOrgUpdate) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(`${API}/api/admin/organization/onboarding`, {
+          credentials: "include",
+        });
+        if (!res.ok || cancelled) return;
+        const body = (await res.json()) as {
+          onboarding?: { state_data?: Record<string, unknown>; status?: string };
+        };
+        const status = body.onboarding?.status;
+        if (status === "COMPLETED" || status === "SKIPPED") return;
+        if (body.onboarding?.state_data?.[SETUP_PATH_KEY] === "ai") return;
+        await fetch(`${API}/api/admin/organization/onboarding`, {
+          method: "PATCH",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            state_data: { [SETUP_PATH_KEY]: "ai" },
+            current_step: "ai_configuration",
+          }),
+        });
+      } catch {
+        /* non-fatal */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, canOrgUpdate]);
 
   useEffect(() => {
     if (step !== "analyzing") return;
@@ -216,6 +259,11 @@ export default function AiBusinessSetupPage() {
         "success",
       );
       await load();
+      await refresh();
+      if (res.result?.onboarding_complete === true) {
+        router.replace("/dashboard");
+        return;
+      }
     } catch (err) {
       toast.push(safeUserError(err, errors.saveFailed), "error");
       setStep("review");
@@ -310,46 +358,112 @@ export default function AiBusinessSetupPage() {
   }
   if (forbidden) {
     return (
-      <AppShell user={user}>
+      <OnboardingShell user={user}>
         <ForbiddenState />
-      </AppShell>
+      </OnboardingShell>
     );
   }
   if (loadError) {
     return (
-      <AppShell user={user}>
+      <OnboardingShell user={user}>
         <ErrorState message={loadError} onRetry={() => void load()} />
-      </AppShell>
+      </OnboardingShell>
     );
   }
 
   return (
-    <AppShell user={user}>
+    <OnboardingShell user={user}>
       <PageHeader
-        title="AI Business Setup"
-        description="Describe your business. Review recommendations. Confirm before anything is saved."
+        title="Set Up My Business with AI"
+        description="Describe your business in your own words. AI prepares a draft for you to review — nothing is saved until you confirm."
       />
+
+      <div className="mb-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            void (async () => {
+              if (canOrgUpdate) {
+                try {
+                  await fetch(`${API}/api/admin/organization/onboarding`, {
+                    method: "PATCH",
+                    credentials: "include",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      state_data: { [SETUP_PATH_KEY]: null },
+                    }),
+                  });
+                } catch {
+                  /* still navigate */
+                }
+              }
+              router.push(ONBOARDING_PATH);
+            })();
+          }}
+        >
+          Back to setup options
+        </Button>
+      </div>
 
       <div className="mb-6 flex flex-wrap gap-2 text-sm text-text-muted">
         {(
           [
-            ["Describe", step === "describe"],
-            ["Analyze", step === "analyzing" || step === "clarify"],
-            ["Review", step === "review" || step === "confirming"],
-            ["Confirm", step === "done"],
-          ] as const
-        ).map(([label, active]) => (
-          <span
-            key={label}
-            className={`rounded-full px-3 py-1 ${
-              active
-                ? "bg-hero text-white"
-                : "bg-surface-muted text-text-muted"
-            }`}
-          >
-            {label}
-          </span>
-        ))}
+            ["Describe", "describe", step === "describe"] as const,
+            [
+              "Generate",
+              "describe",
+              step === "analyzing" || step === "clarify",
+            ] as const,
+            [
+              "Review",
+              "review",
+              step === "review" || step === "confirming",
+            ] as const,
+            ["Save", "done", step === "done"] as const,
+          ]
+        ).map(([label, target, active]) => {
+          const canJump =
+            !busy &&
+            ((target === "describe" &&
+              (step === "review" ||
+                step === "clarify" ||
+                step === "done" ||
+                step === "describe")) ||
+              (target === "review" && draft && step !== "analyzing" && step !== "confirming") ||
+              (target === "done" && step === "done"));
+          const className = `rounded-full px-3 py-1 ${
+            active
+              ? "bg-hero text-white"
+              : "bg-surface-muted text-text-muted"
+          } ${canJump && !active ? "hover:bg-surface-muted/80 cursor-pointer" : ""}`;
+          if (!canJump || active) {
+            return (
+              <span key={label} className={className}>
+                {label}
+              </span>
+            );
+          }
+          return (
+            <button
+              key={label}
+              type="button"
+              className={className}
+              onClick={() => {
+                if (target === "describe") {
+                  setStep("describe");
+                  return;
+                }
+                if (target === "review" && draft) {
+                  setStep("review");
+                }
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {(step === "describe" || step === "analyzing") && (
@@ -359,17 +473,17 @@ export default function AiBusinessSetupPage() {
             <div>
               <h2 className="text-lg font-medium">Tell us about your business</h2>
               <p className="mt-1 text-sm text-text-muted">
-                Write a few sentences in your own words. We will recommend modules,
-                services, and AI calling setup — nothing is saved until you confirm.
+                What do you do, what services or products do you offer, and how do
+                customers usually contact or book with you?
               </p>
             </div>
           </div>
           <Field label="Business description">
             <textarea
-              className="min-h-36 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft"
+              className="min-h-40 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-brand focus:ring-2 focus:ring-brand-soft"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder='e.g. "We are an HVAC company in Texas. We install and repair residential AC systems and offer annual maintenance plans."'
+              placeholder="We run an HVAC company in Texas. We install and repair air conditioners, provide emergency repairs, schedule technician visits, and offer maintenance plans."
               disabled={busy || step === "analyzing"}
               aria-label="Business description"
             />
@@ -378,7 +492,7 @@ export default function AiBusinessSetupPage() {
             <div className="space-y-3 rounded-lg border border-border bg-surface-muted/40 p-4" role="status" aria-live="polite">
               <div className="flex items-center gap-2 text-sm font-medium">
                 <Loader2 className="size-4 animate-spin" aria-hidden />
-                Analyzing…
+                Generating your business setup…
               </div>
               <ul className="space-y-2 text-sm">
                 {ANALYZE_STAGES.map((label, i) => (
@@ -404,7 +518,7 @@ export default function AiBusinessSetupPage() {
                 onClick={() => void onAnalyze()}
                 disabled={!canGenerate || description.trim().length < 8 || busy}
               >
-                Analyze with AI
+                Generate My Business Setup
               </Button>
               <Button
                 variant="ghost"
@@ -694,7 +808,7 @@ export default function AiBusinessSetupPage() {
               onClick={() => setStep("describe")}
               disabled={busy}
             >
-              Back
+              Edit description
             </Button>
             <Button
               variant="secondary"
@@ -710,10 +824,10 @@ export default function AiBusinessSetupPage() {
               {step === "confirming" ? (
                 <>
                   <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                  Confirming…
+                  Saving…
                 </>
               ) : (
-                "Confirm business setup"
+                "Save and Continue"
               )}
             </Button>
           </div>
@@ -724,11 +838,11 @@ export default function AiBusinessSetupPage() {
         <Surface className="space-y-4">
           <div className="flex items-center gap-2 text-emerald-700">
             <Check className="size-5" aria-hidden />
-            <h2 className="text-lg font-medium">Setup complete</h2>
+            <h2 className="text-lg font-medium">Configuration saved</h2>
           </div>
           <p className="text-sm text-text-muted">
-            Your reviewed configuration was applied through existing domain services.
-            AI recommendations never mutate configuration without confirmation.
+            Your reviewed setup was applied through existing domain services. AI
+            recommendations never mutate configuration without confirmation.
           </p>
           {confirmResult && (
             <dl className="grid gap-2 text-sm sm:grid-cols-2">
@@ -756,28 +870,34 @@ export default function AiBusinessSetupPage() {
           )}
           <div className="flex flex-wrap gap-2">
             <Button variant="ghost" onClick={resetFlow}>
-              Start over
+              Regenerate
             </Button>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                window.location.href = "/onboarding";
-              }}
-            >
-              Continue onboarding
-            </Button>
+            {confirmResult?.onboarding_complete === true ? (
+              <Button onClick={() => router.replace("/dashboard")}>
+                Go to dashboard
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  // Keep AI path confirmed; force manual wizard for leftovers.
+                  router.push(`${ONBOARDING_PATH}?manual=1`);
+                }}
+              >
+                Finish remaining steps
+              </Button>
+            )}
           </div>
         </Surface>
       )}
 
       <ConfirmDialog
         open={confirmOpen}
-        title="Confirm business setup"
+        title="Save business setup"
         description="This will apply the reviewed modules, services, and organization profile. Double-submit is safe (idempotent)."
-        confirmLabel="Confirm setup"
+        confirmLabel="Save and Continue"
         onConfirm={() => void onConfirm()}
         onCancel={() => setConfirmOpen(false)}
       />
-    </AppShell>
+    </OnboardingShell>
   );
 }

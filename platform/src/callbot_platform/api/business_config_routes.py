@@ -26,8 +26,12 @@ from callbot_platform.organization import OrganizationError, OrganizationService
 
 router = APIRouter(prefix="/api/admin/organization", tags=["business-configuration"])
 
-_require_org_read = require_permission("organization.read")
-_require_org_update = require_permission("organization.update")
+_require_org_read = require_permission(
+    "organization.read", allow_incomplete_onboarding=True
+)
+_require_org_update = require_permission(
+    "organization.update", allow_incomplete_onboarding=True
+)
 
 
 class BusinessProfileBody(BaseModel):

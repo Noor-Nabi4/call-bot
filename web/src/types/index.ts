@@ -15,6 +15,9 @@ export type OpsUser = {
     action: string;
     scope: string;
   }[];
+  /** Server-authoritative onboarding status (UX only — APIs enforce). */
+  onboarding_status?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "SKIPPED" | null;
+  onboarding_complete?: boolean;
 };
 
 export type Job = {

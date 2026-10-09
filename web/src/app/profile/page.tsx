@@ -19,7 +19,9 @@ import { safeUserError } from "@/lib/safe-error";
 import { useAuth } from "@/lib/use-auth";
 
 export default function ProfilePage() {
-  const { user, loading, refresh, forbidden } = useAuth();
+  const { user, loading, refresh, forbidden } = useAuth({
+    allowIncompleteOnboarding: true,
+  });
   const toast = useToast();
   const [name, setName] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");

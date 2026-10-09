@@ -146,6 +146,11 @@ class BillingService:
             actor="signup",
         )
 
+        # Mandatory onboarding starts NOT_STARTED — never assume complete.
+        from callbot_platform.onboarding.repos import OnboardingRepository
+
+        OnboardingRepository(self._session).ensure(tenant.id)
+
         sub = self._repo.create_incomplete(
             tenant_id=tenant.id,
             stripe_customer_id=None,
