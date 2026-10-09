@@ -57,7 +57,10 @@ router = APIRouter(prefix="/api/admin", tags=["admin-agents-phones"])
 
 _require_agents_read = require_entitled_permission("ai.read")
 _require_agents_manage = require_entitled_permission("agents.manage")
-_require_phones = require_entitled_permission("phones.manage")
+# Phone provisioning is required during mandatory onboarding; keep entitlement.
+_require_phones = require_entitled_permission(
+    "phones.manage", allow_incomplete_onboarding=True
+)
 _require_ai_configure = require_entitled_permission("ai.configure")
 
 

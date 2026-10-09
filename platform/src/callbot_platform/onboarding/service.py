@@ -137,6 +137,8 @@ class OnboardingService:
             raise OnboardingError("invalid_step", f"Unknown step: {key}")
         row = self._repo.ensure(tenant_id, for_update=True)
         assert_can_mutate(row.status)
+        if key == "phone_setup":
+            self._require_eligible_phone(tenant_id)
 
         completed = _as_str_list(row.completed_steps)
         skipped = _as_str_list(row.skipped_steps)
@@ -205,14 +207,19 @@ class OnboardingService:
         if row.status == STATUS_COMPLETED:
             return self._serialize(row)
         assert_can_transition(row.status, STATUS_COMPLETED)
-        completed = set(_as_str_list(row.completed_steps))
-        missing = sorted(REQUIRED_STEPS - completed)
+        # Persisted domain checks first — never trust completed_steps alone.
+        self._require_business_ready(tenant_id)
+        self._require_eligible_phone(tenant_id)
+        completed = _as_str_list(row.completed_steps)
+        if "phone_setup" not in completed:
+            completed.append("phone_setup")
+            row.completed_steps = _ordered_unique(completed)
+        missing = sorted(REQUIRED_STEPS - set(completed))
         if missing:
             raise OnboardingError(
                 "incomplete",
                 f"Required steps not completed: {', '.join(missing)}",
             )
-        self._require_business_ready(tenant_id)
         self._run_crm_setup(tenant_id, actor=actor)
         row.status = STATUS_COMPLETED
         row.completed_at = datetime.now(UTC)
@@ -245,6 +252,34 @@ class OnboardingService:
             raise OnboardingError(
                 "profile_incomplete", "Business model is required before completion"
             )
+
+    def _require_eligible_phone(self, tenant_id: UUID) -> None:
+        from callbot_platform.telephony.eligibility import phone_setup_readiness
+
+        readiness = phone_setup_readiness(self._session, tenant_id)
+        state = str(readiness.get("state") or "")
+        if state == "ready":
+            return
+        if state == "setup_in_progress":
+            raise OnboardingError(
+                "phone_pending",
+                str(readiness.get("message") or "Phone number setup is still pending"),
+            )
+        if state == "not_configured":
+            raise OnboardingError(
+                "phone_required",
+                str(
+                    readiness.get("message")
+                    or "An inbound phone number is required before completion"
+                ),
+            )
+        raise OnboardingError(
+            "phone_ineligible",
+            str(
+                readiness.get("message")
+                or "Configured phone number is not eligible for inbound calling"
+            ),
+        )
 
     def _run_crm_setup(self, tenant_id: UUID, *, actor: str) -> None:
         from callbot_platform.crm_config import CrmSetupError, CrmSetupService
@@ -344,6 +379,8 @@ class OnboardingService:
         total = len(STEP_ORDER)
         settled_count = sum(1 for k in STEP_ORDER if k in settled)
 
+        from callbot_platform.telephony.eligibility import phone_setup_readiness
+
         data = {
             "status": row.status,
             "current_step": row.current_step,
@@ -357,6 +394,7 @@ class OnboardingService:
             "can_resume": can_resume,
             "steps": steps_out,
             "state_data": dict(row.state_data or {}),
+            "phone_setup": phone_setup_readiness(self._session, row.tenant_id),
         }
         data.update(self._repo.serialize_row_meta(row))
         return data

@@ -163,6 +163,7 @@ def test_completed_allows_protected_api_with_rbac(
     session: Session, settings: Settings
 ) -> None:
     from callbot_platform.domain.enums import TenantStatus
+    from helpers import make_phone
 
     tenant = Tenant(
         name="Done",
@@ -172,13 +173,104 @@ def test_completed_allows_protected_api_with_rbac(
     session.add(tenant)
     session.flush()
     mark_legacy_tenant_onboarding_complete(session, tenant.id)
+    make_phone(session, tenant, e164=f"+1555{uuid.uuid4().hex[:7]}")
     client, _user = _admin_client(session, settings, tenant)
     try:
         # Legacy active tenant with no subscription row remains entitled.
         res = client.get("/api/admin/organization/roles")
         assert res.status_code == 200
         me = client.get("/auth/me")
-        assert me.json()["user"]["onboarding_complete"] is True
+        body = me.json()["user"]
+        assert body["onboarding_complete"] is True
+        assert body["business_onboarding_complete"] is True
+        assert body["phone_ready"] is True
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
+
+
+def test_legacy_completed_without_phone_is_blocked(
+    session: Session, settings: Settings
+) -> None:
+    """Historical COMPLETED without an eligible DID cannot access the app."""
+    from callbot_platform.domain.enums import TenantStatus
+
+    tenant = Tenant(
+        name="Legacy No Phone",
+        slug=f"legph-{uuid.uuid4().hex[:8]}",
+        status=TenantStatus.ACTIVE.value,
+    )
+    session.add(tenant)
+    session.flush()
+    mark_legacy_tenant_onboarding_complete(session, tenant.id)
+    assert is_onboarding_satisfied(session, tenant.id) is False
+
+    client, _user = _admin_client(session, settings, tenant)
+    try:
+        res = client.get("/api/admin/organization/roles")
+        assert res.status_code == 403
+        detail = res.json()["detail"]
+        assert detail["code"] == "ONBOARDING_REQUIRED"
+        assert detail["reason"] == "phone_required"
+
+        me = client.get("/auth/me")
+        body = me.json()["user"]
+        assert body["business_onboarding_complete"] is True
+        assert body["phone_ready"] is False
+        assert body["onboarding_complete"] is False
+
+        # Phone recovery stays available.
+        phones = client.get("/api/admin/phone-numbers")
+        phone_detail = (
+            phones.json().get("detail")
+            if phones.headers.get("content-type", "").startswith("application/json")
+            else None
+        )
+        phone_code = (
+            phone_detail.get("code") if isinstance(phone_detail, dict) else None
+        )
+        assert phone_code != "ONBOARDING_REQUIRED"
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
+
+
+def test_losing_last_eligible_phone_blocks_access(
+    session: Session, settings: Settings
+) -> None:
+    from callbot_platform.domain.enums import ConnectionStatus, TenantStatus
+    from helpers import make_phone
+
+    tenant = Tenant(
+        name="Lost DID",
+        slug=f"lost-{uuid.uuid4().hex[:8]}",
+        status=TenantStatus.ACTIVE.value,
+    )
+    session.add(tenant)
+    session.flush()
+    mark_legacy_tenant_onboarding_complete(session, tenant.id)
+    phone = make_phone(session, tenant, e164=f"+1555{uuid.uuid4().hex[:7]}")
+    assert is_onboarding_satisfied(session, tenant.id) is True
+
+    client, _user = _admin_client(session, settings, tenant)
+    try:
+        assert client.get("/api/admin/organization/roles").status_code == 200
+        phone.connection_status = ConnectionStatus.RELEASED.value
+        session.flush()
+        blocked = client.get("/api/admin/organization/roles")
+        assert blocked.status_code == 403
+        assert blocked.json()["detail"]["reason"] == "phone_required"
+        # Onboarding status stays COMPLETED — access is modeled separately.
+        from callbot_platform.onboarding.access import is_business_onboarding_complete
+
+        assert is_business_onboarding_complete(session, tenant.id) is True
+        assert is_onboarding_satisfied(session, tenant.id) is False
+
+        # Regaining eligibility restores access without rewriting onboarding.
+        phone.connection_status = ConnectionStatus.ACTIVE.value
+        session.flush()
+        assert is_onboarding_satisfied(session, tenant.id) is True
+        assert client.get("/api/admin/organization/roles").status_code == 200
     finally:
         app.dependency_overrides.clear()
         get_settings.cache_clear()
@@ -186,10 +278,12 @@ def test_completed_allows_protected_api_with_rbac(
 
 def test_failed_completion_does_not_mark_complete(session: Session) -> None:
     from callbot_platform.onboarding import OnboardingError
+    from helpers import make_phone
 
     tenant = Tenant(name="Fail Complete", slug=f"fail-{uuid.uuid4().hex[:8]}")
     session.add(tenant)
     session.flush()
+    make_phone(session, tenant, e164=f"+1555{uuid.uuid4().hex[:7]}")
     svc = OnboardingService(session)
     for step in sorted(REQUIRED_STEPS - {"review"}):
         svc.complete_step(tenant.id, step, actor="a@t.test")
@@ -206,6 +300,34 @@ def test_mark_completed_idempotent(session: Session, tenant: Tenant) -> None:
     second = OnboardingService(session).mark_completed(tenant.id, actor="a@t.test")
     assert first["status"] == STATUS_COMPLETED
     assert second["status"] == STATUS_COMPLETED
+
+
+def test_phone_apis_allowed_while_incomplete(
+    session: Session, settings: Settings
+) -> None:
+    from callbot_platform.domain.enums import TenantStatus
+
+    tenant = Tenant(
+        name="Phone Inc",
+        slug=f"phinc-{uuid.uuid4().hex[:8]}",
+        status=TenantStatus.ACTIVE.value,
+    )
+    session.add(tenant)
+    session.flush()
+    OnboardingRepository(session).ensure(tenant.id)
+    client, _user = _admin_client(session, settings, tenant)
+    try:
+        res = client.get("/api/admin/phone-numbers")
+        detail = (
+            res.json().get("detail")
+            if res.headers.get("content-type", "").startswith("application/json")
+            else None
+        )
+        code = detail.get("code") if isinstance(detail, dict) else None
+        assert code != "ONBOARDING_REQUIRED"
+    finally:
+        app.dependency_overrides.clear()
+        get_settings.cache_clear()
 
 
 def test_billing_allowed_while_incomplete(

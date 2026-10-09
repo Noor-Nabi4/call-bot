@@ -425,9 +425,12 @@ def test_technician_assigned_scope(
 def test_idor_cross_tenant(
     session: Session, tenant: Tenant, session_settings: Settings
 ) -> None:
+    from helpers import establish_tenant_access
+
     tenant_b = Tenant(name="B", slug=f"b-{uuid.uuid4().hex[:8]}")
     session.add(tenant_b)
     session.flush()
+    establish_tenant_access(session, tenant_b)
 
     # Bootstrap owners/users before creating technicians (which also create
     # tenant_users rows and would break AuthRepository.bootstrap_admin's

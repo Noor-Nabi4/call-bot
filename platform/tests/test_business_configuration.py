@@ -273,8 +273,11 @@ def _clear_onboarding(session: Session, tenant_id: uuid.UUID) -> None:
 
 
 def test_onboarding_complete_runs_crm_setup(session: Session, tenant: Tenant) -> None:
+    from helpers import make_phone
+
     _clear_onboarding(session, tenant.id)
     _seed_profile(session, tenant)
+    make_phone(session, tenant, e164=f"+1555{uuid.uuid4().hex[:7]}")
     svc = OnboardingService(session)
     for step in sorted(REQUIRED_STEPS - {"review"}):
         svc.complete_step(tenant.id, step, actor="a")
@@ -290,8 +293,10 @@ def test_onboarding_complete_fails_without_industry(
     session: Session, tenant: Tenant
 ) -> None:
     from callbot_platform.onboarding import OnboardingError
+    from helpers import make_phone
 
     _clear_onboarding(session, tenant.id)
+    make_phone(session, tenant, e164=f"+1555{uuid.uuid4().hex[:7]}")
     svc = OnboardingService(session)
     for step in sorted(REQUIRED_STEPS - {"review"}):
         svc.complete_step(tenant.id, step, actor="a")

@@ -144,6 +144,8 @@ def _seed(session: Session) -> dict:
             """
             INSERT INTO customers (
                 id, tenant_id, name, first_name, last_name, status,
+                sms_allowed, email_allowed,
+                marketing_sms_allowed, marketing_email_allowed,
                 created_by, updated_by, created_at, updated_at
             )
             SELECT
@@ -153,6 +155,10 @@ def _seed(session: Session) -> dict:
                 'Cust',
                 g::text,
                 'ACTIVE',
+                TRUE,
+                TRUE,
+                TRUE,
+                TRUE,
                 'perf',
                 'perf',
                 NOW(),

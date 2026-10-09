@@ -5,7 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { me, type OpsUser } from "@/lib/api";
 import {
   isOnboardingComplete,
+  needsPhoneSetup,
   ONBOARDING_PATH,
+  PHONES_ONBOARDING_PATH,
 } from "@/lib/onboarding";
 import {
   hasAllPermissions,
@@ -73,12 +75,14 @@ export function useAuth(opts?: {
       load()
         .then((u) => {
           if (cancelled || !u) return;
-          if (
-            !allowIncompleteOnboarding &&
-            !isOnboardingComplete(u) &&
-            !pathname.startsWith(ONBOARDING_PATH)
-          ) {
-            router.replace(ONBOARDING_PATH);
+          if (!allowIncompleteOnboarding && !isOnboardingComplete(u)) {
+            const onPhones = pathname.startsWith("/phones");
+            const onOnboarding = pathname.startsWith(ONBOARDING_PATH);
+            if (!onPhones && !onOnboarding) {
+              router.replace(
+                needsPhoneSetup(u) ? PHONES_ONBOARDING_PATH : ONBOARDING_PATH,
+              );
+            }
           }
         })
         .catch(() => {
@@ -102,13 +106,14 @@ export function useAuth(opts?: {
   const refresh = useCallback(async (): Promise<OpsUser | null> => {
     try {
       const u = await load();
-      if (
-        u &&
-        !allowIncompleteOnboarding &&
-        !isOnboardingComplete(u) &&
-        !pathname.startsWith(ONBOARDING_PATH)
-      ) {
-        router.replace(ONBOARDING_PATH);
+      if (u && !allowIncompleteOnboarding && !isOnboardingComplete(u)) {
+        const onPhones = pathname.startsWith("/phones");
+        const onOnboarding = pathname.startsWith(ONBOARDING_PATH);
+        if (!onPhones && !onOnboarding) {
+          router.replace(
+            needsPhoneSetup(u) ? PHONES_ONBOARDING_PATH : ONBOARDING_PATH,
+          );
+        }
       }
       return u;
     } catch {

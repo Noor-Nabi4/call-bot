@@ -879,11 +879,11 @@ export default function AiBusinessSetupPage() {
             ) : (
               <Button
                 onClick={() => {
-                  // Keep AI path confirmed; force manual wizard for leftovers.
+                  // Keep AI path confirmed; finish phone + review in wizard.
                   router.push(`${ONBOARDING_PATH}?manual=1`);
                 }}
               >
-                Finish remaining steps
+                Continue to phone setup
               </Button>
             )}
           </div>

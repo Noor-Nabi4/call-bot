@@ -23,7 +23,7 @@ def test_unified_frontend_url_defaults() -> None:
     assert fields["ops_cors_origins"].default == "http://localhost:3002"
     assert (
         fields["stripe_checkout_success_url"].default
-        == "http://localhost:3002/settings/billing?checkout=success"
+        == "http://localhost:3002/onboarding?checkout=success"
     )
     assert (
         fields["stripe_checkout_cancel_url"].default
@@ -41,11 +41,14 @@ def test_production_origins() -> None:
     assert PROD_API_ORIGIN == "https://api.callandflow.com"
 
 
-def test_cookie_secure_in_production() -> None:
+def test_cookie_secure_in_production(monkeypatch: Any) -> None:
+    # Local .env.local may set COOKIE_SECURE=false; production default must win.
+    monkeypatch.delenv("COOKIE_SECURE", raising=False)
     settings = _settings(
         environment="production",
         ops_cors_origins=PROD_WEB_ORIGIN,
         session_secret="test-session-secret",
+        cookie_secure_override=None,
     )
     assert settings.is_production is True
     assert settings.cookie_secure is True

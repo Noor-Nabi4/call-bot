@@ -18,6 +18,21 @@ export type OnboardingStep = {
   state: OnboardingStepState;
 };
 
+export type PhoneSetupReadiness = {
+  state:
+    | "ready"
+    | "not_configured"
+    | "setup_in_progress"
+    | "action_required"
+    | string;
+  eligible_count: number;
+  primary_e164?: string | null;
+  primary_phone_number_id?: string | null;
+  connection_status?: string;
+  verification_status?: string;
+  message?: string;
+};
+
 export type OnboardingState = {
   id: string;
   tenant_id: string;
@@ -33,27 +48,58 @@ export type OnboardingState = {
   can_resume: boolean;
   steps: OnboardingStep[];
   state_data: Record<string, unknown>;
+  phone_setup?: PhoneSetupReadiness;
 };
 
 export const ONBOARDING_PATH = "/onboarding";
 export const ONBOARDING_AI_PATH = "/onboarding/ai-setup";
+export const PHONES_ONBOARDING_PATH = "/phones?from=onboarding";
 
 /** Persisted in OrganizationOnboarding.state_data — visual path choice only. */
 export const SETUP_PATH_KEY = "setup_path";
 export type OnboardingSetupPath = "ai" | "manual";
 
 /**
- * Authoritative completion for routing. Matches backend gate:
- * only COMPLETED satisfies mandatory onboarding (SKIPPED does not).
+ * Application access for routing. Matches backend gate:
+ * COMPLETED business onboarding AND eligible inbound phone.
  */
 export function isOnboardingComplete(
-  user: Pick<OpsUser, "onboarding_complete" | "onboarding_status"> | null | undefined,
+  user:
+    | Pick<
+        OpsUser,
+        | "onboarding_complete"
+        | "onboarding_status"
+        | "phone_ready"
+        | "business_onboarding_complete"
+      >
+    | null
+    | undefined,
 ): boolean {
   if (!user) return false;
   if (typeof user.onboarding_complete === "boolean") {
     return user.onboarding_complete;
   }
-  return user.onboarding_status === "COMPLETED";
+  const businessDone =
+    user.business_onboarding_complete === true ||
+    user.onboarding_status === "COMPLETED";
+  const phoneReady = user.phone_ready === true;
+  return businessDone && phoneReady;
+}
+
+export function needsPhoneSetup(
+  user:
+    | Pick<
+        OpsUser,
+        "onboarding_status" | "phone_ready" | "business_onboarding_complete"
+      >
+    | null
+    | undefined,
+): boolean {
+  if (!user) return false;
+  const businessDone =
+    user.business_onboarding_complete === true ||
+    user.onboarding_status === "COMPLETED";
+  return businessDone && user.phone_ready !== true;
 }
 
 export function setupPathFromState(
@@ -81,6 +127,14 @@ export function progressLabel(state: OnboardingState): string {
 }
 
 export function resumeTarget(state: OnboardingState): string | null {
-  if (state.status === "COMPLETED") return null;
+  if (state.status === "COMPLETED") {
+    return isPhoneSetupReady(state) ? null : "phone_setup";
+  }
   return state.resume_step ?? state.current_step;
+}
+
+export function isPhoneSetupReady(
+  state: Pick<OnboardingState, "phone_setup"> | null | undefined,
+): boolean {
+  return state?.phone_setup?.state === "ready";
 }

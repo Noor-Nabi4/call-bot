@@ -150,17 +150,23 @@ def test_resume_and_partial_state_data(session: Session, tenant: Tenant) -> None
 
 
 def test_completion_requires_mandatory_steps(session: Session, tenant: Tenant) -> None:
+    from callbot_platform.organization import OrganizationService
+    from helpers import make_phone
+
     svc = OnboardingService(session)
     with pytest.raises(OnboardingError) as exc:
         svc.mark_completed(tenant.id, actor="a@t.test")
-    assert exc.value.code in {"incomplete", "invalid_transition"}
+    assert exc.value.code in {
+        "incomplete",
+        "invalid_transition",
+        "phone_required",
+        "profile_incomplete",
+    }
 
     svc.patch(tenant.id, actor="a@t.test", current_step="business_profile")
     with pytest.raises(OnboardingError) as incomplete:
         svc.mark_completed(tenant.id, actor="a@t.test")
-    assert incomplete.value.code == "incomplete"
-
-    from callbot_platform.organization import OrganizationService
+    assert incomplete.value.code in {"incomplete", "phone_required", "profile_incomplete"}
 
     OrganizationService(session).update(
         tenant.id,
@@ -169,12 +175,76 @@ def test_completion_requires_mandatory_steps(session: Session, tenant: Tenant) -
         industry="hvac",
         business_type="services",
     )
+    make_phone(session, tenant, e164=f"+1555{uuid.uuid4().hex[:7]}")
     for step in REQUIRED_STEPS:
         svc.complete_step(tenant.id, step, actor="a@t.test")
     state = svc.get(tenant.id)
     assert state["status"] == STATUS_COMPLETED
+    assert state["phone_setup"]["state"] == "ready"
     again = svc.mark_completed(tenant.id, actor="a@t.test")
     assert again["status"] == STATUS_COMPLETED
+
+
+def test_completion_requires_eligible_phone(session: Session, tenant: Tenant) -> None:
+    from callbot_platform.domain.enums import ConnectionStatus, VerificationStatus
+    from callbot_platform.organization import OrganizationService
+    from helpers import make_phone
+
+    OrganizationService(session).update(
+        tenant.id,
+        actor="a@t.test",
+        name="Phone Co",
+        industry="hvac",
+        business_type="services",
+    )
+    svc = OnboardingService(session)
+    for step in sorted(REQUIRED_STEPS - {"phone_setup", "review"}):
+        svc.complete_step(tenant.id, step, actor="a@t.test")
+
+    with pytest.raises(OnboardingError) as missing:
+        svc.complete_step(tenant.id, "phone_setup", actor="a@t.test")
+    assert missing.value.code == "phone_required"
+
+    pending = make_phone(
+        session,
+        tenant,
+        e164=f"+1555{uuid.uuid4().hex[:7]}",
+        connection_status=ConnectionStatus.PENDING_VERIFICATION.value,
+        verification_status=VerificationStatus.PENDING.value,
+    )
+    with pytest.raises(OnboardingError) as pending_exc:
+        svc.mark_completed(tenant.id, actor="a@t.test")
+    assert pending_exc.value.code == "phone_pending"
+
+    pending.connection_status = ConnectionStatus.ACTIVE.value
+    pending.verification_status = VerificationStatus.VERIFIED.value
+    session.flush()
+
+    svc.complete_step(tenant.id, "phone_setup", actor="a@t.test")
+    state = svc.complete_step(tenant.id, "review", actor="a@t.test")
+    assert state["status"] == STATUS_COMPLETED
+
+
+def test_cross_tenant_phone_does_not_satisfy(
+    session: Session, tenant: Tenant, tenant_b: Tenant
+) -> None:
+    from callbot_platform.organization import OrganizationService
+    from helpers import make_phone
+
+    OrganizationService(session).update(
+        tenant.id,
+        actor="a@t.test",
+        name="Local Co",
+        industry="hvac",
+        business_type="services",
+    )
+    make_phone(session, tenant_b, e164=f"+1555{uuid.uuid4().hex[:7]}")
+    svc = OnboardingService(session)
+    for step in sorted(REQUIRED_STEPS - {"phone_setup", "review"}):
+        svc.complete_step(tenant.id, step, actor="a@t.test")
+    with pytest.raises(OnboardingError) as exc:
+        svc.mark_completed(tenant.id, actor="a@t.test")
+    assert exc.value.code == "phone_required"
 
 
 def test_skip_entire_onboarding_rejected(session: Session, tenant: Tenant) -> None:

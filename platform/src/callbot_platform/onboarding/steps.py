@@ -73,8 +73,8 @@ ONBOARDING_STEPS: tuple[OnboardingStepDef, ...] = (
     OnboardingStepDef(
         key="phone_setup",
         title="Phone setup",
-        required=False,
-        description="DID / SIP connection (optional)",
+        required=True,
+        description="At least one verified inbound phone number",
     ),
     OnboardingStepDef(
         key="review",

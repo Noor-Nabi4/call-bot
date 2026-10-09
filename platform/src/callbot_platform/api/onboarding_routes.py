@@ -38,7 +38,15 @@ def _http(exc: OnboardingError) -> HTTPException:
         "mandatory_onboarding",
     }:
         status = 409
-    elif exc.code in {"step_required", "invalid_setup_path"}:
+    elif exc.code in {
+        "step_required",
+        "invalid_setup_path",
+        "phone_required",
+        "phone_pending",
+        "phone_ineligible",
+        "incomplete",
+        "profile_incomplete",
+    }:
         status = 400
     return HTTPException(
         status_code=status,

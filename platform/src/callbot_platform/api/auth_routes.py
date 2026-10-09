@@ -56,7 +56,9 @@ def _enforce_auth_rate_limit(limiter: SlidingWindowRateLimiter, key: str) -> Non
 def _enrich_user_session(session: Session, user: dict[str, Any]) -> dict[str, Any]:
     """Attach effective RBAC roles/permissions for frontend UX (not authority)."""
     from callbot_platform.onboarding.access import (
-        ONBOARDING_SATISFIED_STATUSES,
+        is_business_onboarding_complete,
+        is_onboarding_satisfied,
+        is_phone_ready_for_tenant,
         onboarding_status_for_tenant,
     )
 
@@ -67,11 +69,16 @@ def _enrich_user_session(session: Session, user: dict[str, Any]) -> dict[str, An
     )
     tenant_id = UUID(str(user["tenant_id"]))
     onboarding_status = onboarding_status_for_tenant(session, tenant_id)
+    business_complete = is_business_onboarding_complete(session, tenant_id)
+    phone_ready = is_phone_ready_for_tenant(session, tenant_id)
     return {
         **user,
         **access,
         "onboarding_status": onboarding_status,
-        "onboarding_complete": onboarding_status in ONBOARDING_SATISFIED_STATUSES,
+        "business_onboarding_complete": business_complete,
+        "phone_ready": phone_ready,
+        # Gate-aligned: COMPLETED business setup AND eligible inbound number.
+        "onboarding_complete": is_onboarding_satisfied(session, tenant_id),
     }
 
 

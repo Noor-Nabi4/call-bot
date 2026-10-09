@@ -17,7 +17,10 @@ import { safeUserError } from "@/lib/safe-error";
 import {
   isAiSetupConfirmed,
   isOnboardingComplete,
+  isPhoneSetupReady,
+  needsPhoneSetup,
   ONBOARDING_AI_PATH,
+  PHONES_ONBOARDING_PATH,
   progressLabel,
   resumeTarget,
   SETUP_PATH_KEY,
@@ -66,6 +69,14 @@ type CrmConfiguration = {
   setup_completed?: boolean;
 } | null;
 
+class OnboardingApiError extends Error {
+  code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     ...init,
@@ -74,13 +85,20 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     let message = errors.saveFailed;
+    let code: string | undefined;
     try {
       const body = await res.json();
       message = body?.detail?.message || body?.detail || message;
+      if (typeof body?.detail === "object" && body?.detail?.code) {
+        code = String(body.detail.code);
+      }
     } catch {
       /* ignore */
     }
-    throw new Error(typeof message === "string" ? message : errors.saveFailed);
+    throw new OnboardingApiError(
+      typeof message === "string" ? message : errors.saveFailed,
+      code,
+    );
   }
   return res.json();
 }
@@ -93,6 +111,7 @@ const WIZARD_STEPS = [
   "customers",
   "business_hours",
   "ai_configuration",
+  "phone_setup",
   "review",
 ] as const;
 
@@ -172,25 +191,38 @@ function OnboardingPageInner() {
       .finally(() => setFetching(false));
   }, [user, load]);
 
-  const closed = onboarding?.status === "COMPLETED";
+  const businessClosed = onboarding?.status === "COMPLETED";
+  /** Wizard mutations closed; phone recovery still allowed via /phones. */
+  const closed = businessClosed;
+  const phoneReady = isPhoneSetupReady(onboarding) || user?.phone_ready === true;
+  const phoneRecovery = Boolean(businessClosed && !phoneReady);
   const setupPath = setupPathFromState(onboarding);
   const aiConfirmed = isAiSetupConfirmed(onboarding);
   const showChoice = Boolean(
     onboarding && !closed && !setupPath && !forceManual,
   );
 
-  // Completed orgs leave the wizard only when /auth/me agrees — otherwise
-  // a status/auth race ping-pongs /onboarding ↔ /dashboard.
+  // Full app access only when business + phone are ready (server-aligned).
   useEffect(() => {
-    if (loading || fetching || !onboarding || !closed || !user) return;
+    if (loading || fetching || !onboarding || !user) return;
     if (leftCompletedRef.current) return;
-    if (!isOnboardingComplete(user)) {
-      void refresh();
+    if (isOnboardingComplete(user) && phoneReady) {
+      leftCompletedRef.current = true;
+      router.replace("/dashboard");
       return;
     }
-    leftCompletedRef.current = true;
-    router.replace("/dashboard");
-  }, [loading, fetching, onboarding, closed, user, refresh, router]);
+    if (needsPhoneSetup(user) || phoneRecovery) {
+      setActiveStep("phone_setup");
+    }
+  }, [
+    loading,
+    fetching,
+    onboarding,
+    user,
+    phoneReady,
+    phoneRecovery,
+    router,
+  ]);
 
   // Resume AI path when draft not yet confirmed.
   useEffect(() => {
@@ -376,11 +408,34 @@ function OnboardingPageInner() {
       toast.push("Onboarding completed", "success");
       router.replace("/dashboard");
     } catch (e) {
-      toast.push(safeUserError(e, errors.saveFailed), "error");
+      const message = safeUserError(e, errors.saveFailed);
+      toast.push(message, "error");
+      const code =
+        e && typeof e === "object" && "code" in e
+          ? String((e as { code?: string }).code || "")
+          : "";
+      if (
+        code === "phone_required" ||
+        code === "phone_pending" ||
+        code === "phone_ineligible"
+      ) {
+        setActiveStep("phone_setup");
+        await load().catch(() => undefined);
+      }
     } finally {
       setBusy(false);
     }
   }
+
+  // Poll phone readiness while on the phone step (provisioning/verification).
+  useEffect(() => {
+    if (activeStep !== "phone_setup" || closed || !user) return;
+    if (isPhoneSetupReady(onboarding)) return;
+    const id = window.setInterval(() => {
+      void load().catch(() => undefined);
+    }, 8000);
+    return () => window.clearInterval(id);
+  }, [activeStep, closed, user, onboarding, load]);
 
   async function refreshCrm() {
     const cfg = await api<{
@@ -751,6 +806,102 @@ function OnboardingPageInner() {
               </>
             ) : null}
 
+            {activeStep === "phone_setup" ? (
+              <>
+                <h2 className="text-sm font-semibold">
+                  Configure Your Business Phone Number
+                </h2>
+                <p className="text-sm text-text-secondary">
+                  Every organization — including existing customers — must have
+                  at least one verified inbound phone number before accessing
+                  the dashboard. Choose how you want to set it up:
+                </p>
+                <ul className="list-disc space-y-1 pl-5 text-sm text-text-secondary">
+                  <li>
+                    <strong className="text-text-primary">
+                      I already have a number
+                    </strong>{" "}
+                    — connect a supported Twilio number and complete inbound
+                    verification (BYON).
+                  </li>
+                  <li>
+                    <strong className="text-text-primary">
+                      Purchase a new number
+                    </strong>{" "}
+                    — search inventory, confirm price, then buy (charges only
+                    after you confirm).
+                  </li>
+                </ul>
+                <div className="rounded-lg border border-border bg-surface-muted/40 p-4 text-sm">
+                  <p className="font-medium text-text-primary">
+                    Status:{" "}
+                    {onboarding.phone_setup?.state === "ready"
+                      ? "Ready"
+                      : onboarding.phone_setup?.state === "setup_in_progress"
+                        ? "Setup in progress"
+                        : onboarding.phone_setup?.state === "action_required"
+                          ? "Action required"
+                          : "Not configured"}
+                  </p>
+                  {onboarding.phone_setup?.primary_e164 ? (
+                    <p className="mt-1 text-text-secondary">
+                      Number: {onboarding.phone_setup.primary_e164}
+                    </p>
+                  ) : null}
+                  {onboarding.phone_setup?.message ? (
+                    <p className="mt-2 text-text-secondary">
+                      {onboarding.phone_setup.message}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => router.push(PHONES_ONBOARDING_PATH)}
+                  >
+                    Open phone setup
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={() => {
+                      void load();
+                      void refresh();
+                    }}
+                  >
+                    Refresh status
+                  </Button>
+                  {canUpdate && !closed ? (
+                    <Button
+                      type="button"
+                      disabled={busy || !isPhoneSetupReady(onboarding)}
+                      onClick={() => void completeOrSkip("phone_setup")}
+                    >
+                      {isPhoneSetupReady(onboarding)
+                        ? "Continue"
+                        : "Waiting for a ready number…"}
+                    </Button>
+                  ) : null}
+                  {phoneRecovery && phoneReady ? (
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        void refresh().then((u) => {
+                          if (u && isOnboardingComplete(u)) {
+                            router.replace("/dashboard");
+                          }
+                        });
+                      }}
+                    >
+                      Continue to dashboard
+                    </Button>
+                  ) : null}
+                </div>
+              </>
+            ) : null}
+
             {activeStep === "review" ? (
               <>
                 <h2 className="text-sm font-semibold">Review</h2>
@@ -770,6 +921,15 @@ function OnboardingPageInner() {
                   <div>
                     <dt className="text-text-muted">Timezone</dt>
                     <dd>{profile.timezone || "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-text-muted">Phone number</dt>
+                    <dd>
+                      {onboarding.phone_setup?.primary_e164 ||
+                        (isPhoneSetupReady(onboarding)
+                          ? "Ready"
+                          : "Required — not ready")}
+                    </dd>
                   </div>
                 </dl>
                 <div>

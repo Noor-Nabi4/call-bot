@@ -226,9 +226,12 @@ def test_executor_blocks_disabled_capability(
 def test_cross_tenant_config_isolation(
     session: Session, tenant: Tenant, session_settings: Settings
 ) -> None:
+    from helpers import establish_tenant_access
+
     other = Tenant(name="Other", slug=f"other-{uuid.uuid4().hex[:8]}")
     session.add(other)
     session.flush()
+    establish_tenant_access(session, other)
     profile_a = _profile(session, tenant)
     admin_b = AuthRepository(session).bootstrap_admin(
         tenant_id=other.id,

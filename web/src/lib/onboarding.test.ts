@@ -4,6 +4,8 @@ import type { OpsUser } from "../types/index.ts";
 import {
   isAiSetupConfirmed,
   isOnboardingComplete,
+  isPhoneSetupReady,
+  needsPhoneSetup,
   progressLabel,
   resumeTarget,
   setupPathFromState,
@@ -59,7 +61,13 @@ describe("onboarding helpers", () => {
   it("resumeTarget prefers resume_step while in progress", () => {
     assert.equal(resumeTarget(state({})), "industry");
     assert.equal(
-      resumeTarget(state({ status: "COMPLETED", resume_step: null })),
+      resumeTarget(
+        state({
+          status: "COMPLETED",
+          resume_step: null,
+          phone_setup: { state: "ready", eligible_count: 1 },
+        }),
+      ),
       null,
     );
   });
@@ -98,28 +106,44 @@ describe("onboarding helpers", () => {
     );
   });
 
-  it("only COMPLETED satisfies mandatory onboarding (not SKIPPED)", () => {
-    assert.equal(
-      isOnboardingComplete(user({ onboarding_status: "NOT_STARTED" })),
-      false,
-    );
-    assert.equal(
-      isOnboardingComplete(user({ onboarding_status: "IN_PROGRESS" })),
-      false,
-    );
-    assert.equal(
-      isOnboardingComplete(user({ onboarding_status: "SKIPPED" })),
-      false,
-    );
+  it("access requires COMPLETED business setup AND phone_ready", () => {
     assert.equal(
       isOnboardingComplete(user({ onboarding_status: "COMPLETED" })),
-      true,
+      false,
     );
     assert.equal(
       isOnboardingComplete(
-        user({ onboarding_complete: false, onboarding_status: "SKIPPED" }),
+        user({
+          onboarding_status: "COMPLETED",
+          business_onboarding_complete: true,
+          phone_ready: false,
+        }),
       ),
       false,
+    );
+    assert.equal(
+      isOnboardingComplete(
+        user({
+          onboarding_status: "COMPLETED",
+          business_onboarding_complete: true,
+          phone_ready: true,
+        }),
+      ),
+      true,
+    );
+    assert.equal(
+      isOnboardingComplete(user({ onboarding_complete: true })),
+      true,
+    );
+    assert.equal(
+      needsPhoneSetup(
+        user({
+          onboarding_status: "COMPLETED",
+          business_onboarding_complete: true,
+          phone_ready: false,
+        }),
+      ),
+      true,
     );
   });
 
@@ -127,6 +151,40 @@ describe("onboarding helpers", () => {
     assert.equal(
       resumeTarget(state({ status: "SKIPPED", resume_step: "industry" })),
       "industry",
+    );
+  });
+
+  it("resumeTarget sends COMPLETED orgs without phone to phone_setup", () => {
+    assert.equal(
+      resumeTarget(state({ status: "COMPLETED", resume_step: null })),
+      "phone_setup",
+    );
+  });
+
+  it("isPhoneSetupReady requires ready state from backend", () => {
+    assert.equal(isPhoneSetupReady(state({})), false);
+    assert.equal(
+      isPhoneSetupReady(
+        state({
+          phone_setup: {
+            state: "setup_in_progress",
+            eligible_count: 0,
+          },
+        }),
+      ),
+      false,
+    );
+    assert.equal(
+      isPhoneSetupReady(
+        state({
+          phone_setup: {
+            state: "ready",
+            eligible_count: 1,
+            primary_e164: "+15551234567",
+          },
+        }),
+      ),
+      true,
     );
   });
 });

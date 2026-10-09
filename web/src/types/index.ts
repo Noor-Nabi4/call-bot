@@ -17,6 +17,11 @@ export type OpsUser = {
   }[];
   /** Server-authoritative onboarding status (UX only — APIs enforce). */
   onboarding_status?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "SKIPPED" | null;
+  /** Business wizard COMPLETED (does not imply phone readiness). */
+  business_onboarding_complete?: boolean;
+  /** Eligible inbound DID exists for this tenant. */
+  phone_ready?: boolean;
+  /** Gate-aligned: business complete AND phone ready. */
   onboarding_complete?: boolean;
 };
 

@@ -5,7 +5,9 @@ from __future__ import annotations
 from callbot_platform.onboarding.access import (
     ONBOARDING_SATISFIED_STATUSES,
     assert_onboarding_satisfied,
+    is_business_onboarding_complete,
     is_onboarding_satisfied,
+    is_phone_ready_for_tenant,
     onboarding_status_for_tenant,
 )
 from callbot_platform.onboarding.errors import OnboardingError
@@ -28,7 +30,9 @@ __all__ = [
     "OnboardingError",
     "OnboardingService",
     "assert_onboarding_satisfied",
+    "is_business_onboarding_complete",
     "is_onboarding_satisfied",
+    "is_phone_ready_for_tenant",
     "list_step_defs",
     "onboarding_status_for_tenant",
 ]

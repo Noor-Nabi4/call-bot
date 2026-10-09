@@ -45,12 +45,16 @@ async function handleApiResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let message: string = errors.generic;
     let code: string | undefined;
+    let reason: string | undefined;
     try {
       const body = await res.json();
       const detail = body?.detail;
       if (typeof detail === "string") message = detail;
       else if (detail?.message) message = detail.message;
       if (typeof detail === "object" && detail?.code) code = detail.code;
+      if (typeof detail === "object" && detail?.reason) {
+        reason = String(detail.reason);
+      }
     } catch {
       /* ignore */
     }
@@ -62,8 +66,12 @@ async function handleApiResponse<T>(res: Response): Promise<T> {
     }
     if (code === "ONBOARDING_REQUIRED" && typeof window !== "undefined") {
       const pathNow = window.location.pathname;
-      if (!pathNow.startsWith("/onboarding")) {
-        window.location.assign("/onboarding");
+      if (!pathNow.startsWith("/onboarding") && !pathNow.startsWith("/phones")) {
+        window.location.assign(
+          reason === "phone_required"
+            ? "/phones?from=onboarding"
+            : "/onboarding",
+        );
       }
     }
     throw new ApiError(safeUserError(message, errors.generic), res.status, code);

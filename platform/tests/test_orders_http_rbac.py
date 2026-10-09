@@ -319,9 +319,12 @@ def test_ai_cannot_cancel_or_refund(
 def test_idor_cross_tenant(
     session: Session, tenant: Tenant, session_settings: Settings
 ) -> None:
+    from helpers import establish_tenant_access
+
     tenant_b = Tenant(name="B", slug=f"b-{uuid.uuid4().hex[:8]}")
     session.add(tenant_b)
     session.flush()
+    establish_tenant_access(session, tenant_b)
     setup_a = _setup_commerce(session, tenant)
     setup_b = _setup_commerce(session, tenant_b)
 

@@ -233,9 +233,9 @@ def require_permission(
 ) -> Callable[..., CurrentUser]:
     """Session-scoped permission check (RBAC). Entitlement not required here.
 
-    By default, organization onboarding must be COMPLETED.
-    Pass ``allow_incomplete_onboarding=True`` for onboarding/billing/auth
-    setup endpoints only. SKIPPED does not satisfy the mandatory gate.
+    By default, access requires COMPLETED business onboarding AND an eligible
+    inbound phone number. Pass ``allow_incomplete_onboarding=True`` for
+    onboarding/billing/phone-setup/auth endpoints only.
     """
 
     def _dep(
