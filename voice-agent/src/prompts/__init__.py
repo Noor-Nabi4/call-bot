@@ -21,7 +21,7 @@ from prompts.system import (
 from prompts.tool_rules import tool_usage_rules
 from tenant.agent_profile import AgentProfile, CallFacts
 
-PROMPT_COMPOSITION_VERSION = "prompt-compose-v4"
+PROMPT_COMPOSITION_VERSION = "prompt-compose-v5"
 
 
 def build_system_instructions_from_profile(

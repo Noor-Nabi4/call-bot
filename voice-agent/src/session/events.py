@@ -73,10 +73,12 @@ def attach_session_events(lifecycle: CallLifecycle, session) -> None:
 
     @session.on("agent_false_interruption")
     def on_agent_false_interruption(ev) -> None:
+        lifecycle.record_false_interruption()
         log_event(
             logger,
             "agent_false_interruption",
             resumed=getattr(ev, "resumed", None),
+            false_interruption_count=lifecycle.metrics.false_interruption_count,
             **lifecycle.correlation_fields(),
         )
 
@@ -84,11 +86,14 @@ def attach_session_events(lifecycle: CallLifecycle, session) -> None:
     def on_error(ev: ErrorEvent) -> None:
         recoverable = getattr(ev.error, "recoverable", None)
         error_type = type(ev.error).__name__
+        lifecycle.record_failed_turn(provider_error=True)
         log_event(
             logger,
             "session_error",
             error_type=error_type,
             recoverable=recoverable,
+            failed_turn_count=lifecycle.metrics.failed_turn_count,
+            provider_error_count=lifecycle.metrics.provider_error_count,
             level=40 if recoverable is False else 30,
             **lifecycle.correlation_fields(),
         )

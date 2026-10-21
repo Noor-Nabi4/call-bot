@@ -152,19 +152,25 @@ def _build_realtime_model(
     # Docs: OpenAI Realtime plugin + semantic VAD turn detection
     # https://docs.livekit.io/agents/models/realtime/plugins/openai/
     # Voice must be applied before the first audio response (OpenAI session constraint).
+    # eagerness=low: wait for a complete thought (better for phone pauses).
+    # interrupt_response=True: cancel in-progress agent audio on barge-in.
     resolved_voice = (voice or settings.openai_voice or "marin").strip() or "marin"
-    return realtime.RealtimeModel(
-        model=settings.openai_realtime_model,
-        voice=resolved_voice,
-        temperature=settings.temperature,
-        api_key=settings.openai_api_key,
-        turn_detection=TurnDetection(
+    kwargs: dict[str, Any] = {
+        "model": settings.openai_realtime_model,
+        "voice": resolved_voice,
+        "temperature": settings.temperature,
+        "api_key": settings.openai_api_key,
+        "turn_detection": TurnDetection(
             type="semantic_vad",
-            eagerness="medium",
+            eagerness=settings.vad_eagerness,  # type: ignore[arg-type]
             create_response=True,
             interrupt_response=True,
         ),
-    )
+    }
+    # Optional OpenAI-side NR before turn detection (LiveKit BVC still applies).
+    if settings.input_audio_noise_reduction:
+        kwargs["input_audio_noise_reduction"] = settings.input_audio_noise_reduction
+    return realtime.RealtimeModel(**kwargs)
 
 
 def _apply_profile_voice(
@@ -190,14 +196,19 @@ def _build_session(
 ) -> AgentSession:
     # Docs: realtime models use turn_detection="realtime_llm"
     # https://docs.livekit.io/agents/logic/turns/
+    # https://docs.livekit.io/agents/logic/turns/tuning/
     return AgentSession(
         llm=_build_realtime_model(settings),
         user_away_timeout=settings.user_away_timeout_sec,
         userdata=userdata,
+        # Brief pause between stacked agent utterances (tool preamble → answer).
+        min_consecutive_speech_delay=settings.min_consecutive_speech_delay_sec,
         turn_handling=TurnHandlingOptions(
             turn_detection="realtime_llm",
             interruption={
                 "enabled": True,
+                # Ignore very short noise bursts as barge-ins.
+                "min_duration": settings.min_interruption_duration_sec,
                 # Kept for false-interruption recovery when applicable.
                 "false_interruption_timeout": 2.0,
                 "resume_false_interruption": True,
@@ -368,6 +379,11 @@ async def entrypoint(ctx: JobContext) -> None:
         tenant_id=settings.tenant_id,
         model=settings.openai_realtime_model,
         voice=settings.openai_voice,
+        temperature=settings.temperature,
+        vad_eagerness=settings.vad_eagerness,
+        input_audio_noise_reduction=settings.input_audio_noise_reduction,
+        min_consecutive_speech_delay_sec=settings.min_consecutive_speech_delay_sec,
+        min_interruption_duration_sec=settings.min_interruption_duration_sec,
         end_of_call_summary_webhook=False,
         crm_tools=True,
         voice_runtime_mode=voice_runtime_mode(),

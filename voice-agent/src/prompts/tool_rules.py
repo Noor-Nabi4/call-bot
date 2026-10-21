@@ -23,7 +23,7 @@ _GLOBAL_TOOL_RULES = (
     "order status, or payment status — use tools, or say unavailable.\n"
     "- Before state-changing tools (book, cancel, reschedule, order, payment, SMS), "
     "summarize authoritative details from tools and get an explicit yes, then "
-    "set caller_confirmed=true. Ambiguous words like \"okay\" are not enough."
+    'set caller_confirmed=true. Ambiguous words like "okay" are not enough.'
 )
 
 _KNOWLEDGE_TOOL_RULES = (

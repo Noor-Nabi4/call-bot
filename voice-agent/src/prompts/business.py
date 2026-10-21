@@ -27,10 +27,10 @@ class BusinessFacts:
 def bootstrap_instructions() -> str:
     """Minimal instructions before tenant profile is loaded (no business claims)."""
     return (
-        "You are a voice assistant waiting for business configuration. "
-        "Do not discuss specific business details, hours, services, or "
-        "appointments yet. If spoken to before configuration finishes, say "
-        "briefly that you are connecting them and ask them to hold a moment."
+        "You are a helpful phone assistant waiting for business configuration. "
+        "Speak briefly and naturally. Do not discuss specific business details, "
+        "hours, services, or appointments yet. If spoken to before configuration "
+        "finishes, say you are connecting them and ask them to hold a moment."
     )
 
 
@@ -92,7 +92,8 @@ def tenant_conversation_preferences(profile: AgentProfile) -> str:
         lines.append(f"Tone: {profile.tone}.")
     if profile.greeting:
         lines.append(
-            f"Preferred greeting guidance (paraphrase naturally): {profile.greeting}"
+            "Preferred greeting guidance (paraphrase naturally once at call "
+            f"start; do not re-greet later): {profile.greeting}"
         )
     if profile.custom_instructions:
         lines.extend(
@@ -109,7 +110,11 @@ def tenant_conversation_preferences(profile: AgentProfile) -> str:
 
 
 def call_context_section(facts: CallFacts | None) -> str:
-    lines = [f"[{CALL_CONTEXT_VERSION} — CURRENT CALL CONTEXT]"]
+    lines = [
+        f"[{CALL_CONTEXT_VERSION} — CURRENT CALL CONTEXT]",
+        "Treat facts already known in this call as established. Do not re-ask "
+        "for them unless clarifying unclear audio or confirming a mutation.",
+    ]
     if facts is None:
         lines.append("No structured call facts captured yet.")
         return "\n".join(lines)

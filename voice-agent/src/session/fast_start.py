@@ -14,13 +14,15 @@ def build_greeting_instructions(greeting_hint: str | None) -> str:
     hint = (greeting_hint or "").strip()
     if hint:
         return (
-            "Speak this greeting to the caller now in a natural spoken voice. "
-            "Keep it to one or two short sentences. Do not add extra offers or "
+            "Speak this greeting now in a warm, natural phone voice — like a "
+            "real receptionist, not a script reader. Keep it to one or two short "
+            "sentences. Use contractions if they fit. Do not add extra offers or "
             f'questions beyond what is already present: "{hint}"'
         )
     return (
-        "Greet the caller briefly, introduce yourself as the business voice "
-        "assistant, and ask how you can help. One or two short sentences only."
+        "Greet the caller briefly in a warm, natural phone voice, introduce "
+        "yourself as the business assistant, and ask how you can help. One or "
+        "two short sentences only. Sound human, not scripted."
     )
 
 

@@ -125,11 +125,12 @@ def test_prompt_includes_call_flow_steps() -> None:
             }
         )
     )
-    assert "ORDERED CALL FLOW" in prompt
+    assert "GUIDED CALL FLOW" in prompt
+    assert "not a rigid script" in prompt
     assert "Welcome caller" in prompt
     assert "Say good morning" in prompt
     assert "Skip me" not in prompt
-    assert "prompt-compose-v4" in prompt
+    assert "prompt-compose-v5" in prompt
 
 
 def test_knowledge_only_profile_omits_other_tool_groups() -> None:
@@ -174,6 +175,22 @@ def test_core_voice_preambles_unclear_audio_and_tool_failure() -> None:
     assert "Do not invent facts" in prompt
     assert "1-2 short spoken sentences" in prompt
     assert "Do not narrate reasoning or tool usage" not in prompt
+
+
+def test_core_voice_human_conversation_guidance() -> None:
+    prompt = build_system_instructions_from_profile(_profile())
+    assert "core-voice-v4" in prompt
+    assert "## Natural speaking style" in prompt
+    assert "## Context and memory" in prompt
+    assert "## Interruptions and turn-taking" in prompt
+    assert "contractions" in prompt.lower()
+    assert "never the same phrase on every turn" in prompt.lower()
+    assert "Do not repeat the caller's entire question" in prompt
+    assert "Never insert fake laughter" in prompt
+    assert "Callers may interrupt you" in prompt
+    assert "Do not ask them to repeat information" in prompt
+    assert "natural-sounding phone assistant" in prompt
+    assert "Treat facts already known in this call as established" in prompt
 
 
 def test_legacy_build_includes_all_tool_groups() -> None:
