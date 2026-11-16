@@ -16,9 +16,12 @@ def render_call_flow_section(flow: dict[str, Any] | None) -> str:
     if not enabled:
         return ""
     lines = [
-        "[call-flow-v1 — ORDERED CALL FLOW]",
-        "Follow these steps in order when practical. Skip a step only if the "
-        "caller clearly does not need it. Do not invent steps that are not listed.",
+        "[call-flow-v2 — GUIDED CALL FLOW]",
+        "These steps are a soft guide, not a rigid script. Always answer the "
+        "caller's current question first. Advance through remaining steps when "
+        "they help the caller's goal; skip any step that is unnecessary, already "
+        "covered, or would feel repetitive. Do not invent steps that are not "
+        "listed. Prefer natural conversation over reading the list in order.",
     ]
     for index, step in enumerate(enabled, start=1):
         label = str(step.get("label") or step.get("type") or f"Step {index}")

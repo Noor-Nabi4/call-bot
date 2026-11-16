@@ -16,6 +16,7 @@ import { safeUserError } from "@/lib/safe-error";
 import {
   Button,
   ErrorState,
+  ForbiddenState,
   Field,
   LoadingSkeleton,
   PageHeader,
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui";
 
 export default function PlaygroundPage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "ai.configure" });
   const toast = useToast();
   const searchParams = useSearchParams();
   const profileFromQuery = searchParams.get("profile");
@@ -93,6 +94,14 @@ export default function PlaygroundPage() {
       <div className="p-6">
         <LoadingSkeleton rows={8} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

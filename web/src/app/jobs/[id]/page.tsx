@@ -13,6 +13,7 @@ import {
   updateChecklist,
   type Job,
 } from "@/lib/api";
+import { JOB_TERMINAL_STATUSES } from "@/lib/api/job-constants";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/use-auth";
 import { errors } from "@/lib/ops-copy";
@@ -23,6 +24,7 @@ import {
   ConfirmDialog,
   ErrorState,
   Field,
+  ForbiddenState,
   Input,
   LoadingSkeleton,
   PageHeader,
@@ -33,7 +35,9 @@ import {
 
 export default function JobDetailPage() {
   const params = useParams<{ id: string }>();
-  const { user, loading } = useAuth();
+  const { user, loading, forbidden, isTechShell } = useAuth({
+    permission: "jobs.read",
+  });
   const [job, setJob] = useState<Job | null>(null);
   const [note, setNote] = useState("");
   const [completionNotes, setCompletionNotes] = useState("");
@@ -43,7 +47,7 @@ export default function JobDetailPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
 
-  const isTech = user?.role === "technician";
+  const isTech = isTechShell;
   const btnSize = isTech ? "lg" : "md";
 
   const refresh = useCallback(async () => {
@@ -52,7 +56,7 @@ export default function JobDetailPage() {
   }, [params.id]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || forbidden) return;
     let cancelled = false;
     queueMicrotask(() => {
       if (cancelled) return;
@@ -65,13 +69,21 @@ export default function JobDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [user, refresh]);
+  }, [user, forbidden, refresh]);
 
   if (loading || !user) {
     return (
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 
@@ -130,7 +142,7 @@ export default function JobDetailPage() {
       const updated = await transitionJob(
         job!.id,
         status,
-        status === "completed" ? completionNotes : undefined,
+        status === "COMPLETED" ? completionNotes : undefined,
       );
       setJob(updated.job);
     } catch (e) {
@@ -142,7 +154,7 @@ export default function JobDetailPage() {
     setCancelBusy(true);
     setError(null);
     try {
-      const updated = await transitionJob(job!.id, "canceled");
+      const updated = await transitionJob(job!.id, "CANCELLED");
       setJob(updated.job);
       setCancelOpen(false);
     } catch (e) {
@@ -222,17 +234,17 @@ export default function JobDetailPage() {
         <Surface className="p-4">
           <h3 className="text-sm font-semibold text-text-primary">Status actions</h3>
           <div className={cn("mt-3 flex flex-wrap gap-2", isTech && "flex-col")}>
-            {!isTech && job.status === "scheduled" && (
-              <Button size={btnSize} onClick={() => onTransition("dispatched")}>
+            {!isTech && job.status === "SCHEDULED" && (
+              <Button size={btnSize} onClick={() => onTransition("DISPATCHED")}>
                 Dispatch
               </Button>
             )}
-            {job.status === "dispatched" && (
-              <Button size={btnSize} onClick={() => onTransition("in_progress")}>
+            {job.status === "DISPATCHED" && (
+              <Button size={btnSize} onClick={() => onTransition("IN_PROGRESS")}>
                 {isTech ? "Start job" : "Mark in progress"}
               </Button>
             )}
-            {job.status === "in_progress" && (
+            {job.status === "IN_PROGRESS" && (
               <div className="w-full space-y-2">
                 <Field label="Completion notes" hint="Required to complete">
                   <Textarea
@@ -246,13 +258,13 @@ export default function JobDetailPage() {
                   variant="ink"
                   size={btnSize}
                   className={isTech ? "w-full" : undefined}
-                  onClick={() => onTransition("completed")}
+                  onClick={() => onTransition("COMPLETED")}
                 >
                   Complete job
                 </Button>
               </div>
             )}
-            {!isTech && !["completed", "canceled"].includes(job.status) && (
+            {!isTech && !JOB_TERMINAL_STATUSES.has(job.status) && (
               <Button
                 variant="danger"
                 size={btnSize}

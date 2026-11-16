@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 
 import pytest
+from helpers import next_open_booking_day
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -180,9 +181,8 @@ def test_appointment_creates_job(session: Session, tenant: Tenant) -> None:
         session,
         notification_service=NotificationService(session, sms_sender=_fake_sms),
     )
-    slots = repo.list_available_slots(
-        tenant.id, from_date=date(2026, 7, 20), to_date=date(2026, 7, 20)
-    )
+    day = next_open_booking_day()
+    slots = repo.list_available_slots(tenant.id, from_date=day, to_date=day)
     start = datetime.fromisoformat(slots["slots"][0]["starts_at"])
     booked = repo.book(
         tenant.id,
@@ -191,7 +191,7 @@ def test_appointment_creates_job(session: Session, tenant: Tenant) -> None:
         service_type="AC repair",
     )
     assert "job" in booked
-    assert booked["job"]["status"] == "scheduled"
+    assert booked["job"]["status"] == "SCHEDULED"
     assert booked["job"]["appointment_id"] == booked["id"]
     job_row = session.get(Job, uuid.UUID(booked["job"]["id"]))
     assert job_row is not None
@@ -225,14 +225,10 @@ def test_job_assign_dispatch_complete(session: Session, tenant: Tenant) -> None:
         tenant.id, uuid.UUID(job["id"]), technician_id=uuid.UUID(tech["id"])
     )
     assert assigned["assigned_technician_id"] == tech["id"]
-    dispatched = jobs.transition(
-        tenant.id, uuid.UUID(job["id"]), status="dispatched"
-    )
-    assert dispatched["status"] == "dispatched"
-    started = jobs.transition(
-        tenant.id, uuid.UUID(job["id"]), status="in_progress"
-    )
-    assert started["status"] == "in_progress"
+    dispatched = jobs.transition(tenant.id, uuid.UUID(job["id"]), status="dispatched")
+    assert dispatched["status"] == "DISPATCHED"
+    started = jobs.transition(tenant.id, uuid.UUID(job["id"]), status="in_progress")
+    assert started["status"] == "IN_PROGRESS"
     done = jobs.transition(
         tenant.id,
         uuid.UUID(job["id"]),
@@ -240,7 +236,7 @@ def test_job_assign_dispatch_complete(session: Session, tenant: Tenant) -> None:
         completion_notes="Replaced capacitor",
         actor_user_id=uuid.UUID(tech["user_id"]),
     )
-    assert done["status"] == "completed"
+    assert done["status"] == "COMPLETED"
     assert done["completion_notes"] == "Replaced capacitor"
     assert any("Completed:" in (n["body"] or "") for n in done.get("notes") or [])
 

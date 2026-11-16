@@ -1,26 +1,30 @@
-"""Jobs domain errors and shared helpers."""
+"""Jobs domain errors and shared helpers.
+
+Checklist defaults, reference-code, and status-graph helpers now live in
+``callbot_platform.crm.jobs.constants`` (Phase 10) and are re-exported here
+for backward compatibility with the legacy ``/api/jobs`` repository. Do not
+import ``callbot_platform.crm.jobs`` (the package, which pulls in
+``JobService``) from this module — that would reintroduce the circular
+import this module previously had.
+"""
 
 from __future__ import annotations
 
-import secrets
+from callbot_platform.crm.jobs.constants import (
+    ASSIGNABLE_STATUSES as _ASSIGNABLE,
+)
+from callbot_platform.crm.jobs.constants import (
+    DEFAULT_CHECKLIST,
+    JobStatus,
+    checklist_item_id,
+    job_ref,
+    normalize_status,
+    transitions_map,
+)
 
-TRANSITIONS: dict[str, frozenset[str]] = {
-    "new": frozenset({"scheduled", "canceled"}),
-    "scheduled": frozenset({"dispatched", "canceled"}),
-    "dispatched": frozenset({"in_progress", "scheduled", "canceled"}),
-    "in_progress": frozenset({"completed", "canceled"}),
-    "completed": frozenset(),
-    "canceled": frozenset(),
-}
-
-ASSIGNABLE_STATUSES = frozenset({"new", "scheduled", "dispatched"})
-
-DEFAULT_CHECKLIST = [
-    {"id": "arrive", "label": "Arrive on site", "done": False},
-    {"id": "diagnose", "label": "Diagnose issue", "done": False},
-    {"id": "complete_work", "label": "Complete work", "done": False},
-    {"id": "customer_signoff", "label": "Customer sign-off", "done": False},
-]
+# Phase 10 uppercase graph (also used by legacy /api/jobs).
+TRANSITIONS: dict[str, frozenset[str]] = transitions_map()
+ASSIGNABLE_STATUSES = _ASSIGNABLE
 
 
 class JobsError(ValueError):
@@ -29,9 +33,21 @@ class JobsError(ValueError):
         self.code = code
 
 
-def job_ref() -> str:
-    return f"JOB-{secrets.token_hex(3).upper()}"
+def coerce_status(value: str) -> str:
+    try:
+        return normalize_status(value)
+    except ValueError as exc:
+        raise JobsError("invalid_status", f"Unknown status: {value}") from exc
 
 
-def checklist_item_id() -> str:
-    return secrets.token_hex(4)
+__all__ = [
+    "ASSIGNABLE_STATUSES",
+    "DEFAULT_CHECKLIST",
+    "TRANSITIONS",
+    "JobStatus",
+    "JobsError",
+    "checklist_item_id",
+    "coerce_status",
+    "job_ref",
+    "normalize_status",
+]

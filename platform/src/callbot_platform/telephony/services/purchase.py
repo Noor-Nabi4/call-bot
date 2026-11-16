@@ -1,10 +1,7 @@
-"""Path B: purchase Twilio numbers via platform subaccounts."""
+"""Path B: purchase Twilio numbers via platform subaccounts (saga / async job)."""
 
 from __future__ import annotations
 
-import contextlib
-import hashlib
-import re
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
@@ -12,6 +9,8 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from callbot_platform.async_jobs.service import AsyncJobService
+from callbot_platform.async_jobs.types import JobType
 from callbot_platform.billing.entitlements import EntitlementError, EntitlementGuard
 from callbot_platform.config import Settings
 from callbot_platform.db.models import (
@@ -33,7 +32,6 @@ from callbot_platform.security.crypto import CredentialCipher
 from callbot_platform.security.metadata import MetadataSigner
 from callbot_platform.telephony.adapters.livekit_sip import LiveKitSipService
 from callbot_platform.telephony.adapters.twilio_adapter import (
-    TwilioApiError,
     TwilioNumberInventoryService,
     TwilioNumberProvisioningService,
     TwilioSipTrunkService,
@@ -69,7 +67,14 @@ class PlatformPurchaseService:
         self._twilio_sip = twilio_sip
         self._livekit = livekit
 
-    def ensure_subaccount(self, *, tenant_id: UUID, actor: str = "system") -> dict[str, Any]:
+    def ensure_subaccount(
+        self, *, tenant_id: UUID, actor: str = "system"
+    ) -> dict[str, Any]:
+        """
+        Ensure Twilio subaccount exists.
+
+        Reads DB then calls Twilio only when missing — no write before provider call.
+        """
         tenant = self._require_tenant(tenant_id)
         existing = self._session.scalar(
             select(TenantTwilioSubaccount).where(
@@ -83,13 +88,17 @@ class PlatformPurchaseService:
                 "created": False,
             }
 
-        if not self._settings.twilio_account_sid or not self._settings.twilio_auth_token:
+        if (
+            not self._settings.twilio_account_sid
+            or not self._settings.twilio_auth_token
+        ):
             raise PurchaseError(
                 "twilio_not_configured",
                 "Platform Twilio master credentials are required for Path B",
             )
 
         friendly = f"call-bot-{tenant.slug}"
+        # Provider I/O before any DB write for this resource.
         sid, token = self._twilio_sip.create_subaccount(
             master_account_sid=self._settings.twilio_account_sid,
             master_auth_token=self._settings.twilio_auth_token,
@@ -101,6 +110,19 @@ class PlatformPurchaseService:
                 "Existing Twilio subaccount found but auth token is unavailable; "
                 "store the subaccount token securely or create a new friendly name",
             )
+
+        # Re-check race: another request may have inserted meanwhile.
+        existing = self._session.scalar(
+            select(TenantTwilioSubaccount).where(
+                TenantTwilioSubaccount.tenant_id == tenant_id
+            )
+        )
+        if existing is not None:
+            return {
+                "twilio_subaccount_sid": existing.twilio_subaccount_sid,
+                "friendly_name": existing.friendly_name,
+                "created": False,
+            }
 
         row = TenantTwilioSubaccount(
             tenant_id=tenant_id,
@@ -134,7 +156,27 @@ class PlatformPurchaseService:
         sms_enabled: bool | None = None,
         limit: int = 20,
     ) -> list[dict[str, Any]]:
-        account_sid, auth_token = self._tenant_twilio_creds(tenant_id)
+        """
+        Read-only Twilio inventory search.
+
+        Requires an existing subaccount (call ensure_subaccount first).
+        Does not write during the provider call.
+        """
+        row = self._session.scalar(
+            select(TenantTwilioSubaccount).where(
+                TenantTwilioSubaccount.tenant_id == tenant_id
+            )
+        )
+        if row is None:
+            raise PurchaseError(
+                "subaccount_required",
+                "Twilio subaccount required before inventory search; "
+                "call ensure_subaccount first",
+            )
+        account_sid = row.twilio_subaccount_sid
+        auth_token = self._cipher.decrypt(row.encrypted_auth_token)
+        # Snapshot credentials then expire ORM state so no dirty writes ride along.
+        self._session.expire_all()
         numbers = self._inventory.search(
             account_sid=account_sid,
             auth_token=auth_token,
@@ -159,6 +201,75 @@ class PlatformPurchaseService:
             for n in numbers
         ]
 
+    def release(
+        self,
+        *,
+        tenant_id: UUID,
+        phone_number_id: UUID,
+        phone_number_sid: str | None = None,
+        actor: str = "tenant_user",
+    ) -> dict[str, Any]:
+        """
+        Queue release saga (no Twilio/LiveKit I/O in this transaction).
+
+        Marks phone releasing + enqueues telephony.release job.
+        """
+        row = self._owned(tenant_id, phone_number_id)
+        if row.onboarding_path != OnboardingPath.PLATFORM_PURCHASE.value:
+            raise PurchaseError(
+                "release_not_allowed",
+                "Only platform-purchased numbers can be released via this API",
+            )
+        if row.connection_status == ConnectionStatus.RELEASED.value:
+            return {"phone_number": self._serialize(row), "provisioning": "released"}
+        if row.connection_status == ConnectionStatus.RELEASING.value:
+            # Idempotent re-queue is handled by async job idempotency key.
+            pass
+
+        details = dict(row.provisioning_details or {})
+        resolved_sid = phone_number_sid or details.get("phone_number_sid")
+        if not isinstance(resolved_sid, str) or not resolved_sid.strip():
+            raise PurchaseError(
+                "missing_phone_sid",
+                "Phone number SID is missing from provisioning details",
+            )
+        phone_number_sid = resolved_sid.strip()
+
+        row.connection_status = ConnectionStatus.RELEASING.value
+        row.provisioning_state = ProvisioningState.IN_PROGRESS.value
+        details["release_requested_sid"] = phone_number_sid
+        row.provisioning_details = details
+        row.updated_at = datetime.now(UTC)
+        self._session.flush()
+
+        job = AsyncJobService(self._session, settings=self._settings).enqueue(
+            tenant_id=tenant_id,
+            job_type=JobType.TELEPHONY_RELEASE,
+            idempotency_key=f"tenant:{tenant_id}:phone:{row.id}:release",
+            resource_id=str(row.id),
+            payload={
+                "phone_number_id": str(row.id),
+                "phone_number_sid": phone_number_sid,
+            },
+        )
+        write_audit(
+            self._session,
+            tenant_id=tenant_id,
+            actor=actor,
+            action="number_release_queued",
+            resource_ids={
+                "phone_number_id": str(row.id),
+                "e164": row.e164,
+                "job_id": str(job.id),
+            },
+        )
+        self._session.flush()
+        return {
+            "phone_number": self._serialize(row),
+            "job_id": str(job.id),
+            "provisioning": "queued",
+        }
+
     def purchase(
         self,
         *,
@@ -168,6 +279,11 @@ class PlatformPurchaseService:
         idempotency_key: str,
         actor: str = "tenant_user",
     ) -> dict[str, Any]:
+        """
+        Create internal phone intent + async provisioning job (no Twilio/LiveKit I/O).
+
+        Caller must commit the DB transaction, then run AsyncJobWorker.process_job.
+        """
         if not confirm:
             raise PurchaseError(
                 "confirmation_required",
@@ -180,9 +296,7 @@ class PlatformPurchaseService:
             )
 
         try:
-            EntitlementGuard(self._session).require_capacity(
-                tenant_id, "phone_numbers"
-            )
+            EntitlementGuard(self._session).require_capacity(tenant_id, "phone_numbers")
         except EntitlementError as exc:
             raise PurchaseError(exc.code, str(exc)) from exc
 
@@ -202,7 +316,7 @@ class PlatformPurchaseService:
                 )
             return prior.response_json
 
-        tenant = self._require_tenant(tenant_id)
+        self._require_tenant(tenant_id)
         try:
             e164 = normalize_e164(phone_number)
         except PhoneNumberError as exc:
@@ -216,12 +330,11 @@ class PlatformPurchaseService:
                 "duplicate_number", f"Phone number {e164} is already registered"
             )
 
-        account_sid, auth_token = self._tenant_twilio_creds(tenant_id)
         row = TenantPhoneNumber(
             tenant_id=tenant_id,
             provider=TelephonyProviderId.TWILIO.value,
             e164=e164,
-            twilio_account_sid=account_sid,
+            twilio_account_sid=None,
             connection_status=ConnectionStatus.CONFIGURING.value,
             verification_status=VerificationStatus.UNVERIFIED.value,
             onboarding_path=OnboardingPath.PLATFORM_PURCHASE.value,
@@ -232,206 +345,76 @@ class PlatformPurchaseService:
         self._session.add(row)
         self._session.flush()
 
-        details: dict[str, Any] = {"steps_completed": []}
-        phone_sid: str | None = None
+        job_key = f"tenant:{tenant_id}:phone:{row.id}:provision"
+        job = AsyncJobService(self._session, settings=self._settings).enqueue(
+            tenant_id=tenant_id,
+            job_type=JobType.TELEPHONY_PROVISION_PURCHASE,
+            idempotency_key=job_key,
+            resource_id=str(row.id),
+            payload={
+                "phone_number_id": str(row.id),
+                "idempotency_key": idempotency_key.strip(),
+                "e164": e164,
+            },
+        )
 
-        try:
-            purchased = self._provisioning.purchase(
-                account_sid=account_sid,
-                auth_token=auth_token,
-                e164=e164,
-                idempotency_key=idempotency_key,
-            )
-            phone_sid = purchased.phone_number_sid
-            details["steps_completed"].append("twilio_purchase")
-            details["phone_number_sid"] = phone_sid
-
-            domain = self._domain_for_tenant(tenant.slug)
-            trunk = self._twilio_sip.create_or_get_twilio_trunk(
-                account_sid=account_sid,
-                auth_token=auth_token,
-                friendly_name=f"call-bot-{tenant.slug}",
-                domain_name=domain,
-                livekit_origination_uri=self._settings.livekit_origination_uri,
-            )
-            row.twilio_trunk_sid = trunk.trunk_sid
-            details["steps_completed"].append("twilio_trunk")
-            details["twilio_trunk_sid"] = trunk.trunk_sid
-
-            self._twilio_sip.associate_number_with_twilio_trunk(
-                account_sid=account_sid,
-                auth_token=auth_token,
-                trunk_sid=trunk.trunk_sid,
-                phone_number_sid=phone_sid,
-            )
-            details["steps_completed"].append("twilio_trunk_association")
-
-            metadata = self._signer.sign_payload(
-                {
-                    "tenant_id": str(tenant_id),
-                    "did": e164,
-                    "phone_number_id": str(row.id),
-                    "source": "sip_dispatch",
-                    **(
-                        {"agent_profile_id": str(tenant.default_agent_profile_id)}
-                        if tenant.default_agent_profile_id
-                        else {}
-                    ),
-                }
-            )
-            lk_trunk = self._livekit.create_livekit_inbound_trunk(
-                name=f"inbound-{tenant.slug}-{e164}",
-                numbers=[e164],
-                metadata=metadata,
-            )
-            row.livekit_inbound_trunk_id = lk_trunk.trunk_id
-            details["steps_completed"].append("livekit_inbound_trunk")
-            details["livekit_inbound_trunk_id"] = lk_trunk.trunk_id
-
-            dispatch = self._livekit.create_individual_dispatch_rule(
-                name=f"dispatch-{tenant.slug}-{e164}",
-                agent_name=self._settings.agent_name,
-                metadata=metadata,
-                trunk_ids=[lk_trunk.trunk_id],
-            )
-            row.livekit_dispatch_rule_id = dispatch.dispatch_rule_id
-            details["steps_completed"].append("livekit_dispatch_rule")
-            details["livekit_dispatch_rule_id"] = dispatch.dispatch_rule_id
-
-            row.connection_status = ConnectionStatus.PENDING_VERIFICATION.value
-            row.provisioning_state = ProvisioningState.COMPLETE.value
-            row.provisioning_details = details
-            row.updated_at = datetime.now(UTC)
-        except (TwilioApiError, Exception) as exc:
-            row.connection_status = ConnectionStatus.PARTIAL.value
-            row.provisioning_state = ProvisioningState.PARTIAL.value
-            row.last_purchase_error = str(exc)
-            details["error"] = str(exc)
-            row.provisioning_details = details
-            # Safe rollback of LiveKit resources only; never auto-release Twilio number.
-            self._safe_rollback_livekit(row, details)
-            row.updated_at = datetime.now(UTC)
-            response = {
-                "error": "partial_provisioning",
-                "message": str(exc),
-                "phone_number": self._serialize(row),
-            }
-            self._store_idempotency(
-                tenant_id=tenant_id,
-                key=idempotency_key,
-                response=response,
-                status="failed",
-            )
-            write_audit(
-                self._session,
-                tenant_id=tenant_id,
-                actor=actor,
-                action="purchase_partial_failure",
-                resource_ids={"phone_number_id": str(row.id), "e164": e164},
-                idempotency_key=idempotency_key,
-                payload_summary=details,
-            )
-            self._session.flush()
-            raise PurchaseError(
-                "partial_provisioning",
-                f"Purchase partially completed; number was NOT auto-released. {exc}",
-            ) from exc
-
-        response = {"phone_number": self._serialize(row)}
+        response = {
+            "phone_number": self._serialize(row),
+            "job_id": str(job.id),
+            "provisioning": "queued",
+        }
         self._store_idempotency(
             tenant_id=tenant_id,
             key=idempotency_key,
             response=response,
-            status="completed",
+            status="queued",
         )
         write_audit(
             self._session,
             tenant_id=tenant_id,
             actor=actor,
-            action="number_purchased",
+            action="number_purchase_queued",
             resource_ids={
                 "phone_number_id": str(row.id),
                 "e164": e164,
-                "phone_number_sid": phone_sid,
+                "job_id": str(job.id),
             },
             idempotency_key=idempotency_key,
         )
         self._session.flush()
         return response
 
-    def release(
-        self,
-        *,
-        tenant_id: UUID,
-        phone_number_id: UUID,
-        phone_number_sid: str | None = None,
-        actor: str = "tenant_user",
-    ) -> dict[str, Any]:
-        row = self._owned(tenant_id, phone_number_id)
-        if row.onboarding_path != OnboardingPath.PLATFORM_PURCHASE.value:
-            raise PurchaseError(
-                "release_not_allowed",
-                "Only platform-purchased numbers can be released via this API",
-            )
-        details = row.provisioning_details or {}
-        resolved_sid = phone_number_sid or details.get("phone_number_sid")
-        if not isinstance(resolved_sid, str) or not resolved_sid.strip():
-            raise PurchaseError(
-                "missing_phone_sid",
-                "Phone number SID is missing from provisioning details",
-            )
-        phone_number_sid = resolved_sid.strip()
-        account_sid, auth_token = self._tenant_twilio_creds(tenant_id)
-        self._provisioning.release(
-            account_sid=account_sid,
-            auth_token=auth_token,
-            phone_number_sid=phone_number_sid,
-        )
-        if row.livekit_dispatch_rule_id:
-            with contextlib.suppress(Exception):
-                self._livekit.delete_dispatch_rule(row.livekit_dispatch_rule_id)
-        if row.livekit_inbound_trunk_id:
-            with contextlib.suppress(Exception):
-                self._livekit.delete_livekit_inbound_trunk(row.livekit_inbound_trunk_id)
-        row.connection_status = ConnectionStatus.RELEASED.value
-        row.updated_at = datetime.now(UTC)
-        write_audit(
-            self._session,
-            tenant_id=tenant_id,
-            actor=actor,
-            action="number_released",
-            resource_ids={
-                "phone_number_id": str(row.id),
-                "e164": row.e164,
-                "phone_number_sid": phone_number_sid,
-            },
-        )
-        self._session.flush()
-        return self._serialize(row)
-
-    def _safe_rollback_livekit(
-        self, row: TenantPhoneNumber, details: dict[str, Any]
+    def mark_idempotency_completed(
+        self, *, tenant_id: UUID, idempotency_key: str, response: dict[str, Any]
     ) -> None:
-        if row.livekit_dispatch_rule_id:
-            try:
-                self._livekit.delete_dispatch_rule(row.livekit_dispatch_rule_id)
-                details["rollback"] = [
-                    *details.get("rollback", []),
-                    "dispatch_rule",
-                ]
-                row.livekit_dispatch_rule_id = None
-            except Exception as exc:
-                details["rollback_error_dispatch"] = str(exc)
-        if row.livekit_inbound_trunk_id:
-            try:
-                self._livekit.delete_livekit_inbound_trunk(row.livekit_inbound_trunk_id)
-                details["rollback"] = [
-                    *details.get("rollback", []),
-                    "inbound_trunk",
-                ]
-                row.livekit_inbound_trunk_id = None
-            except Exception as exc:
-                details["rollback_error_trunk"] = str(exc)
+        prior = self._session.scalar(
+            select(TelephonyIdempotencyKey).where(
+                TelephonyIdempotencyKey.tenant_id == tenant_id,
+                TelephonyIdempotencyKey.operation == "purchase_number",
+                TelephonyIdempotencyKey.key == idempotency_key.strip(),
+            )
+        )
+        if prior is None:
+            return
+        prior.status = "completed"
+        prior.response_json = response
+        self._session.flush()
+
+    def mark_idempotency_failed(
+        self, *, tenant_id: UUID, idempotency_key: str, response: dict[str, Any]
+    ) -> None:
+        prior = self._session.scalar(
+            select(TelephonyIdempotencyKey).where(
+                TelephonyIdempotencyKey.tenant_id == tenant_id,
+                TelephonyIdempotencyKey.operation == "purchase_number",
+                TelephonyIdempotencyKey.key == idempotency_key.strip(),
+            )
+        )
+        if prior is None:
+            return
+        prior.status = "failed"
+        prior.response_json = response
+        self._session.flush()
 
     def _tenant_twilio_creds(self, tenant_id: UUID) -> tuple[str, str]:
         self.ensure_subaccount(tenant_id=tenant_id)
@@ -451,15 +434,15 @@ class PlatformPurchaseService:
         return tenant
 
     def _owned(self, tenant_id: UUID, phone_number_id: UUID) -> TenantPhoneNumber:
-        row = self._session.get(TenantPhoneNumber, phone_number_id)
-        if row is None or row.tenant_id != tenant_id:
+        row = self._session.scalar(
+            select(TenantPhoneNumber).where(
+                TenantPhoneNumber.id == phone_number_id,
+                TenantPhoneNumber.tenant_id == tenant_id,
+            )
+        )
+        if row is None:
             raise PurchaseError("not_found", "Phone number not found for tenant")
         return row
-
-    def _domain_for_tenant(self, slug: str) -> str:
-        safe = re.sub(r"[^a-z0-9-]", "", slug.lower()) or "tenant"
-        digest = hashlib.sha1(slug.encode("utf-8")).hexdigest()[:8]
-        return f"callbot-{safe}-{digest}.pstn.twilio.com"
 
     def _store_idempotency(
         self,

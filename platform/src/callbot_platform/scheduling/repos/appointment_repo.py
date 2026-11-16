@@ -32,6 +32,10 @@ from callbot_platform.scheduling.notifications import NotificationService
 from callbot_platform.scheduling.repos.settings_repo import ScheduleSettingsRepository
 from callbot_platform.telephony.audit import write_audit
 
+# Voice booking always books a fixed-duration slot (tenant's slot_minutes).
+_VOICE_BOOKED_STATUS = "SCHEDULED"
+_VOICE_CANCELLED_STATUS = "CANCELLED"
+
 
 class AppointmentRepository:
     def __init__(
@@ -168,14 +172,26 @@ class AppointmentRepository:
                 "That time is no longer available. Please choose another slot.",
             )
 
+        # Local import avoids a module-load cycle: crm.appointments pulls in
+        # scheduling.repos (via ScheduleSettingsRepository), which would
+        # otherwise re-enter this module while it is still initializing.
+        from callbot_platform.crm.appointments.numbering import (
+            allocate_appointment_number,
+        )
+
+        tz_name = self._settings.effective_timezone(tenant_id)
+        appointment_number = allocate_appointment_number(self._session, tenant_id)
         appt = Appointment(
             tenant_id=tenant_id,
+            appointment_number=appointment_number,
             customer_id=customer_id,
             lead_id=lead_id,
             call_id=call_id,
             starts_at=starts,
             ends_at=ends,
-            status="scheduled",
+            duration_minutes=settings.slot_minutes,
+            timezone=tz_name,
+            status=_VOICE_BOOKED_STATUS,
             service_type=service_type.strip(),
             notes=notes.strip() if notes else None,
             confirmation_code=confirmation_code(),
@@ -193,7 +209,6 @@ class AppointmentRepository:
                 "That time is no longer available. Please choose another slot.",
             )
 
-        tz_name = self._settings.effective_timezone(tenant_id)
         notifications = self._notifications.send_appointment_notifications(
             appt,
             customer=customer,
@@ -257,7 +272,8 @@ class AppointmentRepository:
 
         appt.starts_at = starts
         appt.ends_at = ends
-        appt.status = "scheduled"
+        appt.duration_minutes = settings.slot_minutes
+        appt.status = _VOICE_BOOKED_STATUS
         appt.updated_at = datetime.now(UTC)
         self._session.flush()
 
@@ -298,7 +314,7 @@ class AppointmentRepository:
         actor: str = "voice-agent",
     ) -> dict[str, Any]:
         appt = self._get_active(tenant_id, appointment_id)
-        appt.status = "canceled"
+        appt.status = _VOICE_CANCELLED_STATUS
         appt.updated_at = datetime.now(UTC)
         self._session.flush()
 
@@ -352,7 +368,7 @@ class AppointmentRepository:
             raise SchedulingError(
                 "appointment_not_found", "Appointment not found for tenant"
             )
-        if appt.status == "canceled":
+        if appt.status in {"CANCELLED", "CANCELED", "cancelled", "canceled"}:
             raise SchedulingError(
                 "appointment_canceled", "Appointment is already canceled"
             )
@@ -366,9 +382,14 @@ class AppointmentRepository:
         window_end: datetime,
         exclude_id: UUID | None = None,
     ) -> list[tuple[datetime, datetime]]:
+        from callbot_platform.crm.appointments.constants import (
+            ACTIVE_BOOKING_STATUSES,
+        )
+
         q = select(Appointment).where(
             Appointment.tenant_id == tenant_id,
-            Appointment.status == "scheduled",
+            Appointment.status.in_(ACTIVE_BOOKING_STATUSES),
+            Appointment.archived_at.is_(None),
             Appointment.starts_at < window_end,
             Appointment.ends_at > window_start,
         )
@@ -399,11 +420,14 @@ class AppointmentRepository:
         return {
             "id": str(appt.id),
             "tenant_id": str(appt.tenant_id),
+            "appointment_number": appt.appointment_number,
             "customer_id": str(appt.customer_id),
             "lead_id": str(appt.lead_id) if appt.lead_id else None,
             "call_id": str(appt.call_id) if appt.call_id else None,
             "starts_at": appt.starts_at.isoformat() if appt.starts_at else None,
             "ends_at": appt.ends_at.isoformat() if appt.ends_at else None,
+            "duration_minutes": appt.duration_minutes,
+            "timezone": appt.timezone,
             "status": appt.status,
             "service_type": appt.service_type,
             "notes": appt.notes,

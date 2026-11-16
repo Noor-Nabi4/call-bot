@@ -61,7 +61,8 @@ from tenant.resolve import (
     voice_runtime_mode,
 )
 from tenant.sip_attrs import extract_sip_context, is_sip_participant
-from tools.crm import build_crm_tools
+from tools.ai_business_tools import build_ai_business_tools
+from tools.crm import build_crm_tools, build_legacy_crm_compat_tools
 from tools.handoff import build_handoff_tools
 from tools.knowledge import build_knowledge_tools
 from tools.platform_agent_profile import (
@@ -69,11 +70,11 @@ from tools.platform_agent_profile import (
     PlatformAgentProfileError,
     agent_profile_client_from_env,
 )
+from tools.platform_ai_tools import ai_tools_client_from_env
 from tools.platform_crm import PlatformCrmError, crm_client_from_env
 from tools.platform_handoff import handoff_client_from_env
 from tools.platform_knowledge import knowledge_client_from_env
 from tools.platform_scheduling import scheduling_client_from_env
-from tools.scheduling import build_scheduling_tools
 
 # Load local secrets for development. Production injects env vars directly.
 load_dotenv(Path(__file__).resolve().parent.parent / ".env.local")
@@ -145,21 +146,49 @@ class VoiceAssistant(Agent):
             logger.exception("service_unavailable_speech_failed")
 
 
-def _build_realtime_model(settings: Settings) -> openai.realtime.RealtimeModel:
+def _build_realtime_model(
+    settings: Settings, *, voice: str | None = None
+) -> openai.realtime.RealtimeModel:
     # Docs: OpenAI Realtime plugin + semantic VAD turn detection
     # https://docs.livekit.io/agents/models/realtime/plugins/openai/
-    return realtime.RealtimeModel(
-        model=settings.openai_realtime_model,
-        voice=settings.openai_voice,
-        temperature=settings.temperature,
-        api_key=settings.openai_api_key,
-        turn_detection=TurnDetection(
+    # Voice must be applied before the first audio response (OpenAI session constraint).
+    # eagerness=low: wait for a complete thought (better for phone pauses).
+    # interrupt_response=True: cancel in-progress agent audio on barge-in.
+    resolved_voice = (voice or settings.openai_voice or "marin").strip() or "marin"
+    kwargs: dict[str, Any] = {
+        "model": settings.openai_realtime_model,
+        "voice": resolved_voice,
+        "temperature": settings.temperature,
+        "api_key": settings.openai_api_key,
+        "turn_detection": TurnDetection(
             type="semantic_vad",
-            eagerness="medium",
+            eagerness=settings.vad_eagerness,  # type: ignore[arg-type]
             create_response=True,
             interrupt_response=True,
         ),
-    )
+    }
+    # Optional OpenAI-side NR before turn detection (LiveKit BVC still applies).
+    if settings.input_audio_noise_reduction:
+        kwargs["input_audio_noise_reduction"] = settings.input_audio_noise_reduction
+    return realtime.RealtimeModel(**kwargs)
+
+
+def _apply_profile_voice(
+    session: AgentSession, profile: AgentProfile, settings: Settings
+) -> str:
+    """Apply tenant profile voice before greeting (LiveKit RealtimeModel.update_options)."""
+    voice = (profile.voice or settings.openai_voice or "marin").strip() or "marin"
+    llm = getattr(session, "llm", None)
+    update = getattr(llm, "update_options", None)
+    if callable(update):
+        try:
+            update(voice=voice)
+        except Exception:
+            logger.exception(
+                "profile_voice_update_failed",
+                extra={"voice": voice, "tenant_id": profile.tenant_id},
+            )
+    return voice
 
 
 def _build_session(
@@ -167,14 +196,19 @@ def _build_session(
 ) -> AgentSession:
     # Docs: realtime models use turn_detection="realtime_llm"
     # https://docs.livekit.io/agents/logic/turns/
+    # https://docs.livekit.io/agents/logic/turns/tuning/
     return AgentSession(
         llm=_build_realtime_model(settings),
         user_away_timeout=settings.user_away_timeout_sec,
         userdata=userdata,
+        # Brief pause between stacked agent utterances (tool preamble → answer).
+        min_consecutive_speech_delay=settings.min_consecutive_speech_delay_sec,
         turn_handling=TurnHandlingOptions(
             turn_detection="realtime_llm",
             interruption={
                 "enabled": True,
+                # Ignore very short noise bursts as barge-ins.
+                "min_duration": settings.min_interruption_duration_sec,
                 # Kept for false-interruption recovery when applicable.
                 "false_interruption_timeout": 2.0,
                 "resume_false_interruption": True,
@@ -277,6 +311,7 @@ async def entrypoint(ctx: JobContext) -> None:
     scheduling_client = scheduling_client_from_env()
     knowledge_client = knowledge_client_from_env()
     handoff_client = handoff_client_from_env()
+    ai_tools_client = ai_tools_client_from_env()
     profile_client = agent_profile_client_from_env()
     session = _build_session(settings)
     agent = VoiceAssistant(instructions=instructions, tools=[])
@@ -344,6 +379,11 @@ async def entrypoint(ctx: JobContext) -> None:
         tenant_id=settings.tenant_id,
         model=settings.openai_realtime_model,
         voice=settings.openai_voice,
+        temperature=settings.temperature,
+        vad_eagerness=settings.vad_eagerness,
+        input_audio_noise_reduction=settings.input_audio_noise_reduction,
+        min_consecutive_speech_delay_sec=settings.min_consecutive_speech_delay_sec,
+        min_interruption_duration_sec=settings.min_interruption_duration_sec,
         end_of_call_summary_webhook=False,
         crm_tools=True,
         voice_runtime_mode=voice_runtime_mode(),
@@ -549,10 +589,18 @@ async def entrypoint(ctx: JobContext) -> None:
     # Bind tools only after fail-closed tenant + profile resolve.
     # Docs: https://docs.livekit.io/agents/logic/tools/definition/
     tools: list[Any] = []
+    # Phase 14 typed tools own customer/booking/commerce mutations via executor.
+    phase14 = profile.tool_enabled("crm") or profile.tool_enabled("scheduling")
+    if phase14:
+        tools.extend(build_ai_business_tools(ai_tools_client))
     if profile.tool_enabled("crm"):
-        tools.extend(build_crm_tools(crm_client))
-    if profile.tool_enabled("scheduling"):
-        tools.extend(build_scheduling_tools(scheduling_client))
+        if phase14:
+            # Lead + call context only — no legacy customer upsert/lookup bypass.
+            tools.extend(build_legacy_crm_compat_tools(crm_client))
+        else:
+            tools.extend(build_crm_tools(crm_client))
+    # Scheduling mutations: Phase 14 create_booking / reschedule / cancel only
+    # (legacy AppointmentRepository tools are not registered when phase14 is on).
     if profile.tool_enabled("knowledge"):
         tools.extend(build_knowledge_tools(knowledge_client, metrics=metrics))
     if profile.tool_enabled("handoff"):
@@ -562,6 +610,12 @@ async def entrypoint(ctx: JobContext) -> None:
     # Overlap CRM call-start HTTP with greeting generation (skip marketing demo).
     async def _start_crm_call() -> str | None:
         try:
+            if resolution.call_scope:
+                crm_client.set_call_scope(resolution.call_scope)
+                scheduling_client.set_call_scope(resolution.call_scope)
+                knowledge_client.set_call_scope(resolution.call_scope)
+                handoff_client.set_call_scope(resolution.call_scope)
+                ai_tools_client.set_call_scope(resolution.call_scope)
             started = await run_in_thread(
                 lambda: crm_client.start_call(
                     tenant_id=resolution.tenant_id,
@@ -577,6 +631,13 @@ async def entrypoint(ctx: JobContext) -> None:
             )
             platform_call = started.get("call") or {}
             call_row_id = platform_call.get("id")
+            scope = started.get("call_scope")
+            if isinstance(scope, str) and scope:
+                crm_client.set_call_scope(scope)
+                scheduling_client.set_call_scope(scope)
+                knowledge_client.set_call_scope(scope)
+                handoff_client.set_call_scope(scope)
+                ai_tools_client.set_call_scope(scope)
             return str(call_row_id) if call_row_id else None
         except PlatformCrmError:
             logger.exception(
@@ -607,6 +668,18 @@ async def entrypoint(ctx: JobContext) -> None:
         called_number=called_number,
         early_prepare=not sip,
         marketing_demo=is_marketing,
+    )
+
+    # Apply profile voice before first audio response (OpenAI Realtime constraint).
+    # Docs: https://docs.livekit.io/agents/models/realtime/plugins/openai/
+    applied_voice = _apply_profile_voice(session, profile, settings)
+    log_event(
+        logger,
+        "profile_voice_applied",
+        call_id=call_id,
+        tenant_id=resolution.tenant_id,
+        voice=applied_voice,
+        agent_profile_version=profile.profile_version,
     )
 
     # Greeting only after successful tenant + profile resolution (or marketing demo).

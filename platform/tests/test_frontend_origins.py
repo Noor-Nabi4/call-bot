@@ -23,7 +23,7 @@ def test_unified_frontend_url_defaults() -> None:
     assert fields["ops_cors_origins"].default == "http://localhost:3002"
     assert (
         fields["stripe_checkout_success_url"].default
-        == "http://localhost:3002/settings/billing?checkout=success"
+        == "http://localhost:3002/onboarding?checkout=success"
     )
     assert (
         fields["stripe_checkout_cancel_url"].default
@@ -41,11 +41,14 @@ def test_production_origins() -> None:
     assert PROD_API_ORIGIN == "https://api.callandflow.com"
 
 
-def test_cookie_secure_in_production() -> None:
+def test_cookie_secure_in_production(monkeypatch: Any) -> None:
+    # Local .env.local may set COOKIE_SECURE=false; production default must win.
+    monkeypatch.delenv("COOKIE_SECURE", raising=False)
     settings = _settings(
         environment="production",
         ops_cors_origins=PROD_WEB_ORIGIN,
         session_secret="test-session-secret",
+        cookie_secure_override=None,
     )
     assert settings.is_production is True
     assert settings.cookie_secure is True
@@ -118,10 +121,12 @@ def test_production_requires_secrets_and_non_local_database() -> None:
         stripe_secret_key="",
         stripe_webhook_secret="",
         database_url="postgresql+psycopg://postgres:postgres@localhost:5432/call_bot",
+        require_call_scope=False,
     )
     missing = missing_production_settings(incomplete)
     assert "credentials_encryption_key" in missing
     assert "database_url" in missing
+    assert "require_call_scope" in missing
 
     complete = _settings(
         environment="production",
@@ -135,6 +140,7 @@ def test_production_requires_secrets_and_non_local_database() -> None:
         livekit_api_secret="secret",
         stripe_secret_key="sk_test_x",
         stripe_webhook_secret="whsec_x",
+        require_call_scope=True,
     )
     assert missing_production_settings(complete) == []
 

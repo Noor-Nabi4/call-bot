@@ -12,6 +12,7 @@ import {
   DetailDrawer,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   Input,
   LoadingSkeleton,
@@ -47,7 +48,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export default function ApiKeysPage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "api_keys.manage" });
   const toast = useToast();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [scopes, setScopes] = useState<string[]>([]);
@@ -130,6 +131,14 @@ export default function ApiKeysPage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

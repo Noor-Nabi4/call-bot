@@ -19,6 +19,7 @@ import {
   DataTable,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   FilterBar,
   LoadingSkeleton,
   PageHeader,
@@ -34,7 +35,7 @@ const POLL_HIDDEN_MS = 45_000;
 type Filter = "open" | "waiting" | "claimed";
 
 export default function QueuePage() {
-  const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const { user, loading, forbidden } = useAuth({ permission: "handoff.read" });
   const toast = useToast();
   const [items, setItems] = useState<QueueItem[]>([]);
   const [filter, setFilter] = useState<Filter>("open");
@@ -216,6 +217,14 @@ export default function QueuePage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

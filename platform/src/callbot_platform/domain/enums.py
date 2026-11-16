@@ -49,6 +49,7 @@ class ConnectionStatus(str, Enum):
     ACTIVE = "active"
     FAILED = "failed"
     RELEASED = "released"
+    RELEASING = "releasing"
     PARTIAL = "partial"
 
 

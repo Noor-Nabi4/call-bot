@@ -20,6 +20,82 @@ class Settings(BaseSettings):
         default="postgresql+psycopg://postgres:postgres@localhost:5432/call_bot",
         alias="DATABASE_URL",
     )
+    db_pool_size: int = Field(default=5, alias="DB_POOL_SIZE", ge=1, le=100)
+    db_max_overflow: int = Field(default=10, alias="DB_MAX_OVERFLOW", ge=0, le=100)
+    db_pool_timeout: int = Field(default=30, alias="DB_POOL_TIMEOUT", ge=1, le=300)
+    db_pool_recycle: int = Field(default=1800, alias="DB_POOL_RECYCLE", ge=60)
+    db_pool_pre_ping: bool = Field(default=True, alias="DB_POOL_PRE_PING")
+
+    outbox_batch_size: int = Field(default=20, alias="OUTBOX_BATCH_SIZE", ge=1, le=500)
+    outbox_max_retries: int = Field(default=8, alias="OUTBOX_MAX_RETRIES", ge=1, le=50)
+    outbox_base_backoff_seconds: float = Field(
+        default=5.0, alias="OUTBOX_BASE_BACKOFF_SECONDS", ge=0.1
+    )
+    outbox_max_backoff_seconds: float = Field(
+        default=900.0, alias="OUTBOX_MAX_BACKOFF_SECONDS", ge=1.0
+    )
+    outbox_poll_interval_seconds: float = Field(
+        default=2.0, alias="OUTBOX_POLL_INTERVAL_SECONDS", ge=0.2
+    )
+    outbox_lease_seconds: float = Field(
+        default=120.0, alias="OUTBOX_LEASE_SECONDS", ge=10.0
+    )
+    job_batch_size: int = Field(default=10, alias="JOB_BATCH_SIZE", ge=1, le=200)
+    job_max_attempts: int = Field(default=8, alias="JOB_MAX_ATTEMPTS", ge=1, le=50)
+    job_base_backoff_seconds: float = Field(
+        default=5.0, alias="JOB_BASE_BACKOFF_SECONDS", ge=0.1
+    )
+    job_max_backoff_seconds: float = Field(
+        default=900.0, alias="JOB_MAX_BACKOFF_SECONDS", ge=1.0
+    )
+    job_poll_interval_seconds: float = Field(
+        default=2.0, alias="JOB_POLL_INTERVAL_SECONDS", ge=0.2
+    )
+    job_lease_seconds: float = Field(default=180.0, alias="JOB_LEASE_SECONDS", ge=10.0)
+    job_shutdown_timeout_seconds: float = Field(
+        default=30.0, alias="JOB_SHUTDOWN_TIMEOUT_SECONDS", ge=1.0
+    )
+    require_call_scope: bool = Field(default=False, alias="REQUIRE_CALL_SCOPE")
+    call_scope_ttl_seconds: int = Field(
+        default=14_400, alias="CALL_SCOPE_TTL_SECONDS", ge=60
+    )
+    object_storage_backend: str = Field(
+        default="filesystem", alias="OBJECT_STORAGE_BACKEND"
+    )
+    object_storage_root: str = Field(
+        default="./data/object-storage", alias="OBJECT_STORAGE_ROOT"
+    )
+    s3_endpoint_url: str = Field(default="", alias="S3_ENDPOINT_URL")
+    s3_region: str = Field(default="us-east-1", alias="S3_REGION")
+    s3_bucket: str = Field(default="", alias="S3_BUCKET")
+    s3_access_key_id: str = Field(default="", alias="S3_ACCESS_KEY_ID")
+    s3_secret_access_key: str = Field(default="", alias="S3_SECRET_ACCESS_KEY")
+    s3_force_path_style: bool = Field(default=False, alias="S3_FORCE_PATH_STYLE")
+    object_storage_max_upload_bytes: int = Field(
+        default=52_428_800, alias="OBJECT_STORAGE_MAX_UPLOAD_BYTES", ge=1024
+    )
+    object_storage_signed_url_ttl_seconds: int = Field(
+        default=300, alias="OBJECT_STORAGE_SIGNED_URL_TTL_SECONDS", ge=30
+    )
+    recording_retention_days: int = Field(
+        default=30, alias="RECORDING_RETENTION_DAYS", ge=1, le=3650
+    )
+    call_transcription_provider: str = Field(
+        default="deterministic", alias="CALL_TRANSCRIPTION_PROVIDER"
+    )
+    call_analysis_provider: str = Field(
+        default="deterministic", alias="CALL_ANALYSIS_PROVIDER"
+    )
+    call_intelligence_model: str = Field(
+        default="gpt-4o-mini", alias="CALL_INTELLIGENCE_MODEL"
+    )
+    dedicated_db_idle_seconds: int = Field(
+        default=600, alias="DEDICATED_DB_IDLE_SECONDS", ge=60
+    )
+    health_db_timeout_seconds: float = Field(
+        default=2.0, alias="HEALTH_DB_TIMEOUT_SECONDS", ge=0.2, le=30.0
+    )
+
     platform_api_host: str = Field(default="0.0.0.0", alias="PLATFORM_API_HOST")
     platform_api_port: int = Field(default=8000, alias="PLATFORM_API_PORT")
 
@@ -35,7 +111,69 @@ class Settings(BaseSettings):
     credentials_encryption_key: str = Field(
         default="", alias="CREDENTIALS_ENCRYPTION_KEY"
     )
+    # Phase 28 — platform OAuth app credentials (tenant tokens stored encrypted in DB)
+    integrations_google_client_id: str = Field(
+        default="", alias="INTEGRATIONS_GOOGLE_CLIENT_ID"
+    )
+    integrations_google_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_GOOGLE_CLIENT_SECRET"
+    )
+    integrations_microsoft_client_id: str = Field(
+        default="", alias="INTEGRATIONS_MICROSOFT_CLIENT_ID"
+    )
+    integrations_microsoft_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_MICROSOFT_CLIENT_SECRET"
+    )
+    integrations_hubspot_client_id: str = Field(
+        default="", alias="INTEGRATIONS_HUBSPOT_CLIENT_ID"
+    )
+    integrations_hubspot_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_HUBSPOT_CLIENT_SECRET"
+    )
+    integrations_salesforce_client_id: str = Field(
+        default="", alias="INTEGRATIONS_SALESFORCE_CLIENT_ID"
+    )
+    integrations_salesforce_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_SALESFORCE_CLIENT_SECRET"
+    )
+    integrations_shopify_client_id: str = Field(
+        default="", alias="INTEGRATIONS_SHOPIFY_CLIENT_ID"
+    )
+    integrations_shopify_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_SHOPIFY_CLIENT_SECRET"
+    )
+    integrations_quickbooks_client_id: str = Field(
+        default="", alias="INTEGRATIONS_QUICKBOOKS_CLIENT_ID"
+    )
+    integrations_quickbooks_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_QUICKBOOKS_CLIENT_SECRET"
+    )
+    integrations_xero_client_id: str = Field(
+        default="", alias="INTEGRATIONS_XERO_CLIENT_ID"
+    )
+    integrations_xero_client_secret: str = Field(
+        default="", alias="INTEGRATIONS_XERO_CLIENT_SECRET"
+    )
+    integrations_oauth_redirect_base: str = Field(
+        default="http://localhost:8000", alias="INTEGRATIONS_OAUTH_REDIRECT_BASE"
+    )
     metadata_hmac_secret: str = Field(default="", alias="METADATA_HMAC_SECRET")
+    openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
+    knowledge_embedding_model: str = Field(
+        default="text-embedding-3-small", alias="KNOWLEDGE_EMBEDDING_MODEL"
+    )
+    knowledge_embedding_dimension: int = Field(
+        default=1536, alias="KNOWLEDGE_EMBEDDING_DIMENSION"
+    )
+    knowledge_embedding_version: str = Field(
+        default="v1", alias="KNOWLEDGE_EMBEDDING_VERSION"
+    )
+    knowledge_relevance_threshold: float = Field(
+        default=0.35, alias="KNOWLEDGE_RELEVANCE_THRESHOLD"
+    )
+    knowledge_retrieval_top_k: int = Field(
+        default=5, alias="KNOWLEDGE_RETRIEVAL_TOP_K"
+    )
     internal_service_token: str = Field(default="", alias="INTERNAL_SERVICE_TOKEN")
     session_secret: str = Field(default="", alias="SESSION_SECRET")
     ops_cors_origins: str = Field(
@@ -54,7 +192,7 @@ class Settings(BaseSettings):
     stripe_secret_key: str = Field(default="", alias="STRIPE_SECRET_KEY")
     stripe_webhook_secret: str = Field(default="", alias="STRIPE_WEBHOOK_SECRET")
     stripe_checkout_success_url: str = Field(
-        default="http://localhost:3002/settings/billing?checkout=success",
+        default="http://localhost:3002/onboarding?checkout=success",
         alias="STRIPE_CHECKOUT_SUCCESS_URL",
     )
     stripe_checkout_cancel_url: str = Field(
@@ -64,6 +202,26 @@ class Settings(BaseSettings):
     stripe_portal_return_url: str = Field(
         default="http://localhost:3002/settings/billing",
         alias="STRIPE_PORTAL_RETURN_URL",
+    )
+    # Customer invoice payments (Phase 19) — same platform Stripe account, not Connect.
+    # Optional dedicated webhook secret; falls back to STRIPE_WEBHOOK_SECRET.
+    stripe_invoice_webhook_secret: str = Field(
+        default="", alias="STRIPE_INVOICE_WEBHOOK_SECRET"
+    )
+    stripe_publishable_key: str = Field(default="", alias="STRIPE_PUBLISHABLE_KEY")
+    stripe_invoice_checkout_success_url: str = Field(
+        default=(
+            "http://localhost:3002/crm/invoices/{INVOICE_ID}"
+            "?payment=success&paymentId={PAYMENT_ID}"
+        ),
+        alias="STRIPE_INVOICE_CHECKOUT_SUCCESS_URL",
+    )
+    stripe_invoice_checkout_cancel_url: str = Field(
+        default=(
+            "http://localhost:3002/crm/invoices/{INVOICE_ID}"
+            "?payment=canceled&paymentId={PAYMENT_ID}"
+        ),
+        alias="STRIPE_INVOICE_CHECKOUT_CANCEL_URL",
     )
 
     allow_env_tenant_fallback: bool = Field(
@@ -135,6 +293,16 @@ class Settings(BaseSettings):
         default=0.0, alias="COGS_PHONE_RENTAL_MONTHLY_USD"
     )
     cogs_sms_monthly_usd: float = Field(default=0.0, alias="COGS_SMS_MONTHLY_USD")
+    # Phase 32 ledger unit rates (configured estimates — not live vendor invoices).
+    cogs_sms_per_message_usd: float = Field(
+        default=0.0, alias="COGS_SMS_PER_MESSAGE_USD"
+    )
+    cogs_transcription_per_minute_usd: float = Field(
+        default=0.0, alias="COGS_TRANSCRIPTION_PER_MINUTE_USD"
+    )
+    cogs_storage_per_gb_month_usd: float = Field(
+        default=0.0, alias="COGS_STORAGE_PER_GB_MONTH_USD"
+    )
 
     @property
     def ops_cors_origin_list(self) -> list[str]:
@@ -190,6 +358,8 @@ def missing_production_settings(settings: Settings) -> list[str]:
     database_url = settings.database_url.lower()
     if "localhost" in database_url or "127.0.0.1" in database_url:
         missing.append("database_url")
+    if not settings.require_call_scope:
+        missing.append("require_call_scope")
     return missing
 
 

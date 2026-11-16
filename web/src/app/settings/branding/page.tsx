@@ -11,6 +11,7 @@ import {
   Field,
   Input,
   LoadingSkeleton,
+  ForbiddenState,
   PageHeader,
   Surface,
   useToast,
@@ -39,7 +40,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export default function BrandingPage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "branding.manage" });
   const toast = useToast();
   const [form, setForm] = useState<Branding>({
     product_name: "",
@@ -96,6 +97,14 @@ export default function BrandingPage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

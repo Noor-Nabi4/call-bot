@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from logging.config import fileConfig
 
-from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 
+from alembic import context
 from callbot_platform.config import get_settings
 from callbot_platform.db.models import Base
 
@@ -15,6 +15,19 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+
+
+def _widen_alembic_version(connection) -> None:
+    """Alembic defaults version_num to VARCHAR(32); some revision ids exceed that."""
+    if connection.dialect.name != "postgresql":
+        return
+    connection.execute(
+        text(
+            "ALTER TABLE IF EXISTS alembic_version "
+            "ALTER COLUMN version_num TYPE VARCHAR(128)"
+        )
+    )
+    connection.commit()
 
 
 def run_migrations_offline() -> None:
@@ -38,6 +51,7 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
+        _widen_alembic_version(connection)
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()

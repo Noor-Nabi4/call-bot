@@ -53,13 +53,16 @@ export const dispatch = {
 } as const;
 
 export const jobStatusLabels: Record<string, string> = {
-  new: "New",
-  scheduled: "Scheduled",
-  dispatched: "Dispatched",
-  in_progress: "In progress",
-  completed: "Completed",
-  canceled: "Canceled",
-  cancelled: "Canceled",
+  NEW: "New",
+  SCHEDULED: "Scheduled",
+  CONFIRMED: "Confirmed",
+  DISPATCHED: "Dispatched",
+  EN_ROUTE: "En route",
+  ARRIVED: "Arrived",
+  IN_PROGRESS: "In progress",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+  NO_SHOW: "No show",
 };
 
 export const calls = {
@@ -233,7 +236,21 @@ export const knowledge = {
 export const settings = {
   title: "Settings",
   description:
-    "Manage data retention, review account activity, and open billing or team.",
+    "Manage your business profile, data retention, billing, and team.",
+  organization: "Business profile",
+  organizationHint:
+    "Legal and operating details for this tenant. Used for scheduling, invoices, and AI context.",
+  organizationSaved: "Business profile saved",
+  name: "Business name",
+  industry: "Industry",
+  businessType: "Business type",
+  timezone: "Timezone",
+  currency: "Currency",
+  country: "Country",
+  state: "State / region",
+  website: "Website",
+  phone: "Business phone",
+  email: "Business email",
   users: "Team members",
   invite: "Invite teammate",
   retention: "Data retention",
@@ -424,7 +441,30 @@ export const customers = {
   title: "Customers",
   description: "Customer records from calls, appointments, and jobs.",
   empty: "No customers yet",
-  emptyHint: "Customers appear when calls and jobs are created.",
+  emptyHint: "Create a customer or wait for calls and jobs to add records.",
+  create: "New customer",
+  notFound: "Customer not found",
+  timelineEmpty: "No timeline events yet",
+  timelineEmptyHint: "Calls, jobs, appointments, and notes appear here.",
+} as const;
+
+export const products = {
+  title: "Products",
+  description: "Catalog items your team and voice assistant can reference.",
+  empty: "No products yet",
+  emptyHint: "Create a product to start building your catalog.",
+  create: "New product",
+  notFound: "Product not found",
+  categoriesLink: "Manage categories",
+} as const;
+
+export const productCategories = {
+  title: "Categories",
+  description: "Organize products into a nested category tree.",
+  empty: "No categories yet",
+  emptyHint: "Create a root category, then nest children under it.",
+  create: "New category",
+  createChild: "Add child",
 } as const;
 
 export const appointments = {

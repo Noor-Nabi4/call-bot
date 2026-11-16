@@ -31,7 +31,9 @@ class LiveKitSipService(SipTrunkService, DispatchRuleService):
         api_secret: str,
     ) -> None:
         if not url or not api_key or not api_secret:
-            raise LiveKitApiError("LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET are required")
+            raise LiveKitApiError(
+                "LIVEKIT_URL, LIVEKIT_API_KEY, and LIVEKIT_API_SECRET are required"
+            )
         self._url = url
         self._api_key = api_key
         self._api_secret = api_secret
@@ -77,7 +79,9 @@ class LiveKitSipService(SipTrunkService, DispatchRuleService):
         import asyncio
 
         return asyncio.run(
-            self._create_inbound_trunk_async(name=name, numbers=numbers, metadata=metadata)
+            self._create_inbound_trunk_async(
+                name=name, numbers=numbers, metadata=metadata
+            )
         )
 
     async def _delete_inbound_trunk_async(self, trunk_id: str) -> None:

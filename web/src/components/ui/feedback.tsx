@@ -114,6 +114,30 @@ export function ErrorState({
   );
 }
 
+export function ForbiddenState({
+  title = "Access denied",
+  message = "You do not have permission to view this page. Contact an organization admin if you need access.",
+  className,
+}: {
+  title?: string;
+  message?: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-surface px-6 py-16 text-center",
+        className,
+      )}
+      role="status"
+      aria-label={title}
+    >
+      <h2 className="text-base font-semibold text-text-primary">{title}</h2>
+      <p className="mt-2 max-w-md text-sm text-text-secondary">{message}</p>
+    </div>
+  );
+}
+
 export function LoadingSkeleton({
   rows = 4,
   className,

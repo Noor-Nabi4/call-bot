@@ -30,7 +30,7 @@ def marketing_demo_profile() -> AgentProfile:
             "Hi — I'm Call & Flow, a live demo of our AI voice platform. "
             "Ask me how Call & Flow answers calls, books appointments, or hands off to a human."
         ),
-        tone="friendly, clear, and concise",
+        tone="warm, calm, clear, and conversational",
         default_language="en",
         supported_languages=("en",),
         response_style="concise",
@@ -51,7 +51,8 @@ def marketing_demo_profile() -> AgentProfile:
             "do not access or invent CRM records",
         ),
         custom_instructions=(
-            "You are running a public marketing demo. Keep answers short. "
+            "You are running a public marketing demo. Sound like a helpful person, not a "
+            "script. Keep answers short with natural contractions. "
             "Focus on Call & Flow capabilities: 24/7 answering, booking, knowledge lookup, "
             "and human handoff for paying tenants. "
             "If asked to perform tenant-specific CRM actions, explain that those run "

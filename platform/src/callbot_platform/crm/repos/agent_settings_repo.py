@@ -27,9 +27,7 @@ class AgentSettingsRepository:
     def get_profile(
         self, tenant_id: UUID, *, business_name: str
     ) -> dict[str, Any] | None:
-        return self._profiles.get_voice_profile(
-            tenant_id, business_name=business_name
-        )
+        return self._profiles.get_voice_profile(tenant_id, business_name=business_name)
 
     def get_profile_meta(self, tenant_id: UUID) -> dict[str, Any] | None:
         return self._profiles.get_voice_profile_meta(tenant_id)

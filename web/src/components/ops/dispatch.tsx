@@ -184,11 +184,11 @@ export function KanbanColumn({
           <span
             className={cn(
               "size-1.5 rounded-full",
-              status === "new" && "bg-text-muted",
-              status === "scheduled" && "bg-brand",
-              status === "dispatched" && "bg-warn",
-              status === "in_progress" && "bg-warn",
-              status === "completed" && "bg-brand",
+              status === "NEW" && "bg-text-muted",
+              status === "SCHEDULED" && "bg-brand",
+              status === "DISPATCHED" && "bg-warn",
+              status === "IN_PROGRESS" && "bg-warn",
+              status === "COMPLETED" && "bg-brand",
             )}
             aria-hidden
           />

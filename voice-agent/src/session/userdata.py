@@ -29,6 +29,10 @@ class SessionUserData:
     handoff_requested: bool = False
     last_tool_name: str | None = None
     last_tool_result_status: str | None = None
+    # Stable mutation operation_id + HMAC confirmation token (trusted session state).
+    pending_operation_id: str | None = None
+    pending_confirmation_token: str | None = None
+    pending_confirmation_tool: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
     def record_tool_result(self, tool_name: str, *, ok: bool) -> None:

@@ -42,7 +42,11 @@ def cipher() -> CredentialCipher:
 
 @pytest.fixture()
 def tenant(session: Session) -> Tenant:
+    from helpers import establish_tenant_access
+
     row = Tenant(name="Acme HVAC", slug=f"acme-{uuid.uuid4().hex[:8]}")
     session.add(row)
     session.flush()
+    # Established orgs: completed business onboarding + eligible inbound DID.
+    establish_tenant_access(session, row)
     return row

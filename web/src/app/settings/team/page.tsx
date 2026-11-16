@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { Plus, UserPlus } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { UsageSummaryPanel, seatsAtLimit } from "@/components/ops";
@@ -8,9 +9,13 @@ import { useAuth } from "@/lib/use-auth";
 import { errors, team as copy } from "@/lib/ops-copy";
 import { safeUserError } from "@/lib/safe-error";
 import {
+  assignMemberRole,
   inviteTeamUser,
+  listOrgRoles,
   listTeamUsers,
+  removeMemberRole,
   updateTeamUser,
+  type OrgRole,
   type TeamUser,
 } from "@/lib/api/admin";
 import { getUsage, type TenantUsage } from "@/lib/api";
@@ -21,6 +26,7 @@ import {
   DetailDrawer,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   Input,
   LoadingSkeleton,
@@ -40,9 +46,10 @@ const EMPTY_INVITE = {
 const INVITE_FORM_ID = "invite-teammate-form";
 
 export default function TeamPage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "team.read" });
   const toast = useToast();
   const [users, setUsers] = useState<TeamUser[]>([]);
+  const [orgRoles, setOrgRoles] = useState<OrgRole[]>([]);
   const [usage, setUsage] = useState<TenantUsage | null>(null);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,14 +58,18 @@ export default function TeamPage() {
   const [rowBusy, setRowBusy] = useState<string | null>(null);
   const [invite, setInvite] = useState(EMPTY_INVITE);
   const [confirmTarget, setConfirmTarget] = useState<TeamUser | null>(null);
+  const [rolesTarget, setRolesTarget] = useState<TeamUser | null>(null);
+  const [assignRoleId, setAssignRoleId] = useState("");
 
   const refresh = useCallback(async () => {
-    const [teamData, usageData] = await Promise.all([
+    const [teamData, usageData, rolesData] = await Promise.all([
       listTeamUsers(),
       getUsage(),
+      listOrgRoles().catch(() => ({ roles: [] as OrgRole[] })),
     ]);
     setUsers(teamData.users || []);
     setUsage(usageData.usage);
+    setOrgRoles((rolesData.roles || []).filter((r) => r.is_active));
   }, []);
 
   useEffect(() => {
@@ -149,6 +160,45 @@ export default function TeamPage() {
     }
   }
 
+  async function onAssignOrgRole() {
+    if (!rolesTarget || !assignRoleId) return;
+    setRowBusy(rolesTarget.id);
+    setError(null);
+    try {
+      await assignMemberRole(rolesTarget.id, assignRoleId);
+      toast.push("Role assigned", "success");
+      setAssignRoleId("");
+      await refresh();
+      const refreshed = (await listTeamUsers()).users.find(
+        (u) => u.id === rolesTarget.id,
+      );
+      if (refreshed) setRolesTarget(refreshed);
+    } catch (err) {
+      setError(safeUserError(err, errors.saveFailed));
+    } finally {
+      setRowBusy(null);
+    }
+  }
+
+  async function onRemoveOrgRole(roleId: string) {
+    if (!rolesTarget) return;
+    setRowBusy(rolesTarget.id);
+    setError(null);
+    try {
+      await removeMemberRole(rolesTarget.id, roleId);
+      toast.push("Role removed", "success");
+      await refresh();
+      const refreshed = (await listTeamUsers()).users.find(
+        (u) => u.id === rolesTarget.id,
+      );
+      if (refreshed) setRolesTarget(refreshed);
+    } catch (err) {
+      setError(safeUserError(err, errors.saveFailed));
+    } finally {
+      setRowBusy(null);
+    }
+  }
+
   const columns: DataTableColumn<TeamUser>[] = [
     {
       id: "name",
@@ -162,7 +212,7 @@ export default function TeamPage() {
     },
     {
       id: "role",
-      header: "Role",
+      header: "Legacy role",
       cell: (u) => (
         <Select
           value={u.role}
@@ -178,6 +228,24 @@ export default function TeamPage() {
       className: "w-36",
     },
     {
+      id: "orgRoles",
+      header: "Org roles",
+      cell: (u) => (
+        <button
+          type="button"
+          className="text-left text-sm text-accent hover:underline"
+          onClick={() => {
+            setRolesTarget(u);
+            setAssignRoleId("");
+          }}
+        >
+          {(u.roles || []).length > 0
+            ? (u.roles || []).map((r) => r.name).join(", ")
+            : "Assign roles"}
+        </button>
+      ),
+    },
+    {
       id: "status",
       header: "Status",
       cell: (u) => (
@@ -188,7 +256,7 @@ export default function TeamPage() {
               : "font-mono text-xs uppercase text-text-muted"
           }
         >
-          {u.is_active ? "active" : "inactive"}
+          {u.status ?? (u.is_active ? "active" : "inactive")}
         </span>
       ),
       className: "w-24",
@@ -214,7 +282,19 @@ export default function TeamPage() {
     return <LoadingSkeleton rows={6} />;
   }
 
+  if (forbidden && user) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
+    );
+  }
+
   const confirmingDeactivate = Boolean(confirmTarget?.is_active);
+  const assignedIds = new Set((rolesTarget?.roles || []).map((r) => r.id));
+  const assignableRoles = orgRoles.filter(
+    (r) => r.name !== "AI Agent" && !assignedIds.has(r.id),
+  );
 
   return (
     <AppShell user={user}>
@@ -222,10 +302,18 @@ export default function TeamPage() {
         title={copy.title}
         description={copy.description}
         actions={
-          <Button size="sm" onClick={openInvite} disabled={atSeatLimit}>
-            <Plus className="size-3.5" aria-hidden />
-            {copy.invite}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/settings/roles"
+              className="rounded-[10px] border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-2"
+            >
+              Roles &amp; permissions
+            </Link>
+            <Button size="sm" onClick={openInvite} disabled={atSeatLimit}>
+              <Plus className="size-3.5" aria-hidden />
+              {copy.invite}
+            </Button>
+          </div>
         }
       />
 
@@ -335,6 +423,70 @@ export default function TeamPage() {
             </Select>
           </Field>
         </form>
+      </DetailDrawer>
+
+      <DetailDrawer
+        open={!!rolesTarget}
+        onClose={() => {
+          if (rowBusy) return;
+          setRolesTarget(null);
+          setAssignRoleId("");
+        }}
+        title={rolesTarget ? `Roles · ${rolesTarget.name}` : "Roles"}
+        description="Organization roles control permissions. Owner is protected."
+        width="sm"
+      >
+        {rolesTarget ? (
+          <div className="grid gap-4">
+            <div className="space-y-2">
+              {(rolesTarget.roles || []).length === 0 ? (
+                <p className="text-sm text-text-muted">No organization roles assigned.</p>
+              ) : (
+                (rolesTarget.roles || []).map((r) => (
+                  <div
+                    key={r.id}
+                    className="flex items-center justify-between gap-2 rounded-[10px] border border-border px-3 py-2"
+                  >
+                    <span className="text-sm font-medium">{r.name}</span>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={rowBusy === rolesTarget.id}
+                      onClick={() => onRemoveOrgRole(r.id)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+            <Field label="Assign role">
+              <div className="flex gap-2">
+                <Select
+                  value={assignRoleId}
+                  onChange={(e) => setAssignRoleId(e.target.value)}
+                  className="flex-1"
+                >
+                  <option value="">Select role…</option>
+                  {assignableRoles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </Select>
+                <Button
+                  size="sm"
+                  disabled={!assignRoleId || rowBusy === rolesTarget.id}
+                  onClick={() => {
+                    void onAssignOrgRole();
+                  }}
+                >
+                  Assign
+                </Button>
+              </div>
+            </Field>
+          </div>
+        ) : null}
       </DetailDrawer>
 
       <ConfirmDialog

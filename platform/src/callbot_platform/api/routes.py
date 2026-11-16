@@ -16,18 +16,29 @@ from callbot_platform.api.deps import (
     purchase_service,
     require_internal_token,
     resolver_service,
+    settings_dep,
     signer_dep,
     verification_service,
 )
-from callbot_platform.security.metadata import MetadataSigner
+from callbot_platform.config import Settings, get_settings
+from callbot_platform.db import get_session_factory
 from callbot_platform.db.models import Tenant, TenantPhoneNumber
+from callbot_platform.organization import OrganizationError, OrganizationService
+from callbot_platform.security.call_scope import CallScopeSigner
+from callbot_platform.security.metadata import MetadataSigner
 from callbot_platform.telephony.interfaces import ResolveRequest
 from callbot_platform.telephony.services.connect_existing import (
     ConnectExistingError,
     ConnectExistingService,
 )
-from callbot_platform.telephony.services.purchase import PlatformPurchaseService, PurchaseError
-from callbot_platform.telephony.services.resolver import DbTenantDidResolver, TenantResolveError
+from callbot_platform.telephony.services.purchase import (
+    PlatformPurchaseService,
+    PurchaseError,
+)
+from callbot_platform.telephony.services.resolver import (
+    DbTenantDidResolver,
+    TenantResolveError,
+)
 from callbot_platform.telephony.services.verification import (
     DbNumberVerificationService,
     VerificationError,
@@ -36,10 +47,30 @@ from callbot_platform.telephony.services.verification import (
 router = APIRouter()
 
 
+def _issue_tenant_scope(tenant_id: UUID) -> str | None:
+    settings = get_settings()
+    if not settings.metadata_hmac_secret:
+        return None
+    return CallScopeSigner(settings.metadata_hmac_secret).issue(
+        tenant_id=tenant_id,
+        ttl_seconds=settings.call_scope_ttl_seconds,
+    )
+
+
 class CreateTenantBody(BaseModel):
-    name: str
-    slug: str
+    model_config = {"extra": "forbid"}
+
+    name: str = Field(min_length=1, max_length=255)
+    slug: str = Field(min_length=2, max_length=128)
     timezone: str = "UTC"
+    industry: str | None = Field(default=None, max_length=64)
+    business_type: str | None = Field(default=None, max_length=64)
+    currency: str | None = Field(default=None, max_length=3)
+    country: str | None = Field(default=None, max_length=2)
+    state: str | None = Field(default=None, max_length=128)
+    website: str | None = Field(default=None, max_length=2048)
+    phone: str | None = Field(default=None, max_length=32)
+    email: str | None = Field(default=None, max_length=255)
 
 
 class ConnectNumberBody(BaseModel):
@@ -84,39 +115,91 @@ class SignMetadataBody(BaseModel):
 
 @router.get("/health")
 def health() -> dict[str, str]:
+    """Legacy alias for liveness."""
     return {"status": "ok"}
+
+
+@router.get("/liveness")
+def liveness() -> dict[str, str]:
+    """Process is alive — does not check Postgres."""
+    return {"status": "alive"}
+
+
+@router.get("/readiness")
+def readiness(
+    session: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
+) -> dict[str, Any]:
+    """Ready to serve traffic if required dependencies respond quickly."""
+    from sqlalchemy import text
+    from sqlalchemy.exc import SQLAlchemyError
+
+    checks: dict[str, str] = {}
+    try:
+        session.execute(text("SELECT 1"))
+        checks["postgres"] = "ok"
+    except SQLAlchemyError as exc:
+        # Do not return SQLAlchemy/driver strings to public clients.
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "not_ready",
+                "message": "postgres unavailable",
+                "checks": {"postgres": "fail"},
+            },
+        ) from exc
+
+    # Expose backend class only (filesystem|s3) — not credentials or endpoints.
+    backend = (settings.object_storage_backend or "filesystem").strip().lower()
+    checks["object_storage"] = "ok" if backend in {"filesystem", "s3"} else "fail"
+    if checks["object_storage"] != "ok":
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "not_ready",
+                "message": "object storage misconfigured",
+                "checks": checks,
+            },
+        )
+    return {"status": "ready", "checks": checks}
 
 
 @router.post("/tenants", dependencies=[Depends(require_internal_token)])
 def create_tenant(body: CreateTenantBody, session: Session = Depends(db_dep)) -> dict:
-    existing = session.scalar(select(Tenant).where(Tenant.slug == body.slug))
-    if existing:
-        raise HTTPException(status_code=409, detail="Tenant slug already exists")
-    tenant = Tenant(name=body.name, slug=body.slug, timezone=body.timezone or "UTC")
-    session.add(tenant)
-    session.flush()
+    try:
+        organization = OrganizationService(session).create(
+            name=body.name,
+            slug=body.slug,
+            timezone=body.timezone or "UTC",
+            actor="internal",
+            industry=body.industry,
+            business_type=body.business_type,
+            currency=body.currency,
+            country=body.country,
+            state=body.state,
+            website=body.website,
+            phone=body.phone,
+            email=body.email,
+        )
+    except OrganizationError as exc:
+        status = 409 if exc.code == "slug_taken" else 400
+        raise HTTPException(
+            status_code=status, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
     from callbot_platform.crm.repos import AgentProfileRepository
 
+    tenant_id = UUID(organization["id"])
     AgentProfileRepository(session).create(
-        tenant.id,
+        tenant_id,
         name="Main Receptionist",
         agent_type="receptionist",
         is_default=True,
         actor="system",
     )
-    return {
-        "id": str(tenant.id),
-        "name": tenant.name,
-        "slug": tenant.slug,
-        "status": tenant.status,
-        "timezone": tenant.timezone,
-        "default_agent_profile_id": str(tenant.default_agent_profile_id)
-        if tenant.default_agent_profile_id
-        else None,
-    }
+    return OrganizationService(session).get(tenant_id)
 
 
-@router.get("/tenants/{tenant_id}")
+@router.get("/tenants/{tenant_id}", dependencies=[Depends(require_internal_token)])
 def get_tenant(tenant_id: UUID, session: Session = Depends(db_dep)) -> dict:
     tenant = session.get(Tenant, tenant_id)
     if tenant is None:
@@ -129,7 +212,10 @@ def get_tenant(tenant_id: UUID, session: Session = Depends(db_dep)) -> dict:
     }
 
 
-@router.get("/tenants/{tenant_id}/phone-numbers")
+@router.get(
+    "/tenants/{tenant_id}/phone-numbers",
+    dependencies=[Depends(require_internal_token)],
+)
 def list_phone_numbers(tenant_id: UUID, session: Session = Depends(db_dep)) -> dict:
     rows = list(
         session.scalars(
@@ -147,33 +233,75 @@ def list_phone_numbers(tenant_id: UUID, session: Session = Depends(db_dep)) -> d
                 "provisioning_state": r.provisioning_state,
                 "livekit_inbound_trunk_id": r.livekit_inbound_trunk_id,
                 "livekit_dispatch_rule_id": r.livekit_dispatch_rule_id,
-                "agent_profile_id": str(r.agent_profile_id) if r.agent_profile_id else None,
+                "agent_profile_id": str(r.agent_profile_id)
+                if r.agent_profile_id
+                else None,
             }
             for r in rows
         ]
     }
 
 
-@router.post("/tenants/{tenant_id}/phone-numbers/connect")
+@router.post(
+    "/tenants/{tenant_id}/phone-numbers/connect",
+    dependencies=[Depends(require_internal_token)],
+)
 def connect_existing_number(
     tenant_id: UUID,
     body: ConnectNumberBody,
+    session: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
     service: ConnectExistingService = Depends(connect_service),
 ) -> dict:
     try:
-        return service.start(
+        result = service.start(
             tenant_id=tenant_id,
             phone_number=body.phone_number,
             twilio_account_sid=body.twilio_account_sid,
         )
+        job_id = result.get("job_id")
+        session.commit()
+        if job_id:
+            from callbot_platform.async_jobs.handlers.telephony import (
+                TelephonyProvisionHandler,
+            )
+            from callbot_platform.async_jobs.runner import run_async_job
+
+            handler = TelephonyProvisionHandler(
+                settings=settings,
+                signer=service._signer,
+                livekit=service._livekit,
+            )
+            job = run_async_job(
+                get_session_factory(),
+                UUID(str(job_id)),
+                settings=settings,
+                telephony_handler=handler,
+            )
+            phone = session.scalar(
+                select(TenantPhoneNumber).where(
+                    TenantPhoneNumber.id == UUID(result["phone_number"]["id"]),
+                    TenantPhoneNumber.tenant_id == tenant_id,
+                )
+            )
+            if phone is not None:
+                session.refresh(phone)
+                result["phone_number"] = service._serialize(phone)
+            result["provisioning"] = job.status if job else "unknown"
+        return result
     except ConnectExistingError as exc:
         status = 409 if exc.code == "duplicate_number" else 400
         if exc.code == "partial_provisioning":
             status = 502
-        raise HTTPException(status_code=status, detail={"code": exc.code, "message": str(exc)}) from exc
+        raise HTTPException(
+            status_code=status, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
 
 
-@router.post("/tenants/{tenant_id}/phone-numbers/{phone_number_id}/confirm-trunk")
+@router.post(
+    "/tenants/{tenant_id}/phone-numbers/{phone_number_id}/confirm-trunk",
+    dependencies=[Depends(require_internal_token)],
+)
 def confirm_trunk(
     tenant_id: UUID,
     phone_number_id: UUID,
@@ -193,7 +321,10 @@ def confirm_trunk(
         ) from exc
 
 
-@router.post("/tenants/{tenant_id}/phone-numbers/{phone_number_id}/verification/start")
+@router.post(
+    "/tenants/{tenant_id}/phone-numbers/{phone_number_id}/verification/start",
+    dependencies=[Depends(require_internal_token)],
+)
 def start_verification(
     tenant_id: UUID,
     phone_number_id: UUID,
@@ -209,7 +340,10 @@ def start_verification(
         ) from exc
 
 
-@router.post("/tenants/{tenant_id}/twilio/subaccount")
+@router.post(
+    "/tenants/{tenant_id}/twilio/subaccount",
+    dependencies=[Depends(require_internal_token)],
+)
 def ensure_subaccount(
     tenant_id: UUID,
     service: PlatformPurchaseService = Depends(purchase_service),
@@ -222,16 +356,22 @@ def ensure_subaccount(
         ) from exc
 
 
-@router.get("/tenants/{tenant_id}/inventory")
+@router.get(
+    "/tenants/{tenant_id}/inventory",
+    dependencies=[Depends(require_internal_token)],
+)
 def search_inventory(
     tenant_id: UUID,
     country: str = "US",
     area_code: str | None = None,
     number_type: str = "local",
     limit: int = 20,
+    session: Session = Depends(db_dep),
     service: PlatformPurchaseService = Depends(purchase_service),
 ) -> dict:
     try:
+        service.ensure_subaccount(tenant_id=tenant_id)
+        session.commit()
         items = service.search_inventory(
             tenant_id=tenant_id,
             country=country,
@@ -246,20 +386,55 @@ def search_inventory(
         ) from exc
 
 
-@router.post("/tenants/{tenant_id}/phone-numbers/purchase")
+@router.post(
+    "/tenants/{tenant_id}/phone-numbers/purchase",
+    dependencies=[Depends(require_internal_token)],
+)
 def purchase_number(
     tenant_id: UUID,
     body: PurchaseBody,
+    session: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
     service: PlatformPurchaseService = Depends(purchase_service),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ) -> dict:
     try:
-        return service.purchase(
+        result = service.purchase(
             tenant_id=tenant_id,
             phone_number=body.phone_number,
             confirm=body.confirm,
             idempotency_key=idempotency_key or "",
         )
+        job_id = result.get("job_id")
+        key = idempotency_key or ""
+        session.commit()
+        if job_id and result.get("provisioning") == "queued":
+            from callbot_platform.async_jobs.runner import (
+                complete_purchase_after_commit,
+            )
+
+            completed = complete_purchase_after_commit(
+                get_session_factory(),
+                tenant_id=tenant_id,
+                job_id=UUID(str(job_id)),
+                idempotency_key=key,
+                settings=settings,
+                purchase_deps={
+                    "cipher": service._cipher,
+                    "signer": service._signer,
+                    "inventory": service._inventory,
+                    "provisioning": service._provisioning,
+                    "twilio_sip": service._twilio_sip,
+                    "livekit": service._livekit,
+                },
+            )
+            if completed.get("error") == "partial_provisioning":
+                raise PurchaseError(
+                    "partial_provisioning",
+                    str(completed.get("message") or "Purchase partially completed"),
+                )
+            return completed
+        return result
     except PurchaseError as exc:
         status = 400
         if exc.code == "partial_provisioning":
@@ -271,19 +446,59 @@ def purchase_number(
         ) from exc
 
 
-@router.post("/tenants/{tenant_id}/phone-numbers/{phone_number_id}/release")
+@router.post(
+    "/tenants/{tenant_id}/phone-numbers/{phone_number_id}/release",
+    dependencies=[Depends(require_internal_token)],
+)
 def release_number(
     tenant_id: UUID,
     phone_number_id: UUID,
     body: ReleaseBody,
+    session: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
     service: PlatformPurchaseService = Depends(purchase_service),
 ) -> dict:
     try:
-        return service.release(
+        result = service.release(
             tenant_id=tenant_id,
             phone_number_id=phone_number_id,
             phone_number_sid=body.phone_number_sid,
         )
+        job_id = result.get("job_id")
+        session.commit()
+        if job_id:
+            from callbot_platform.async_jobs.handlers.telephony import (
+                TelephonyProvisionHandler,
+            )
+            from callbot_platform.async_jobs.runner import run_async_job
+
+            handler = TelephonyProvisionHandler(
+                settings=settings,
+                cipher=service._cipher,
+                signer=service._signer,
+                provisioning=service._provisioning,
+                livekit=service._livekit,
+            )
+            job = run_async_job(
+                get_session_factory(),
+                UUID(str(job_id)),
+                settings=settings,
+                telephony_handler=handler,
+            )
+            phone = session.scalar(
+                select(TenantPhoneNumber).where(
+                    TenantPhoneNumber.id == phone_number_id,
+                    TenantPhoneNumber.tenant_id == tenant_id,
+                )
+            )
+            if phone is not None:
+                session.refresh(phone)
+                result = {
+                    "phone_number": service._serialize(phone),
+                    "job_id": str(job_id),
+                    "provisioning": job.status if job else "unknown",
+                }
+        return result
     except PurchaseError as exc:
         raise HTTPException(
             status_code=403 if exc.code == "release_not_allowed" else 400,
@@ -320,6 +535,7 @@ def resolve_tenant(
             "agent_profile_id": str(result.agent_profile_id)
             if result.agent_profile_id
             else None,
+            "call_scope": _issue_tenant_scope(result.tenant_id),
         }
     except TenantResolveError as exc:
         raise HTTPException(

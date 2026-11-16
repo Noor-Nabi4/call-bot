@@ -1,24 +1,46 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/shell";
-import { CogsDashboard } from "@/components/ops/cogs-dashboard";
 import { useAuth } from "@/lib/use-auth";
-import { LoadingSkeleton } from "@/components/ui";
+import { ForbiddenState, LoadingSkeleton } from "@/components/ui";
 
-export default function CogsPage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+/**
+ * Former org COGS route — platform financials are not customer-facing.
+ * Organization Owners are redirected to Usage; they never receive COGS data.
+ */
+export default function CogsRedirectPage() {
+  const router = useRouter();
+  const { user, loading, forbidden } = useAuth({ permission: "billing.read" });
+
+  useEffect(() => {
+    if (!loading && user && !forbidden) {
+      router.replace("/settings/usage");
+    }
+  }, [loading, user, forbidden, router]);
 
   if (loading || !user) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-8">
-        <LoadingSkeleton rows={6} />
+        <LoadingSkeleton rows={4} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 
   return (
     <AppShell user={user}>
-      <CogsDashboard />
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        <LoadingSkeleton rows={4} />
+      </div>
     </AppShell>
   );
 }

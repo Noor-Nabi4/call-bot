@@ -7,6 +7,13 @@ export type TeamUser = {
   name: string;
   role: string;
   is_active: boolean;
+  status?: string;
+  roles?: Array<{
+    id: string;
+    name: string;
+    is_system: boolean;
+    is_active: boolean;
+  }>;
 };
 
 export function listAppointments() {
@@ -99,15 +106,18 @@ export function completeQueueItem(
   });
 }
 
+/** Picker-friendly customer list (id + name). Prefers CRM customers API. */
 export function listCustomers() {
-  return api<{ customers: CustomerOption[] }>("/api/admin/customers").then(
-    (d) => ({
-      customers: (d.customers || []).map((c) => ({
+  return api<{ customers: Array<{ id: string; name: string }> }>(
+    "/api/admin/crm/customers?limit=200",
+  ).then((d) => ({
+    customers: (d.customers || []).map(
+      (c): CustomerOption => ({
         id: c.id,
         name: c.name,
-      })),
-    }),
-  );
+      }),
+    ),
+  }));
 }
 
 export function listTeamUsers() {
@@ -139,5 +149,93 @@ export function updateTeamUser(
   return api<{ user: TeamUser }>(`/api/admin/users/${userId}`, {
     method: "PATCH",
     body: JSON.stringify(body),
+  });
+}
+
+export type OrgRole = {
+  id: string;
+  name: string;
+  description?: string | null;
+  is_system: boolean;
+  is_active: boolean;
+  permissions?: Array<{
+    key: string;
+    scope: string;
+    resource: string;
+    action: string;
+  }>;
+};
+
+export type PlatformPermission = {
+  id: string;
+  key: string;
+  resource: string;
+  action: string;
+  description: string;
+};
+
+export function listOrgRoles() {
+  return api<{ roles: OrgRole[] }>("/api/admin/organization/roles");
+}
+
+export function getOrgRole(roleId: string) {
+  return api<{ role: OrgRole }>(`/api/admin/organization/roles/${roleId}`);
+}
+
+export function createOrgRole(body: {
+  name: string;
+  description?: string;
+  permissions?: Array<{ key: string; scope: string }>;
+}) {
+  return api<{ role: OrgRole }>("/api/admin/organization/roles", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateOrgRole(
+  roleId: string,
+  body: {
+    name?: string;
+    description?: string | null;
+    is_active?: boolean;
+    permissions?: Array<{ key: string; scope: string }>;
+  },
+) {
+  return api<{ role: OrgRole }>(`/api/admin/organization/roles/${roleId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function listPlatformPermissions() {
+  return api<{ permissions: PlatformPermission[] }>(
+    "/api/admin/organization/permissions",
+  );
+}
+
+export function listMemberRoles(memberId: string) {
+  return api<{
+    member_id: string;
+    roles: Array<{ id: string; name: string; is_system: boolean; is_active: boolean }>;
+  }>(`/api/admin/organization/members/${memberId}/roles`);
+}
+
+export function assignMemberRole(memberId: string, roleId: string) {
+  return api<{
+    member_id: string;
+    roles: Array<{ id: string; name: string; is_system: boolean; is_active: boolean }>;
+  }>(`/api/admin/organization/members/${memberId}/roles`, {
+    method: "POST",
+    body: JSON.stringify({ role_id: roleId }),
+  });
+}
+
+export function removeMemberRole(memberId: string, roleId: string) {
+  return api<{
+    member_id: string;
+    roles: Array<{ id: string; name: string; is_system: boolean; is_active: boolean }>;
+  }>(`/api/admin/organization/members/${memberId}/roles/${roleId}`, {
+    method: "DELETE",
   });
 }

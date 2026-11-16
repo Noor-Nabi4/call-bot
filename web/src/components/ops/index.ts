@@ -22,10 +22,13 @@ export {
   type CreateTechForm,
 } from "./create-tech-drawer";
 export {
+  AdminCallsVolumeChart,
   CallsBookingChart,
   JobsActivityChart,
+  RevenueChart,
   TechnicianWorkloadChart,
 } from "./charts";
+export { KpiGrid, buildDashboardKpis, type KpiItem } from "./kpi-cards";
 export {
   ChartEmptyState,
   ChartSkeleton,
@@ -38,4 +41,5 @@ export {
   UsageSummaryPanel,
   seatsAtLimit,
 } from "./usage-summary";
-export { CogsDashboard } from "./cogs-dashboard";
+// CogsDashboard is platform-internal only — not exported for organization UI.
+// Organization users use UsageCostPanel via /settings/usage.

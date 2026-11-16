@@ -1,0 +1,35 @@
+---
+description: Multi-tenant isolation — never trust client tenant identity
+alwaysApply: true
+---
+
+# Tenant Isolation
+
+Every tenant-owned row and query must be scoped by server-derived `tenant_id`.
+
+## Required
+
+- Resolve tenant from auth session, call-scope, or worker job row — never from free-form body/query alone
+- All repos filter `WHERE tenant_id = :tenant_id` (or equivalent join)
+- Uniqueness and indexes that are business-local include `tenant_id`
+- Workers set `TenantContext` from the claimed row before touching tenant data
+- Object keys are tenant-prefixed: `tenants/{tenant_id}/...`
+
+## Forbidden
+
+```text
+# ❌ Client supplies tenant and server trusts it
+GET /resources?tenant_id=<attacker>
+
+# ❌ Cross-tenant fetch by bare id
+session.get(Model, id)  # without tenant check
+```
+
+```text
+# ✅ Server scope + id
+repo.get(tenant_id=scope.tenant_id, id=resource_id)
+```
+
+Cross-tenant access must fail closed (403/404). Add or extend isolation tests when touching tenant data paths.
+
+See: `docs/TENANCY_ARCHITECTURE.md`, `docs/DATA_OWNERSHIP.md`

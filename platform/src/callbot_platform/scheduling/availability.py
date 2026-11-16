@@ -24,9 +24,14 @@ def resolve_tz(name: str) -> ZoneInfo:
         raise ValueError(f"Unknown timezone: {name}") from exc
 
 
-def _parse_hhmm(value: str) -> time:
+def parse_hhmm(value: str) -> time:
+    """Parse an ``HH:MM`` string into a :class:`time`. Shared with CRM appointments."""
     hour, minute = value.strip().split(":")
     return time(int(hour), int(minute))
+
+
+# Backwards-compatible private alias (existing call sites in this module).
+_parse_hhmm = parse_hhmm
 
 
 def _weekday_key(d: date) -> str:

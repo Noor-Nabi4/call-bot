@@ -36,7 +36,7 @@ _VALID_TYPES = frozenset(
         "custom",
     }
 )
-_VALID_STATUS = frozenset({"active", "archived"})
+_VALID_STATUS = frozenset({"active", "archived", "draft"})
 
 
 def _slugify(name: str) -> str:
@@ -446,7 +446,8 @@ class AgentProfileRepository:
         tenant = self._session.get(Tenant, tenant_id)
         if tenant is not None and tenant.default_agent_profile_id is not None:
             row = self._owned(tenant_id, tenant.default_agent_profile_id)
-            if row is not None:
+            # Draft/archived defaults must not resolve for runtime or capability gates.
+            if row is not None and row.status == "active":
                 return row
         return self._session.scalar(
             select(AgentProfile).where(
@@ -572,4 +573,5 @@ class AgentProfileRepository:
             "profile_version": int(settings.get("profile_version") or 1),
             "updated_at": settings.get("updated_at"),
             "voice": settings.get("voice"),
+            "business_prompt_facts": facts if isinstance(facts, dict) else {},
         }

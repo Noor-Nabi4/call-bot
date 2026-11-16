@@ -89,8 +89,9 @@ class CallLifecycle:
             for _ in range(self._settings.inactivity_check_limit):
                 await self._session.generate_reply(
                     instructions=(
-                        "The caller has been silent. Politely check if they are "
-                        "still there in one short sentence."
+                        "The caller has been silent. In one short, natural "
+                        "sentence, check whether they are still there. Do not "
+                        "re-greet or restart the conversation."
                     )
                 )
                 await asyncio.sleep(self._settings.inactivity_check_interval_sec)
@@ -179,6 +180,14 @@ class CallLifecycle:
     def record_interruption(self) -> None:
         self._state.record_interruption()
         self._metrics.sync_interruption_count(self._state.interruption_count)
+
+    def record_false_interruption(self) -> None:
+        self._metrics.record_false_interruption()
+
+    def record_failed_turn(self, *, provider_error: bool = False) -> None:
+        self._metrics.record_failed_turn()
+        if provider_error:
+            self._metrics.record_provider_error()
 
     def correlation_fields(self) -> dict[str, object]:
         return {

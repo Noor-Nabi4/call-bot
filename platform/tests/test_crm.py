@@ -39,30 +39,25 @@ def test_customer_upsert_and_lookup(session: Session, tenant: Tenant) -> None:
 def test_same_phone_allowed_across_tenants(
     session: Session, tenant: Tenant, tenant_b: Tenant
 ) -> None:
-    a = CustomerRepository(session).upsert(
-        tenant.id, name="A", phone="+15553334444"
-    )
-    b = CustomerRepository(session).upsert(
-        tenant_b.id, name="B", phone="+15553334444"
-    )
+    a = CustomerRepository(session).upsert(tenant.id, name="A", phone="+15553334444")
+    b = CustomerRepository(session).upsert(tenant_b.id, name="B", phone="+15553334444")
     assert a["id"] != b["id"]
-    assert CustomerRepository(session).lookup_by_phone(tenant.id, "+15553334444")[
-        "name"
-    ] == "A"
-    assert CustomerRepository(session).lookup_by_phone(tenant_b.id, "+15553334444")[
-        "name"
-    ] == "B"
+    assert (
+        CustomerRepository(session).lookup_by_phone(tenant.id, "+15553334444")["name"]
+        == "A"
+    )
+    assert (
+        CustomerRepository(session).lookup_by_phone(tenant_b.id, "+15553334444")["name"]
+        == "B"
+    )
 
 
 def test_tenant_isolation_lookup(
     session: Session, tenant: Tenant, tenant_b: Tenant
 ) -> None:
-    CustomerRepository(session).upsert(
-        tenant.id, name="Secret", phone="+15555556666"
-    )
+    CustomerRepository(session).upsert(tenant.id, name="Secret", phone="+15555556666")
     assert (
-        CustomerRepository(session).lookup_by_phone(tenant_b.id, "+15555556666")
-        is None
+        CustomerRepository(session).lookup_by_phone(tenant_b.id, "+15555556666") is None
     )
 
 

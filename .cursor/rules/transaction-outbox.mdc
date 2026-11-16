@@ -1,0 +1,45 @@
+---
+description: Transaction safety and notification outbox patterns
+globs: "platform/src/callbot_platform/**/*.py,voice-agent/src/**/*.py"
+alwaysApply: false
+---
+
+# Transaction Safety & Outbox
+
+Never perform external I/O inside an open database transaction.
+
+## Forbidden
+
+```text
+BEGIN → DB write → Twilio / SMS / email / webhook / LiveKit HTTP → COMMIT
+```
+
+## Required
+
+```text
+BEGIN → business row + outbox pending → COMMIT
+→ worker claim → COMMIT claim
+→ external I/O
+→ UPDATE sent | retry | dead_letter | skipped
+```
+
+## Outbox
+
+- Table: `notification_outbox`
+- Enqueue only in request handlers (`NotificationService.enqueue_*`)
+- Deliver only in `NotificationOutboxWorker` (`python -m callbot_platform.workers.run_outbox`)
+- Channels: `sms`, `email`, `webhook`
+- Use stable per-tenant `idempotency_key`
+- Claim with `FOR UPDATE SKIP LOCKED`; never hold locks during provider calls
+- Set `TenantContext` from the outbox row’s `tenant_id` in workers (no HTTP session)
+- Leases + reclaim on expiry; graceful SIGTERM via worker lifecycle helpers
+
+## Config (do not hard-code)
+
+`OUTBOX_BATCH_SIZE`, `OUTBOX_MAX_RETRIES`, `OUTBOX_BASE_BACKOFF_SECONDS`, `OUTBOX_MAX_BACKOFF_SECONDS`, `OUTBOX_POLL_INTERVAL_SECONDS`, `OUTBOX_LEASE_SECONDS`
+
+## Provider dual-writes
+
+Purchase / connect / release / dispatch refresh / Stripe signup-checkout use **`async_jobs` sagas** (not inline provider I/O in the request TX). See `.cursor/rules/async-jobs-sagas.mdc` and `docs/SAGA_ARCHITECTURE.md`.
+
+See: `docs/OUTBOX_ARCHITECTURE.md`, `docs/TRANSACTION_AUDIT.md`

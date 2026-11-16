@@ -8,9 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from callbot_platform.api.deps import CurrentUser, db_dep, require_entitled_ops_roles
+from callbot_platform.api.deps import CurrentUser, db_dep, require_entitled_permission
 from callbot_platform.branding import BrandingError, BrandingRepository
-from callbot_platform.security.session import ROLE_ADMIN
+
+_require_branding = require_entitled_permission("branding.manage")
 
 router = APIRouter(prefix="/api/admin/branding", tags=["branding"])
 
@@ -27,8 +28,8 @@ class BrandingBody(BaseModel):
 
 @router.get("")
 def get_branding(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_branding),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     return {"branding": BrandingRepository(session).get(user.tenant_id)}
 
@@ -36,8 +37,8 @@ def get_branding(
 @router.put("")
 def put_branding(
     body: BrandingBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_branding),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         branding = BrandingRepository(session).upsert(

@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Phone, Plus, Search, Link2 } from "lucide-react";
 import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
+import { ONBOARDING_PATH } from "@/lib/onboarding";
 import {
   assignPhoneProfile,
   confirmPhoneTrunk,
@@ -28,6 +30,7 @@ import {
   DetailDrawer,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   Input,
   LoadingSkeleton,
@@ -41,7 +44,27 @@ const CONNECT_FORM_ID = "connect-phone-form";
 const BUY_FORM_ID = "buy-phone-form";
 
 export default function PhonesPage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  return (
+    <Suspense
+      fallback={
+        <div className="p-6">
+          <LoadingSkeleton rows={6} />
+        </div>
+      }
+    >
+      <PhonesPageInner />
+    </Suspense>
+  );
+}
+
+function PhonesPageInner() {
+  const searchParams = useSearchParams();
+  const fromOnboarding = searchParams.get("from") === "onboarding";
+  const { user, loading, forbidden } = useAuth({
+    permission: "phones.manage",
+    // Required during mandatory onboarding before COMPLETED.
+    allowIncompleteOnboarding: true,
+  });
   const toast = useToast();
   const [phones, setPhones] = useState<PhoneNumber[]>([]);
   const [profiles, setProfiles] = useState<AgentProfile[]>([]);
@@ -61,12 +84,15 @@ export default function PhonesPage() {
   const [confirmBusy, setConfirmBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [phoneData, profileData] = await Promise.all([
-      listPhoneNumbers(),
-      listAgentProfiles(),
-    ]);
+    const phoneData = await listPhoneNumbers();
     setPhones(phoneData.items);
-    setProfiles(profileData.profiles);
+    // Agent profiles may be gated until onboarding completes — non-fatal here.
+    try {
+      const profileData = await listAgentProfiles();
+      setProfiles(profileData.profiles);
+    } catch {
+      setProfiles([]);
+    }
   }, []);
 
   useEffect(() => {
@@ -219,13 +245,44 @@ export default function PhonesPage() {
     );
   }
 
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell user={user}>
+      {fromOnboarding ? (
+        <div className="mb-4 rounded-lg border border-border bg-teal-soft/40 px-4 py-3 text-sm text-text-primary">
+          Phone setup is required for every organization before dashboard
+          access.{" "}
+          <strong>Connect a number you already own</strong> (Twilio BYON) or{" "}
+          <strong>purchase a new number</strong> after confirming price. When
+          status is active and verified,{" "}
+          <Link
+            href={`${ONBOARDING_PATH}?manual=1`}
+            className="font-medium text-teal underline-offset-2 hover:underline"
+          >
+            return to onboarding
+          </Link>{" "}
+          or refresh — access unlocks automatically.
+        </div>
+      ) : null}
       <PageHeader
         title="Phones"
         description="Buy or connect numbers, assign each DID to an Agent Profile, and run test calls. Advanced recording and forwarding come later."
         actions={
           <div className="flex flex-wrap gap-2">
+            {fromOnboarding ? (
+              <Link href={`${ONBOARDING_PATH}?manual=1`}>
+                <Button variant="secondary" size="sm">
+                  Back to onboarding
+                </Button>
+              </Link>
+            ) : null}
             <Link href="/agents">
               <Button variant="secondary" size="sm">
                 Agent builder

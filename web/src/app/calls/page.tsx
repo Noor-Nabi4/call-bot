@@ -16,6 +16,7 @@ import {
   DetailDrawer,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   LoadingSkeleton,
   PageHeader,
@@ -27,6 +28,7 @@ import {
   useToast,
   type DataTableColumn,
 } from "@/components/ui";
+import { CallIntelligencePanel } from "@/components/calls/CallIntelligencePanel";
 
 const DISPOSITIONS = [
   "resolved",
@@ -55,7 +57,7 @@ function formatDuration(
 function CallsWorkspace() {
   const searchParams = useSearchParams();
   const statusFilter = (searchParams.get("status") || "").toLowerCase().trim();
-  const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const { user, loading, forbidden } = useAuth({ permission: "calls.read" });
   const toast = useToast();
   const [rows, setRows] = useState<Call[]>([]);
   const [search, setSearch] = useState("");
@@ -230,6 +232,14 @@ function CallsWorkspace() {
     );
   }
 
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell user={user}>
       <PageHeader
@@ -352,6 +362,7 @@ function CallsWorkspace() {
               <h3 className="mb-3 text-sm font-semibold">Timeline</h3>
               <Timeline items={timelineItems} />
             </div>
+            <CallIntelligencePanel callId={selected.id} />
             {selected.status !== "active" && selected.ended_at ? (
               <form className="space-y-3 border-t border-border pt-4" onSubmit={onSaveQuality}>
                 <h3 className="text-sm font-semibold">{copy.quality}</h3>

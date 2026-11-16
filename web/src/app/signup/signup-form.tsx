@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { fetchGeoCatalog } from "@/lib/geo-api";
 import { signup as signupApi } from "@/lib/marketing-api";
 import { track } from "@/lib/analytics";
 import { signup as copy } from "@/lib/copy";
@@ -12,6 +13,7 @@ import { opsLoginUrl } from "@/lib/site-urls";
 import {
   resolveInitialTimezone,
   timezoneOptionsForSelect,
+  type TimezoneOption,
 } from "@/lib/timezones";
 
 const PLAN_OPTIONS = [
@@ -32,7 +34,6 @@ type Step = 0 | 1 | 2 | 3;
 type SignupFormValues = {
   plan_key: PlanKey;
   business_name: string;
-  slug: string;
   timezone: string;
   industry: string;
   name: string;
@@ -42,15 +43,6 @@ type SignupFormValues = {
 
 const fieldClass =
   "mt-1.5 w-full rounded-[var(--radius-md)] border border-line bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition-colors placeholder:text-muted/60 focus:border-teal";
-
-function slugify(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 64);
-}
 
 function resolveInitialPlan(raw: string | null): PlanKey {
   const plan = (raw || "growth").toLowerCase();
@@ -72,11 +64,11 @@ export default function SignupForm() {
   const initialPlan = resolveInitialPlan(params.get("plan"));
   const initialTimezone = resolveInitialTimezone();
   const [step, setStep] = useState<Step>(0);
+  const [timezoneCatalog, setTimezoneCatalog] = useState<TimezoneOption[]>([]);
 
   const {
     register,
     handleSubmit,
-    setValue,
     setError,
     clearErrors,
     trigger,
@@ -86,7 +78,6 @@ export default function SignupForm() {
     defaultValues: {
       plan_key: initialPlan,
       business_name: "",
-      slug: "",
       timezone: initialTimezone,
       industry: "home_services",
       name: "",
@@ -96,33 +87,40 @@ export default function SignupForm() {
     mode: "onSubmit",
   });
 
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchGeoCatalog({ signal: controller.signal })
+      .then((catalog) => {
+        setTimezoneCatalog(
+          catalog.timezones.map((t) => ({ value: t.key, label: t.name })),
+        );
+      })
+      .catch(() => {
+        /* keep fallback UTC list */
+      });
+    return () => controller.abort();
+  }, []);
+
   const planKey = watch("plan_key");
   const timezone = watch("timezone");
   const industry = watch("industry");
   const selectedPlan =
     PLAN_OPTIONS.find((p) => p.key === planKey) ?? PLAN_OPTIONS[1];
   const timezoneOptions = useMemo(
-    () => timezoneOptionsForSelect(timezone),
-    [timezone],
+    () => timezoneOptionsForSelect(timezone, timezoneCatalog),
+    [timezone, timezoneCatalog],
   );
-
-  const businessNameRegister = register("business_name", {
-    required: "Business name is required",
-    minLength: { value: 1, message: "Business name is required" },
-    maxLength: { value: 255, message: "Business name is too long" },
-  });
 
   async function goNext() {
     clearErrors("root");
-    let valid = false;
     if (step === 0) {
-      valid = await trigger(["business_name", "slug", "timezone"]);
+      if (!(await trigger(["business_name", "timezone"]))) return;
     } else if (step === 1) {
-      valid = await trigger(["industry"]);
+      if (!(await trigger(["industry"]))) return;
     } else if (step === 2) {
-      valid = await trigger(["plan_key"]);
+      if (!(await trigger(["plan_key"]))) return;
     }
-    if (!valid) return;
+
     const next = (step + 1) as Step;
     setStep(next);
     track("signup_step", { step: STEPS[next] });
@@ -142,14 +140,14 @@ export default function SignupForm() {
     try {
       const { checkout_url } = await signupApi({
         business_name: values.business_name,
-        slug: values.slug,
         timezone: values.timezone,
         name: values.name,
         email: values.email,
         password: values.password,
         plan_key: values.plan_key,
       });
-      window.location.assign(checkout_url);
+      // Session cookie is set by signup; Stripe then returns to /onboarding.
+      window.location.assign(checkout_url || "/onboarding");
     } catch (err) {
       track("signup_error");
       setError("root", {
@@ -257,39 +255,21 @@ export default function SignupForm() {
                   <input
                     className={fieldClass}
                     autoComplete="organization"
-                    {...businessNameRegister}
-                    onChange={(event) => {
-                      businessNameRegister.onChange(event);
-                      setValue("slug", slugify(event.target.value), {
-                        shouldValidate: true,
-                      });
-                    }}
+                    {...register("business_name", {
+                      required: "Business name is required",
+                      minLength: {
+                        value: 1,
+                        message: "Business name is required",
+                      },
+                      maxLength: {
+                        value: 255,
+                        message: "Business name is too long",
+                      },
+                    })}
                   />
                   {errors.business_name ? (
                     <span className="mt-1 block text-xs text-red-600">
                       {errors.business_name.message}
-                    </span>
-                  ) : null}
-                </label>
-                <label className="block text-sm font-medium text-ink">
-                  {copy.businessId}
-                  <input
-                    className={fieldClass}
-                    autoComplete="off"
-                    {...register("slug", {
-                      required: "Workspace ID is required",
-                      pattern: {
-                        value: /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-                        message: copy.businessIdHint,
-                      },
-                    })}
-                  />
-                  <span className="mt-1 block text-xs text-muted">
-                    {copy.businessIdHint}
-                  </span>
-                  {errors.slug ? (
-                    <span className="mt-1 block text-xs text-red-600">
-                      {errors.slug.message}
                     </span>
                   ) : null}
                 </label>
@@ -487,7 +467,7 @@ export default function SignupForm() {
               {step < 3 ? (
                 <button
                   type="button"
-                  onClick={goNext}
+                  onClick={() => void goNext()}
                   className="inline-flex items-center justify-center rounded-[var(--radius-md)] bg-teal px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-bright"
                 >
                   {copy.continue}

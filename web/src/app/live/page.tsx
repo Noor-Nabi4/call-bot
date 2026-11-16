@@ -13,6 +13,7 @@ import {
   DataTable,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   LoadingSkeleton,
   PageHeader,
   StatusPill,
@@ -41,7 +42,7 @@ function liveElapsedSeconds(call: Call, nowMs: number): number | null {
 }
 
 export default function LiveCallsPage() {
-  const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const { user, loading, forbidden } = useAuth({ permission: "calls.read" });
   const [rows, setRows] = useState<Call[]>([]);
   const [fetching, setFetching] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -162,6 +163,14 @@ export default function LiveCallsPage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

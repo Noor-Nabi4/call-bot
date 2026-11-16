@@ -1,6 +1,7 @@
 /** Build ops attention notifications from live tenant records. */
 
 import type { Job, Technician } from "@/lib/api";
+import { JOB_ACTIVE_STATUSES } from "@/lib/api/job-constants";
 import { deriveUrgency } from "@/lib/schedule";
 
 export type AttentionItem = {
@@ -12,12 +13,7 @@ export type AttentionItem = {
   tone: "urgent" | "warn" | "info";
 };
 
-const ACTIVE_STATUSES = new Set([
-  "new",
-  "scheduled",
-  "dispatched",
-  "in_progress",
-]);
+const ACTIVE_STATUSES = JOB_ACTIVE_STATUSES;
 
 export function activeJobs(jobs: Job[]): Job[] {
   return jobs.filter((j) => ACTIVE_STATUSES.has(j.status));

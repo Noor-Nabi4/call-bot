@@ -24,7 +24,7 @@ def _settings() -> Settings:
         business_facts=BusinessFacts(),
         openai_realtime_model="gpt-realtime",
         openai_voice="marin",
-        temperature=0.8,
+        temperature=0.85,
         language="en",
         user_away_timeout_sec=15.0,
         max_call_duration_sec=900.0,
@@ -33,6 +33,10 @@ def _settings() -> Settings:
         max_spoken_sentences=3,
         agent_name="voice-agent",
         tenant_id="tenant_demo",
+        vad_eagerness="low",
+        input_audio_noise_reduction=None,
+        min_consecutive_speech_delay_sec=0.25,
+        min_interruption_duration_sec=0.5,
     )
 
 

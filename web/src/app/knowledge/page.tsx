@@ -7,6 +7,13 @@ import { useAuth } from "@/lib/use-auth";
 import { errors, knowledge as copy } from "@/lib/ops-copy";
 import { safeUserError } from "@/lib/safe-error";
 import { listAgentProfiles } from "@/lib/api/agents";
+import {
+  createTextSource,
+  deleteSource,
+  listKnowledgeSources,
+  reindexSource,
+  type KnowledgeSource,
+} from "@/lib/api/knowledge";
 import type { AgentProfile } from "@/types";
 import {
   Button,
@@ -14,6 +21,7 @@ import {
   DetailDrawer,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   FilterBar,
   Input,
@@ -86,7 +94,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export default function KnowledgePage() {
-  const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const { user, loading, forbidden } = useAuth({ permission: "knowledge.read" });
   const toast = useToast();
   const [articles, setArticles] = useState<Article[]>([]);
   const [profiles, setProfiles] = useState<AgentProfile[]>([]);
@@ -108,14 +116,21 @@ export default function KnowledgePage() {
   const [previewHits, setPreviewHits] = useState<SearchHit[] | null>(null);
   const [previewBusy, setPreviewBusy] = useState(false);
   const [previewProfileId, setPreviewProfileId] = useState("");
+  const [sources, setSources] = useState<KnowledgeSource[]>([]);
+  const [sourceName, setSourceName] = useState("");
+  const [sourceText, setSourceText] = useState("");
+  const [sourceType, setSourceType] = useState("FAQ");
+  const [sourceBusy, setSourceBusy] = useState(false);
 
   const refresh = useCallback(async () => {
-    const [data, profileData] = await Promise.all([
+    const [data, profileData, sourceData] = await Promise.all([
       api<{ articles: Article[] }>("/api/knowledge"),
       listAgentProfiles(),
+      listKnowledgeSources().catch(() => ({ sources: [] as KnowledgeSource[] })),
     ]);
     setArticles(data.articles);
     setProfiles(profileData.profiles || []);
+    setSources(sourceData.sources || []);
   }, []);
 
   useEffect(() => {
@@ -176,6 +191,14 @@ export default function KnowledgePage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 
@@ -323,6 +346,126 @@ export default function KnowledgePage() {
       {error ? (
         <ErrorState className="mb-4" message={error} onRetry={() => setError(null)} />
       ) : null}
+
+      <Surface className="mb-4 p-4">
+        <h2 className="m-0 text-sm font-semibold text-ink">Knowledge sources (RAG)</h2>
+        <p className="mt-1 m-0 text-sm text-text-secondary">
+          Upload informational FAQs, policies, and business text. Operational facts still
+          use tools (inventory, pricing, appointments).
+        </p>
+        <form
+          className="mt-3 grid gap-2 md:grid-cols-[1fr_8rem_auto]"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!sourceName.trim() || !sourceText.trim()) return;
+            setSourceBusy(true);
+            setError(null);
+            try {
+              await createTextSource({
+                name: sourceName.trim(),
+                text: sourceText.trim(),
+                sourceType,
+                sync: true,
+              });
+              setSourceName("");
+              setSourceText("");
+              toast.push("Knowledge source indexed", "success");
+              await refresh();
+            } catch (err) {
+              setError(safeUserError(err, errors.saveFailed));
+            } finally {
+              setSourceBusy(false);
+            }
+          }}
+        >
+          <Input
+            placeholder="Source name"
+            value={sourceName}
+            onChange={(e) => setSourceName(e.target.value)}
+            aria-label="Source name"
+          />
+          <Select
+            value={sourceType}
+            onChange={(e) => setSourceType(e.target.value)}
+            aria-label="Source type"
+          >
+            <option value="FAQ">FAQ</option>
+            <option value="POLICY">Policy</option>
+            <option value="BUSINESS_INFORMATION">Business info</option>
+            <option value="PRODUCT_DESCRIPTION">Product description</option>
+            <option value="TEXT">Text</option>
+          </Select>
+          <Button type="submit" disabled={sourceBusy}>
+            {sourceBusy ? "Indexing…" : "Add + index"}
+          </Button>
+          <Textarea
+            className="md:col-span-3"
+            rows={3}
+            placeholder="Paste FAQ, policy, or business information…"
+            value={sourceText}
+            onChange={(e) => setSourceText(e.target.value)}
+            aria-label="Source text"
+          />
+        </form>
+        {sources.length > 0 ? (
+          <ul className="mt-3 m-0 list-none space-y-2 p-0">
+            {sources.map((s) => (
+              <li
+                key={s.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-border bg-surface-2 px-3 py-2"
+              >
+                <div>
+                  <p className="m-0 text-sm font-medium text-ink">
+                    {s.name}{" "}
+                    <span className="font-mono text-xs text-text-muted">
+                      {s.source_type} · v{s.version}
+                    </span>
+                  </p>
+                  <p className="mt-0.5 m-0 text-xs text-text-secondary">
+                    {s.status}
+                    {s.chunk_count != null ? ` · ${s.chunk_count} chunks` : ""}
+                    {s.failure_message ? ` · ${s.failure_message}` : ""}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={async () => {
+                      try {
+                        await reindexSource(s.id, true);
+                        toast.push("Reindex complete", "success");
+                        await refresh();
+                      } catch (err) {
+                        setError(safeUserError(err, errors.saveFailed));
+                      }
+                    }}
+                  >
+                    Reindex
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={async () => {
+                      try {
+                        await deleteSource(s.id);
+                        toast.push("Source deleted", "success");
+                        await refresh();
+                      } catch (err) {
+                        setError(safeUserError(err, errors.deleteFailed));
+                      }
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 m-0 text-sm text-text-secondary">No RAG sources yet.</p>
+        )}
+      </Surface>
 
       <Surface className="mb-4 p-4">
         <div className="flex items-center gap-2">

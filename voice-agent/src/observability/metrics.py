@@ -27,6 +27,9 @@ class CallMetrics:
     model_latency_ms: float | None = None
     response_latency_ms: float | None = None
     interruption_count: int = 0
+    false_interruption_count: int = 0
+    failed_turn_count: int = 0
+    provider_error_count: int = 0
     error_code: str | None = None
     agent_profile_version: int | None = None
     requested_language: str | None = None
@@ -62,6 +65,15 @@ class CallMetrics:
 
     def sync_interruption_count(self, count: int) -> None:
         self.interruption_count = count
+
+    def record_false_interruption(self) -> None:
+        self.false_interruption_count += 1
+
+    def record_failed_turn(self) -> None:
+        self.failed_turn_count += 1
+
+    def record_provider_error(self) -> None:
+        self.provider_error_count += 1
 
     def set_call_channel(self, *, is_sip: bool) -> None:
         self.call_channel = CHANNEL_PSTN_SIP if is_sip else CHANNEL_BROWSER_WEBRTC
@@ -120,6 +132,9 @@ class CallMetrics:
             "model_latency_ms": self.model_latency_ms,
             "response_latency_ms": self.response_latency_ms,
             "interruption_count": self.interruption_count,
+            "false_interruption_count": self.false_interruption_count,
+            "failed_turn_count": self.failed_turn_count,
+            "provider_error_count": self.provider_error_count,
             "error_code": self.error_code,
             "agent_profile_version": self.agent_profile_version,
             "requested_language": self.requested_language,
