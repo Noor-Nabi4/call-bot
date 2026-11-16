@@ -25,6 +25,7 @@ from callbot_platform.rbac.service import AuthorizationService
 from callbot_platform.security.rate_limit import (
     AUTH_LOGIN_RATE_LIMITER,
     AUTH_SIGNUP_RATE_LIMITER,
+    AUTH_SIGNUP_VALIDATE_RATE_LIMITER,
     RateLimitExceeded,
     SlidingWindowRateLimiter,
 )
@@ -103,12 +104,23 @@ class SignupBody(BaseModel):
     model_config = {"extra": "forbid"}
 
     business_name: str = Field(min_length=1, max_length=255)
-    slug: str = Field(min_length=2, max_length=64)
+    # Optional for backward compatibility — server always allocates from business_name.
+    slug: str | None = Field(default=None, max_length=64)
     timezone: str = Field(default="UTC", max_length=64)
     name: str = Field(min_length=1, max_length=255)
     email: str = Field(min_length=3, max_length=320)
     password: str = Field(min_length=8, max_length=128)
     plan_key: str = Field(min_length=1, max_length=32)
+
+
+class SignupValidateBody(BaseModel):
+    """Partial signup validation — only provided fields are checked."""
+
+    model_config = {"extra": "forbid"}
+
+    slug: str | None = Field(default=None, max_length=96)
+    email: str | None = Field(default=None, max_length=320)
+    plan_key: str | None = Field(default=None, max_length=32)
 
 
 class UpdateProfileBody(BaseModel):
@@ -169,6 +181,33 @@ def _set_session_cookie(
     )
 
 
+@router.post("/signup/validate")
+def signup_validate(
+    body: SignupValidateBody,
+    request: Request,
+    session: Session = Depends(db_dep),
+    settings: Settings = Depends(settings_dep),
+) -> dict[str, Any]:
+    """Validate one or more signup fields; returns per-field errors only."""
+    _enforce_auth_rate_limit(
+        AUTH_SIGNUP_VALIDATE_RATE_LIMITER,
+        _client_rate_key(request, "signup-validate"),
+    )
+    if body.slug is None and body.email is None and body.plan_key is None:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "empty_validate",
+                "message": "Provide at least one field to validate",
+            },
+        )
+    return BillingService(session, settings).validate_signup_fields(
+        slug=body.slug,
+        email=body.email,
+        plan_key=body.plan_key,
+    )
+
+
 @router.post("/signup")
 def signup(
     body: SignupBody,
@@ -179,17 +218,17 @@ def signup(
 ) -> dict[str, Any]:
     _enforce_auth_rate_limit(
         AUTH_SIGNUP_RATE_LIMITER,
-        _client_rate_key(request, "signup", body.slug.lower(), body.email.lower()),
+        _client_rate_key(request, "signup", body.email.lower()),
     )
     try:
         result = BillingService(session, settings).signup(
             business_name=body.business_name,
-            slug=body.slug,
             timezone=body.timezone,
             name=body.name,
             email=body.email,
             password=body.password,
             plan_key=body.plan_key,
+            slug=body.slug,
         )
         job_id = result.get("job_id")
         tenant_id = result.get("tenant_id")

@@ -145,6 +145,61 @@ def test_signup_creates_pending_tenant(session: Session) -> None:
     assert sub.status != "active"
 
 
+def test_validate_signup_fields_per_field(session: Session) -> None:
+    service = BillingService(session, _settings())
+    free = f"free-{uuid4().hex[:8]}"
+    ok = service.validate_signup_fields(slug=free, email="owner@acme.test")
+    assert ok == {"ok": True, "errors": {}}
+
+    taken_slug = f"taken-{uuid4().hex[:8]}"
+    session.add(
+        Tenant(
+            name="Taken Co",
+            slug=taken_slug,
+            status=TenantStatus.ACTIVE.value,
+        )
+    )
+    session.flush()
+
+    denied = service.validate_signup_fields(
+        slug=taken_slug.upper(),
+        email="bad-email",
+        plan_key="enterprise",
+    )
+    assert denied["ok"] is False
+    assert denied["errors"]["slug"]["code"] == "slug_taken"
+    assert denied["errors"]["email"]["code"] == "invalid_email"
+    assert denied["errors"]["plan_key"]["code"] == "invalid_plan"
+
+    # Only provided fields are validated.
+    slug_only = service.validate_signup_fields(slug="Bad_Slug")
+    assert slug_only["ok"] is False
+    assert set(slug_only["errors"]) == {"slug"}
+    assert slug_only["errors"]["slug"]["code"] == "invalid_slug"
+
+
+def test_allocate_signup_slug_from_business_name(session: Session) -> None:
+    service = BillingService(session, _settings())
+    assert service.slugify_business_name("Acme HVAC Co.") == "acme-hvac-co"
+    assert service.slugify_business_name("!!!") == "workspace"
+
+    free_name = f"Fresh HVAC {uuid4().hex[:6]}"
+    allocated = service.allocate_signup_slug(free_name)
+    assert allocated == service.slugify_business_name(free_name)
+
+    session.add(
+        Tenant(
+            name=free_name,
+            slug=allocated,
+            status=TenantStatus.ACTIVE.value,
+        )
+    )
+    session.flush()
+    collision = service.allocate_signup_slug(free_name)
+    assert collision != allocated
+    assert collision.startswith(allocated[:8])
+
+
 def test_signup_rejects_invalid_plan(session: Session) -> None:
     service = BillingService(session, _settings())
     with pytest.raises(BillingError) as exc:

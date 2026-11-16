@@ -1,8 +1,22 @@
 /** Marketing site API helpers for signup / pricing. */
 
+import { ApiError } from "@/lib/api/api-error";
+
 const API =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
   "http://localhost:8000";
+
+type ApiDetail = { code?: string; message?: string } | string | undefined;
+
+function detailMessage(detail: ApiDetail, fallback: string): string {
+  if (typeof detail === "object" && detail?.message) return detail.message;
+  if (typeof detail === "string" && detail.trim()) return detail;
+  return fallback;
+}
+
+function detailCode(detail: ApiDetail): string | undefined {
+  return typeof detail === "object" ? detail?.code : undefined;
+}
 
 export type PlanEntitlements = {
   monthly_minutes: number;
@@ -84,15 +98,63 @@ export async function fetchPlans(enrich = true): Promise<Plan[]> {
   return catalog.plans || [];
 }
 
+export type SignupFieldError = {
+  code: string;
+  message: string;
+};
+
+export type SignupValidateInput = {
+  slug?: string;
+  email?: string;
+  plan_key?: string;
+};
+
+export type SignupValidateResult = {
+  ok: boolean;
+  errors: Partial<Record<keyof SignupValidateInput, SignupFieldError>>;
+};
+
+export async function validateSignup(
+  fields: SignupValidateInput,
+  options?: { signal?: AbortSignal },
+): Promise<SignupValidateResult> {
+  const body: SignupValidateInput = {};
+  if (fields.slug !== undefined) body.slug = fields.slug;
+  if (fields.email !== undefined) body.email = fields.email;
+  if (fields.plan_key !== undefined) body.plan_key = fields.plan_key;
+
+  const res = await fetch(`${API}/auth/signup/validate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "omit",
+    cache: "no-store",
+    signal: options?.signal,
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as SignupValidateResult & {
+    detail?: ApiDetail;
+  };
+  if (!res.ok) {
+    throw new ApiError(
+      detailMessage(data.detail, "Could not validate signup details"),
+      res.status,
+      detailCode(data.detail),
+    );
+  }
+  return {
+    ok: Boolean(data.ok),
+    errors: data.errors && typeof data.errors === "object" ? data.errors : {},
+  };
+}
+
 export async function signup(body: {
   business_name: string;
-  slug: string;
   timezone: string;
   name: string;
   email: string;
   password: string;
   plan_key: string;
-}): Promise<{ checkout_url: string }> {
+}): Promise<{ checkout_url: string; slug?: string }> {
   const res = await fetch(`${API}/auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -101,22 +163,20 @@ export async function signup(body: {
   });
   const data = (await res.json().catch(() => ({}))) as {
     checkout_url?: string;
-    detail?: { code?: string; message?: string } | string;
+    slug?: string;
+    detail?: ApiDetail;
   };
   if (!res.ok) {
-    const detail = data.detail;
-    const message =
-      typeof detail === "object" && detail?.message
-        ? detail.message
-        : typeof detail === "string"
-          ? detail
-          : "Signup failed";
-    throw new Error(message);
+    throw new ApiError(
+      detailMessage(data.detail, "Signup failed"),
+      res.status,
+      detailCode(data.detail),
+    );
   }
   if (!data.checkout_url) {
-    throw new Error("Checkout did not start");
+    throw new ApiError("Checkout did not start", 502, "checkout_missing");
   }
-  return { checkout_url: data.checkout_url };
+  return { checkout_url: data.checkout_url, slug: data.slug };
 }
 
 export function formatMoney(

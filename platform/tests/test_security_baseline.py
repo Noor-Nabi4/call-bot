@@ -176,6 +176,33 @@ def test_login_does_not_enumerate_missing_tenant(client: TestClient) -> None:
     assert res.json()["detail"]["code"] == "invalid_credentials"
 
 
+def test_signup_validate_endpoint_returns_field_errors(
+    client: TestClient, tenant: Tenant
+) -> None:
+    free = f"free-{uuid.uuid4().hex[:8]}"
+    available = client.post(
+        "/auth/signup/validate",
+        json={"slug": free, "email": "owner@acme.test", "plan_key": "growth"},
+    )
+    assert available.status_code == 200
+    assert available.json() == {"ok": True, "errors": {}}
+
+    taken = client.post(
+        "/auth/signup/validate",
+        json={"slug": tenant.slug, "email": "not-an-email"},
+    )
+    assert taken.status_code == 200
+    body = taken.json()
+    assert body["ok"] is False
+    assert body["errors"]["slug"]["code"] == "slug_taken"
+    assert body["errors"]["email"]["code"] == "invalid_email"
+    assert "plan_key" not in body["errors"]
+
+    empty = client.post("/auth/signup/validate", json={})
+    assert empty.status_code == 400
+    assert empty.json()["detail"]["code"] == "empty_validate"
+
+
 def test_auth_login_rate_limit(
     client: TestClient, session: Session, tenant: Tenant
 ) -> None:

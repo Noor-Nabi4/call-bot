@@ -96,9 +96,12 @@ def test_signup_creates_not_started_onboarding(
     session: Session, settings: Settings
 ) -> None:
     svc = BillingService(session, settings)
-    with patch.object(svc, "_require_stripe"), patch(
-        "callbot_platform.async_jobs.service.AsyncJobService.enqueue",
-        return_value=MagicMock(id=uuid.uuid4()),
+    with (
+        patch.object(svc, "_require_stripe"),
+        patch(
+            "callbot_platform.async_jobs.service.AsyncJobService.enqueue",
+            return_value=MagicMock(id=uuid.uuid4()),
+        ),
     ):
         result = svc.signup(
             business_name="New Co",
@@ -116,9 +119,7 @@ def test_signup_creates_not_started_onboarding(
     assert is_onboarding_satisfied(session, tenant_id) is False
 
 
-def test_incomplete_blocks_protected_api(
-    session: Session, settings: Settings
-) -> None:
+def test_incomplete_blocks_protected_api(session: Session, settings: Settings) -> None:
     tenant = Tenant(name="Incomplete", slug=f"inc-{uuid.uuid4().hex[:8]}")
     session.add(tenant)
     session.flush()
@@ -330,9 +331,7 @@ def test_phone_apis_allowed_while_incomplete(
         get_settings.cache_clear()
 
 
-def test_billing_allowed_while_incomplete(
-    session: Session, settings: Settings
-) -> None:
+def test_billing_allowed_while_incomplete(session: Session, settings: Settings) -> None:
     tenant = Tenant(name="Bill", slug=f"bill-{uuid.uuid4().hex[:8]}")
     session.add(tenant)
     session.flush()
@@ -341,7 +340,11 @@ def test_billing_allowed_while_incomplete(
     try:
         # May 404/empty subscription but must not be ONBOARDING_REQUIRED
         res = client.get("/billing/subscription")
-        detail = res.json().get("detail") if res.headers.get("content-type", "").startswith("application/json") else None
+        detail = (
+            res.json().get("detail")
+            if res.headers.get("content-type", "").startswith("application/json")
+            else None
+        )
         code = detail.get("code") if isinstance(detail, dict) else None
         assert code != "ONBOARDING_REQUIRED"
     finally:
@@ -372,9 +375,12 @@ def test_signup_queues_billing_without_completing_onboarding(
 ) -> None:
     """Signup may queue Stripe provisioning; onboarding stays NOT_STARTED."""
     svc = BillingService(session, settings)
-    with patch.object(svc, "_require_stripe"), patch(
-        "callbot_platform.async_jobs.service.AsyncJobService.enqueue",
-        return_value=MagicMock(id=uuid.uuid4()),
+    with (
+        patch.object(svc, "_require_stripe"),
+        patch(
+            "callbot_platform.async_jobs.service.AsyncJobService.enqueue",
+            return_value=MagicMock(id=uuid.uuid4()),
+        ),
     ):
         result = svc.signup(
             business_name="Checkout Co",
@@ -394,21 +400,36 @@ def test_signup_queues_billing_without_completing_onboarding(
     assert is_onboarding_satisfied(session, tenant_id) is False
 
 
-def test_signup_slug_taken_does_not_create_orphan(
-    session: Session, settings: Settings, tenant: Tenant
+def test_signup_allocates_unique_slug_when_base_taken(
+    session: Session, settings: Settings
 ) -> None:
+    """Workspace IDs are auto-generated; collisions get a unique suffix."""
+    from callbot_platform.domain.enums import TenantStatus
+
+    base_name = f"Dup Co {uuid.uuid4().hex[:6]}"
+    existing = Tenant(
+        name=base_name,
+        slug=BillingService.slugify_business_name(base_name),
+        status=TenantStatus.ACTIVE.value,
+    )
+    session.add(existing)
+    session.flush()
+
     svc = BillingService(session, settings)
-    with patch.object(svc, "_require_stripe"), pytest.raises(BillingError) as exc:
-        svc.signup(
-            business_name="Dup",
-            slug=tenant.slug,
+    with patch.object(svc, "_require_stripe"):
+        result = svc.signup(
+            business_name=base_name,
             timezone="UTC",
             name="Owner",
             email="dup@test.com",
             password="password12345",
             plan_key="starter",
         )
-    assert exc.value.code == "slug_taken"
+    assert result["slug"] != existing.slug
+    assert result["slug"].startswith(existing.slug[:12])
+    created = session.get(Tenant, uuid.UUID(str(result["tenant_id"])))
+    assert created is not None
+    assert created.slug == result["slug"]
 
 
 def test_setup_path_persists_without_completing(
@@ -445,9 +466,7 @@ def test_setup_path_persists_without_completing(
         get_settings.cache_clear()
 
 
-def test_skipped_does_not_satisfy_gate(
-    session: Session, settings: Settings
-) -> None:
+def test_skipped_does_not_satisfy_gate(session: Session, settings: Settings) -> None:
     tenant = Tenant(name="Skipped Co", slug=f"skip-{uuid.uuid4().hex[:8]}")
     session.add(tenant)
     session.flush()
