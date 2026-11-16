@@ -115,10 +115,10 @@ def test_idempotent_complete_and_skip(session: Session, tenant: Tenant) -> None:
     svc = OnboardingService(session)
     for _ in range(3):
         svc.complete_step(tenant.id, "industry", actor="a@t.test")
-        svc.skip_step(tenant.id, "catalog", actor="a@t.test")
+        svc.skip_step(tenant.id, "team", actor="a@t.test")
     state = svc.get(tenant.id)
     assert state["completed_steps"].count("industry") == 1
-    assert state["skipped_steps"].count("catalog") == 1
+    assert state["skipped_steps"].count("team") == 1
 
 
 def test_resume_and_partial_state_data(session: Session, tenant: Tenant) -> None:

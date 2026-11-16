@@ -123,8 +123,6 @@ const WIZARD_STEPS = [
   "business_profile",
   "industry",
   "business_model",
-  "catalog",
-  "customers",
   "business_hours",
   "ai_configuration",
   "phone_setup",
@@ -1042,9 +1040,7 @@ function OnboardingPageInner() {
               </>
             ) : null}
 
-            {activeStep === "catalog" ||
-            activeStep === "customers" ||
-            activeStep === "ai_configuration" ? (
+            {activeStep === "ai_configuration" ? (
               <>
                 <h2 className="text-sm font-semibold">
                   {onboarding.steps.find((s) => s.key === activeStep)?.title}

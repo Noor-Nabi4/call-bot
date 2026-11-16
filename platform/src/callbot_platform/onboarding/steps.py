@@ -1,4 +1,4 @@
-"""Canonical onboarding step registry (extensible for later Phase 2 tasks)."""
+"""Canonical onboarding step registry."""
 
 from __future__ import annotations
 
@@ -33,18 +33,6 @@ ONBOARDING_STEPS: tuple[OnboardingStepDef, ...] = (
         title="Business model",
         required=True,
         description="How the business sells (products, services, appointments, …)",
-    ),
-    OnboardingStepDef(
-        key="catalog",
-        title="Products & services",
-        required=False,
-        description="Optional catalog setup (commerce ships later)",
-    ),
-    OnboardingStepDef(
-        key="customers",
-        title="Customers",
-        required=False,
-        description="Optional CRM starter configuration",
     ),
     OnboardingStepDef(
         key="business_hours",
