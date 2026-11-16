@@ -168,13 +168,20 @@ def validate_business_type(value: str | None) -> str | None:
 def _geo_currency_codes() -> frozenset[str]:
     """Prefer seeded geo catalog codes; fall back to the legacy allowlist."""
     try:
-        from callbot_platform.geo.seed import _load_json
+        from callbot_platform.geo.seed_data import currency_codes_from_seed
 
-        return frozenset(
-            str(row["code"]).upper() for row in _load_json("currencies.json")
-        )
+        return currency_codes_from_seed()
     except Exception:
         return CURRENCIES
+
+
+def _geo_country_codes() -> frozenset[str] | None:
+    try:
+        from callbot_platform.geo.seed_data import country_codes_from_seed
+
+        return country_codes_from_seed()
+    except Exception:
+        return None
 
 
 def validate_currency(value: str | None) -> str:
@@ -197,19 +204,12 @@ def validate_country(value: str | None) -> str | None:
         raise OrganizationError(
             "invalid_country", "Country must be an ISO 3166-1 alpha-2 code"
         )
-    try:
-        from callbot_platform.geo.seed import _load_json
-
-        known = {str(row["code"]).upper() for row in _load_json("countries.json")}
-        if code not in known:
-            raise OrganizationError(
-                "invalid_country",
-                "Country must be a supported ISO 3166-1 alpha-2 code",
-            )
-    except OrganizationError:
-        raise
-    except Exception:
-        pass
+    known = _geo_country_codes()
+    if known is not None and code not in known:
+        raise OrganizationError(
+            "invalid_country",
+            "Country must be a supported ISO 3166-1 alpha-2 code",
+        )
     return code
 
 

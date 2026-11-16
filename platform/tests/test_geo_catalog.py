@@ -47,16 +47,27 @@ def client(session: Session, settings: Settings) -> Generator[TestClient, None, 
 
 
 def test_ensure_geo_catalog_idempotent(session: Session) -> None:
+    from callbot_platform.geo.cache import clear_catalog_cache, get_cached_catalog
+    from callbot_platform.geo.service import GeoCatalogService
+
+    clear_catalog_cache()
     first = ensure_geo_catalog(session)
     session.commit()
     assert first["countries"] >= 200
     assert first["regions"] >= 1000
     assert first["currencies"] >= 100
     assert first["timezones"] >= 100
+    assert get_cached_catalog() is None
 
     second = ensure_geo_catalog(session)
     session.commit()
     assert second == first
+
+    svc = GeoCatalogService(session)
+    payload = svc.catalog_payload()
+    assert get_cached_catalog() is not None
+    assert svc.catalog_payload() is get_cached_catalog()
+    assert payload["countries"]
 
     pk = session.get(GeoCountry, "PK")
     assert pk is not None

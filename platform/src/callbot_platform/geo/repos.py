@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from callbot_platform.db.models.geo import (
@@ -48,8 +48,26 @@ class GeoCatalogRepository:
             stmt = stmt.where(GeoRegion.is_active.is_(True))
         return list(self._session.scalars(stmt).all())
 
+    def has_regions(self, country_code: str, *, active_only: bool = True) -> bool:
+        code = country_code.strip().upper()
+        filters = [GeoRegion.country_code == code]
+        if active_only:
+            filters.append(GeoRegion.is_active.is_(True))
+        return bool(self._session.scalar(select(exists().where(*filters))))
+
     def get_country(self, code: str) -> GeoCountry | None:
         return self._session.get(GeoCountry, code.strip().upper())
+
+    def find_country_by_name(self, name: str) -> GeoCountry | None:
+        needle = name.strip().lower()
+        if not needle:
+            return None
+        return self._session.scalar(
+            select(GeoCountry).where(
+                GeoCountry.is_active.is_(True),
+                func.lower(GeoCountry.name) == needle,
+            )
+        )
 
     def get_currency(self, code: str) -> GeoCurrency | None:
         return self._session.get(GeoCurrency, code.strip().upper())
@@ -69,8 +87,14 @@ class GeoCatalogRepository:
         needle = name.strip().lower()
         if not needle:
             return None
-        regions = self.list_regions(country_code, active_only=True)
-        for region in regions:
-            if region.name.lower() == needle or region.code.lower() == needle:
-                return region
-        return None
+        cc = country_code.strip().upper()
+        return self._session.scalar(
+            select(GeoRegion).where(
+                GeoRegion.country_code == cc,
+                GeoRegion.is_active.is_(True),
+                or_(
+                    func.lower(GeoRegion.name) == needle,
+                    func.lower(GeoRegion.code) == needle,
+                ),
+            )
+        )
