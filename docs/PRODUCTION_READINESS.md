@@ -88,6 +88,20 @@ Voice CRM Wave 1 production readiness: BLOCKED on staging environment
 
 Unblock: provision staging API + managed Postgres (migrated), then run RBAC/isolation smoke for Customers, Calls, Appointments, Jobs, Dispatch, Handoffs. LiveKit/Twilio live call remains a separate provider smoke.
 
+### Products + Services catalog (2026-11-16)
+
+```text
+LOCAL Product catalog (test_product_catalog): VERIFIED — included in 33-pass products/services suite
+LOCAL Services + pricebooks (test_services_pricebook + hardening + http_rbac): VERIFIED
+LOCAL PG concurrency (test_services_pricebook_pg_concurrency): NOT EXECUTED here (3 skipped — dedicated PG URL)
+ui_live: PRODUCTS, SERVICES, PRICEBOOKS, CATEGORIES = True
+Fix: products_and_services business model now merges PRODUCTS/CATEGORIES/PRICEBOOKS on CRM setup
+  (industry packs like HVAC previously omitted PRODUCTS)
+STAGING Products/Services smoke: NOT AVAILABLE
+PRODUCTION Products/Services smoke: NOT EXECUTED
+Products/Services production readiness: BLOCKED on staging
+```
+
 ### Phase 9 Orders (9.5 staging gate — 2026-10-06)
 
 ```text

@@ -413,6 +413,25 @@ def get_template(key: str) -> CrmTemplate | None:
     return TEMPLATE_BY_KEY.get(key.strip().lower())
 
 
+# Extra live modules implied by business model (industry packs may omit these).
+_MODEL_MODULE_EXTRAS: dict[str, tuple[str, ...]] = {
+    "products": ("PRODUCTS", "CATEGORIES", "PRICEBOOKS"),
+    "products_and_services": ("PRODUCTS", "CATEGORIES", "SERVICES", "PRICEBOOKS"),
+    "services": ("SERVICES", "PRICEBOOKS"),
+}
+
+
+def modules_for_business_model(
+    base_modules: list[str] | tuple[str, ...],
+    *,
+    business_model: str | None,
+) -> list[str]:
+    """Merge industry template modules with catalog modules required by model."""
+    model = (business_model or "").strip().lower()
+    extras = _MODEL_MODULE_EXTRAS.get(model, ())
+    return filter_ui_live_keys([*list(base_modules), *extras])
+
+
 def resolve_template(
     *, industry_key: str | None, business_model: str | None
 ) -> CrmTemplate:

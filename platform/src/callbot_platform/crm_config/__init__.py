@@ -14,7 +14,11 @@ from callbot_platform.business_config.modules import (
     MODULE_BY_KEY,
     filter_ui_live_keys,
 )
-from callbot_platform.crm_templates import resolve_template, serialize_template
+from callbot_platform.crm_templates import (
+    modules_for_business_model,
+    resolve_template,
+    serialize_template,
+)
 from callbot_platform.db.models.crm_config import (
     OrganizationCrmConfiguration,
     OrganizationCrmField,
@@ -112,7 +116,10 @@ class CrmSetupService:
         cfg.applied_at = now
         cfg.updated_at = now
 
-        self._ensure_modules(tenant_id, list(template.modules))
+        setup_modules = modules_for_business_model(
+            template.modules, business_model=model
+        )
+        self._ensure_modules(tenant_id, setup_modules)
         self._ensure_statuses(tenant_id, template.statuses)
         self._ensure_fields(tenant_id, template.fields)
         self._ensure_workflows(tenant_id, template.workflows)
@@ -128,7 +135,7 @@ class CrmSetupService:
                 "template_key": template.key,
             },
             payload_summary={
-                "modules": list(template.modules),
+                "modules": setup_modules,
                 "industry_key": industry,
                 "business_model_key": model,
             },
@@ -137,7 +144,7 @@ class CrmSetupService:
             "crm_setup tenant_id=%s template=%s modules=%s",
             tenant_id,
             template.key,
-            len(template.modules),
+            len(setup_modules),
         )
         from callbot_platform.dynamic_crm.config_cache import (
             invalidate_effective_configuration,
