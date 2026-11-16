@@ -165,9 +165,22 @@ def validate_business_type(value: str | None) -> str | None:
     return key
 
 
+def _geo_currency_codes() -> frozenset[str]:
+    """Prefer seeded geo catalog codes; fall back to the legacy allowlist."""
+    try:
+        from callbot_platform.geo.seed import _load_json
+
+        return frozenset(
+            str(row["code"]).upper() for row in _load_json("currencies.json")
+        )
+    except Exception:
+        return CURRENCIES
+
+
 def validate_currency(value: str | None) -> str:
     cleaned = (value or "USD").strip().upper()
-    if cleaned not in CURRENCIES:
+    allowed = _geo_currency_codes()
+    if cleaned not in allowed:
         raise OrganizationError(
             "invalid_currency",
             "Currency must be a supported ISO 4217 code (for example USD)",
@@ -184,6 +197,19 @@ def validate_country(value: str | None) -> str | None:
         raise OrganizationError(
             "invalid_country", "Country must be an ISO 3166-1 alpha-2 code"
         )
+    try:
+        from callbot_platform.geo.seed import _load_json
+
+        known = {str(row["code"]).upper() for row in _load_json("countries.json")}
+        if code not in known:
+            raise OrganizationError(
+                "invalid_country",
+                "Country must be a supported ISO 3166-1 alpha-2 code",
+            )
+    except OrganizationError:
+        raise
+    except Exception:
+        pass
     return code
 
 

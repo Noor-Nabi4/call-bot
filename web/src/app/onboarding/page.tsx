@@ -41,6 +41,15 @@ import {
   Surface,
   useToast,
 } from "@/components/ui";
+import { fetchOrgGeoRegions } from "@/lib/geo-api";
+import {
+  catalogToOptions,
+  normalizeCountryCode,
+  normalizeCurrencyCode,
+  optionsWithCurrent,
+  type GeoOption,
+} from "@/lib/geo-options";
+import { timezoneOptionsForSelect } from "@/lib/timezones";
 
 const API =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
@@ -146,6 +155,11 @@ function OnboardingPageInner() {
   const [industries, setIndustries] = useState<CatalogOption[]>([]);
   const [models, setModels] = useState<CatalogOption[]>([]);
   const [sizes, setSizes] = useState<CatalogOption[]>([]);
+  const [countries, setCountries] = useState<GeoOption[]>([]);
+  const [currencies, setCurrencies] = useState<GeoOption[]>([]);
+  const [timezones, setTimezones] = useState<GeoOption[]>([]);
+  const [regions, setRegions] = useState<GeoOption[]>([]);
+  const [regionsLoading, setRegionsLoading] = useState(false);
   const [crm, setCrm] = useState<CrmConfiguration>(null);
   const [previewModules, setPreviewModules] = useState<string[]>([]);
   const [activeStep, setActiveStep] = useState<string>("business_profile");
@@ -164,6 +178,9 @@ function OnboardingPageInner() {
           industries: CatalogOption[];
           business_models: CatalogOption[];
           business_sizes: CatalogOption[];
+          countries?: CatalogOption[];
+          currencies?: CatalogOption[];
+          timezones?: CatalogOption[];
         };
       }>("/api/admin/organization/business-profile"),
       api<{
@@ -172,10 +189,22 @@ function OnboardingPageInner() {
       }>("/api/admin/organization/crm-configuration"),
     ]);
     setOnboarding(ob.onboarding);
-    setProfile(bp.profile || {});
+    const rawProfile = bp.profile || {};
+    setProfile({
+      ...rawProfile,
+      country: normalizeCountryCode(rawProfile.country) || rawProfile.country,
+      currency:
+        normalizeCurrencyCode(rawProfile.currency) ||
+        rawProfile.currency ||
+        "USD",
+      timezone: rawProfile.timezone || "UTC",
+    });
     setIndustries(bp.catalogs.industries || []);
     setModels(bp.catalogs.business_models || []);
     setSizes(bp.catalogs.business_sizes || []);
+    setCountries(catalogToOptions(bp.catalogs.countries));
+    setCurrencies(catalogToOptions(bp.catalogs.currencies));
+    setTimezones(catalogToOptions(bp.catalogs.timezones));
     setCrm(cfg.configuration);
     setPreviewModules(cfg.preview_template?.modules || []);
     const resume = resumeTarget(ob.onboarding);
@@ -308,10 +337,57 @@ function OnboardingPageInner() {
     [activeStep],
   );
 
+  const countryOptions = useMemo(
+    () => optionsWithCurrent(countries, profile.country),
+    [countries, profile.country],
+  );
+  const regionOptions = useMemo(
+    () => optionsWithCurrent(regions, profile.state),
+    [regions, profile.state],
+  );
+  const timezoneOptions = useMemo(
+    () =>
+      timezoneOptionsForSelect(
+        profile.timezone || "UTC",
+        timezones.map((t) => ({ value: t.value, label: t.label })),
+      ),
+    [profile.timezone, timezones],
+  );
+  const currencyOptions = useMemo(
+    () => optionsWithCurrent(currencies, profile.currency),
+    [currencies, profile.currency],
+  );
+
+  useEffect(() => {
+    const code = normalizeCountryCode(profile.country);
+    if (!code) {
+      setRegions([]);
+      setRegionsLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setRegionsLoading(true);
+    fetchOrgGeoRegions(code, { signal: controller.signal })
+      .then((result) => {
+        setRegions(catalogToOptions(result.regions));
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        setRegions([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setRegionsLoading(false);
+      });
+    return () => controller.abort();
+  }, [profile.country]);
+
   async function saveProfile(completeSteps: string[]) {
     if (!canUpdate) return;
     setBusy(true);
     try {
+      const country = normalizeCountryCode(profile.country) || null;
+      const currency =
+        normalizeCurrencyCode(profile.currency) || profile.currency || "USD";
       const data = await api<{
         profile: BusinessProfile;
         onboarding?: OnboardingState;
@@ -320,10 +396,10 @@ function OnboardingPageInner() {
         body: JSON.stringify({
           business_name: profile.business_name || null,
           industry: profile.industry || null,
-          country: profile.country || null,
+          country,
           state: profile.state || null,
           timezone: profile.timezone || "UTC",
-          currency: profile.currency || "USD",
+          currency,
           website: profile.website || null,
           phone: profile.phone || null,
           email: profile.email || null,
@@ -601,41 +677,91 @@ function OnboardingPageInner() {
                     </Select>
                   </Field>
                   <Field label="Country">
-                    <Input
-                      value={profile.country || ""}
+                    <Select
+                      value={normalizeCountryCode(profile.country) || ""}
                       disabled={!canUpdate || closed}
-                      placeholder="US"
-                      onChange={(e) =>
-                        setProfile({ ...profile, country: e.target.value })
-                      }
-                    />
+                      onChange={(e) => {
+                        setProfile({
+                          ...profile,
+                          country: e.target.value,
+                          state: "",
+                        });
+                      }}
+                    >
+                      <option value="">Select…</option>
+                      {countryOptions.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </Select>
                   </Field>
-                  <Field label="State">
-                    <Input
-                      value={profile.state || ""}
-                      disabled={!canUpdate || closed}
-                      onChange={(e) =>
-                        setProfile({ ...profile, state: e.target.value })
-                      }
-                    />
+                  <Field label="State / Province">
+                    {regionsLoading || regions.length > 0 ? (
+                      <Select
+                        value={profile.state || ""}
+                        disabled={
+                          !canUpdate || closed || regionsLoading || !profile.country
+                        }
+                        onChange={(e) =>
+                          setProfile({ ...profile, state: e.target.value })
+                        }
+                      >
+                        <option value="">
+                          {regionsLoading ? "Loading…" : "Select…"}
+                        </option>
+                        {regionOptions.map((r) => (
+                          <option key={r.value} value={r.value}>
+                            {r.label}
+                          </option>
+                        ))}
+                      </Select>
+                    ) : (
+                      <Input
+                        value={profile.state || ""}
+                        disabled={!canUpdate || closed || !profile.country}
+                        placeholder={
+                          profile.country
+                            ? "State / province"
+                            : "Select a country first"
+                        }
+                        onChange={(e) =>
+                          setProfile({ ...profile, state: e.target.value })
+                        }
+                      />
+                    )}
                   </Field>
                   <Field label="Timezone">
-                    <Input
+                    <Select
                       value={profile.timezone || "UTC"}
                       disabled={!canUpdate || closed}
                       onChange={(e) =>
                         setProfile({ ...profile, timezone: e.target.value })
                       }
-                    />
+                    >
+                      {timezoneOptions.map((tz) => (
+                        <option key={tz.value} value={tz.value}>
+                          {tz.label}
+                        </option>
+                      ))}
+                    </Select>
                   </Field>
                   <Field label="Currency">
-                    <Input
-                      value={profile.currency || "USD"}
+                    <Select
+                      value={
+                        normalizeCurrencyCode(profile.currency) || "USD"
+                      }
                       disabled={!canUpdate || closed}
                       onChange={(e) =>
                         setProfile({ ...profile, currency: e.target.value })
                       }
-                    />
+                    >
+                      {currencyOptions.map((c) => (
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </Select>
                   </Field>
                   <Field label="Website">
                     <Input

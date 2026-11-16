@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { fetchGeoCatalog } from "@/lib/geo-api";
 import { signup as signupApi } from "@/lib/marketing-api";
 import { track } from "@/lib/analytics";
 import { signup as copy } from "@/lib/copy";
@@ -12,6 +13,7 @@ import { opsLoginUrl } from "@/lib/site-urls";
 import {
   resolveInitialTimezone,
   timezoneOptionsForSelect,
+  type TimezoneOption,
 } from "@/lib/timezones";
 
 const PLAN_OPTIONS = [
@@ -62,6 +64,7 @@ export default function SignupForm() {
   const initialPlan = resolveInitialPlan(params.get("plan"));
   const initialTimezone = resolveInitialTimezone();
   const [step, setStep] = useState<Step>(0);
+  const [timezoneCatalog, setTimezoneCatalog] = useState<TimezoneOption[]>([]);
 
   const {
     register,
@@ -84,14 +87,28 @@ export default function SignupForm() {
     mode: "onSubmit",
   });
 
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchGeoCatalog({ signal: controller.signal })
+      .then((catalog) => {
+        setTimezoneCatalog(
+          catalog.timezones.map((t) => ({ value: t.key, label: t.name })),
+        );
+      })
+      .catch(() => {
+        /* keep fallback UTC list */
+      });
+    return () => controller.abort();
+  }, []);
+
   const planKey = watch("plan_key");
   const timezone = watch("timezone");
   const industry = watch("industry");
   const selectedPlan =
     PLAN_OPTIONS.find((p) => p.key === planKey) ?? PLAN_OPTIONS[1];
   const timezoneOptions = useMemo(
-    () => timezoneOptionsForSelect(timezone),
-    [timezone],
+    () => timezoneOptionsForSelect(timezone, timezoneCatalog),
+    [timezone, timezoneCatalog],
   );
 
   async function goNext() {

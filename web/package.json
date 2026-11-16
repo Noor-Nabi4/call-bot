@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start --port 3002",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test src/lib/site-urls.test.ts src/lib/cogs-format.test.ts src/lib/seo.test.ts src/lib/permissions.test.ts src/lib/nav-permissions.test.ts src/lib/nav-sections.test.ts src/lib/onboarding.test.ts src/lib/signup-slug.test.ts src/lib/api/orders.test.ts src/lib/api/job-constants.test.ts src/lib/api/appointment-constants.test.ts src/lib/api/metrics.test.ts src/lib/api/analytics.test.ts src/lib/api/integrations.test.ts src/lib/api/business-setup.test.ts src/lib/api/agent-config.test.ts src/lib/api/usage-cost.test.ts",
+    "test": "node --experimental-strip-types --test src/lib/site-urls.test.ts src/lib/cogs-format.test.ts src/lib/seo.test.ts src/lib/permissions.test.ts src/lib/nav-permissions.test.ts src/lib/nav-sections.test.ts src/lib/onboarding.test.ts src/lib/signup-slug.test.ts src/lib/geo-options.test.ts src/lib/api/orders.test.ts src/lib/api/job-constants.test.ts src/lib/api/appointment-constants.test.ts src/lib/api/metrics.test.ts src/lib/api/analytics.test.ts src/lib/api/integrations.test.ts src/lib/api/business-setup.test.ts src/lib/api/agent-config.test.ts src/lib/api/usage-cost.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:seed": "cd ../platform && uv run python ../web/e2e/scripts/seed_phone_gate.py"

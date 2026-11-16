@@ -21,6 +21,7 @@ from callbot_platform.crm_templates import (
     resolve_template,
     serialize_template,
 )
+from callbot_platform.geo.service import GeoCatalogError, GeoCatalogService
 from callbot_platform.onboarding import OnboardingService
 from callbot_platform.organization import OrganizationError, OrganizationService
 
@@ -72,6 +73,13 @@ def _crm_http(exc: CrmSetupError) -> HTTPException:
     )
 
 
+def _geo_http(exc: GeoCatalogError) -> HTTPException:
+    status = 404 if exc.code.startswith("unknown_") else 400
+    return HTTPException(
+        status_code=status, detail={"code": exc.code, "message": str(exc)}
+    )
+
+
 def _as_profile(org: dict[str, Any]) -> dict[str, Any]:
     return {
         "business_name": org.get("name"),
@@ -96,16 +104,33 @@ def get_business_profile(
 ) -> dict[str, Any]:
     try:
         org = OrganizationService(session).get(user.tenant_id)
+        geo = GeoCatalogService(session).catalog_payload()
         return {
             "profile": _as_profile(org),
             "catalogs": {
                 "industries": list_industries(),
                 "business_models": list_business_models(),
                 "business_sizes": list_business_sizes(),
+                "countries": geo["countries"],
+                "currencies": geo["currencies"],
+                "timezones": geo["timezones"],
             },
         }
     except OrganizationError as exc:
         raise _org_http(exc) from exc
+
+
+@router.get("/geo/regions")
+def organization_geo_regions(
+    country: str = "",
+    user: CurrentUser = Depends(_require_org_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    _ = user
+    try:
+        return GeoCatalogService(session).regions_payload(country)
+    except GeoCatalogError as exc:
+        raise _geo_http(exc) from exc
 
 
 @router.patch("/business-profile")
@@ -122,10 +147,6 @@ def patch_business_profile(
     if "industry" in fields:
         mapped["industry"] = fields["industry"]
     for key in (
-        "country",
-        "state",
-        "timezone",
-        "currency",
         "website",
         "phone",
         "email",
@@ -134,6 +155,49 @@ def patch_business_profile(
     ):
         if key in fields:
             mapped[key] = fields[key]
+
+    geo_keys = ("country", "state", "timezone", "currency")
+    if any(k in fields for k in geo_keys):
+        geo = GeoCatalogService(session)
+        org_current = OrganizationService(session).get(user.tenant_id)
+        country_in = fields.get("country") if "country" in fields else None
+        currency_in = fields.get("currency") if "currency" in fields else None
+        timezone_in = fields.get("timezone") if "timezone" in fields else None
+        state_in: str | None
+        if "state" in fields:
+            state_in = fields["state"]
+        elif "country" in fields:
+            state_in = org_current.get("state")
+        else:
+            state_in = None
+        existing_country = org_current.get("country")
+        try:
+            normalized = geo.normalize_and_validate_profile_fields(
+                country=country_in,
+                state=state_in,
+                currency=currency_in,
+                timezone=timezone_in,
+                existing_country=existing_country,
+            )
+        except GeoCatalogError as exc:
+            # Country change alone: drop incompatible previous region instead of 400.
+            if (
+                exc.code == "unknown_region"
+                and "country" in fields
+                and "state" not in fields
+            ):
+                normalized = geo.normalize_and_validate_profile_fields(
+                    country=country_in,
+                    state="",
+                    currency=currency_in,
+                    timezone=timezone_in,
+                    existing_country=existing_country,
+                )
+                normalized["state"] = None
+            else:
+                raise _geo_http(exc) from exc
+        mapped.update(normalized)
+
     try:
         if mapped:
             org = OrganizationService(session).update(

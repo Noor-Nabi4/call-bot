@@ -41,6 +41,7 @@ from callbot_platform.api.branding_routes import router as branding_router  # no
 from callbot_platform.api.business_config_routes import (  # noqa: E402
     router as business_config_router,
 )
+from callbot_platform.api.geo_routes import router as geo_router  # noqa: E402
 from callbot_platform.api.call_intelligence_routes import (  # noqa: E402
     router as call_intelligence_router,
 )
@@ -182,6 +183,7 @@ app.include_router(branding_router)
 app.include_router(organization_router)
 app.include_router(onboarding_router)
 app.include_router(business_config_router)
+app.include_router(geo_router)
 app.include_router(dynamic_crm_router)
 app.include_router(customer_crm_router)
 app.include_router(product_catalog_router)
