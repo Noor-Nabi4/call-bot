@@ -175,7 +175,27 @@ function OnboardingPageInner() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pathBusy, setPathBusy] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
   const leftCompletedRef = useRef(false);
+  const profileRef = useRef<BusinessProfile>({});
+  const lastSavedProfileRef = useRef<string>("");
+  const profileSaveInFlightRef = useRef(false);
+
+  function profileSnapshot(p: BusinessProfile): string {
+    return JSON.stringify({
+      business_name: p.business_name || null,
+      industry: p.industry || null,
+      country: normalizeCountryCode(p.country) || p.country || null,
+      state: p.state || null,
+      timezone: p.timezone || "UTC",
+      currency: normalizeCurrencyCode(p.currency) || p.currency || "USD",
+      website: p.website || null,
+      phone: p.phone || null,
+      email: p.email || null,
+      business_size: p.business_size || null,
+      business_type: p.business_type || null,
+    });
+  }
 
   const load = useCallback(async () => {
     const [ob, bp, cfg] = await Promise.all([
@@ -203,21 +223,32 @@ function OnboardingPageInner() {
     setOnboarding(ob.onboarding);
     const rawProfile = bp.profile || {};
     const countryRows = bp.catalogs.countries || [];
-    const withLive = applyLiveGeoDefaults(
-      {
-        ...rawProfile,
-        country: normalizeCountryCode(rawProfile.country) || rawProfile.country,
-        currency:
-          normalizeCurrencyCode(rawProfile.currency) || rawProfile.currency,
-        timezone: rawProfile.timezone || null,
-      },
-      countryRows,
+    const normalizedRaw = {
+      ...rawProfile,
+      country: normalizeCountryCode(rawProfile.country) || rawProfile.country,
+      currency:
+        normalizeCurrencyCode(rawProfile.currency) || rawProfile.currency,
+      timezone: rawProfile.timezone || null,
+    };
+    // Saved country must never be rewritten by browser locale/timezone on refresh.
+    const hasSavedCountry = Boolean(
+      normalizeCountryCode(normalizedRaw.country),
     );
-    setProfile({
+    const withLive = hasSavedCountry
+      ? {
+          ...normalizedRaw,
+          currency: normalizeCurrencyCode(normalizedRaw.currency) || "USD",
+          timezone: (normalizedRaw.timezone || "").trim() || "UTC",
+        }
+      : applyLiveGeoDefaults(normalizedRaw, countryRows);
+    const loadedProfile = {
       ...withLive,
       currency: normalizeCurrencyCode(withLive.currency) || "USD",
       timezone: withLive.timezone || "UTC",
-    });
+    };
+    setProfile(loadedProfile);
+    profileRef.current = loadedProfile;
+    lastSavedProfileRef.current = profileSnapshot(loadedProfile);
     setIndustries(bp.catalogs.industries || []);
     setModels(bp.catalogs.business_models || []);
     setSizes(bp.catalogs.business_sizes || []);
@@ -401,34 +432,91 @@ function OnboardingPageInner() {
     return () => controller.abort();
   }, [profile.country]);
 
-  async function saveProfile(completeSteps: string[]) {
-    if (!canUpdate) return;
-    setBusy(true);
+  function updateProfile(patch: Partial<BusinessProfile>) {
+    setProfile((prev) => {
+      const next = { ...prev, ...patch };
+      profileRef.current = next;
+      return next;
+    });
+  }
+
+  async function autosaveBusinessProfile(opts?: { quiet?: boolean }) {
+    if (!canUpdate || closed) return;
+    const current = profileRef.current;
+    const snapshot = profileSnapshot(current);
+    if (snapshot === lastSavedProfileRef.current) return;
+    if (profileSaveInFlightRef.current) return;
+    profileSaveInFlightRef.current = true;
+    setProfileSaving(true);
     try {
-      const country = normalizeCountryCode(profile.country) || null;
+      const country = normalizeCountryCode(current.country) || null;
       const currency =
-        normalizeCurrencyCode(profile.currency) || profile.currency || "USD";
+        normalizeCurrencyCode(current.currency) || current.currency || "USD";
       const data = await api<{
         profile: BusinessProfile;
         onboarding?: OnboardingState;
       }>("/api/admin/organization/business-profile", {
         method: "PATCH",
         body: JSON.stringify({
-          business_name: profile.business_name || null,
-          industry: profile.industry || null,
+          business_name: current.business_name || null,
+          industry: current.industry || null,
           country,
-          state: profile.state || null,
-          timezone: profile.timezone || "UTC",
+          state: current.state || null,
+          timezone: current.timezone || "UTC",
           currency,
-          website: profile.website || null,
-          phone: profile.phone || null,
-          email: profile.email || null,
-          business_size: profile.business_size || null,
-          business_type: profile.business_type || null,
+          website: current.website || null,
+          phone: current.phone || null,
+          email: current.email || null,
+          business_size: current.business_size || null,
+          business_type: current.business_type || null,
+          complete_steps: ["business_profile"],
+        }),
+      });
+      setProfile(data.profile);
+      profileRef.current = data.profile;
+      lastSavedProfileRef.current = profileSnapshot(data.profile);
+      if (data.onboarding) setOnboarding(data.onboarding);
+      if (!opts?.quiet) toast.push("Saved", "success");
+      await refreshCrm();
+    } catch (e) {
+      toast.push(safeUserError(e, errors.saveFailed), "error");
+    } finally {
+      profileSaveInFlightRef.current = false;
+      setProfileSaving(false);
+    }
+  }
+
+  async function saveProfile(completeSteps: string[]) {
+    if (!canUpdate) return;
+    setBusy(true);
+    try {
+      const current = profileRef.current;
+      const country = normalizeCountryCode(current.country) || null;
+      const currency =
+        normalizeCurrencyCode(current.currency) || current.currency || "USD";
+      const data = await api<{
+        profile: BusinessProfile;
+        onboarding?: OnboardingState;
+      }>("/api/admin/organization/business-profile", {
+        method: "PATCH",
+        body: JSON.stringify({
+          business_name: current.business_name || null,
+          industry: current.industry || null,
+          country,
+          state: current.state || null,
+          timezone: current.timezone || "UTC",
+          currency,
+          website: current.website || null,
+          phone: current.phone || null,
+          email: current.email || null,
+          business_size: current.business_size || null,
+          business_type: current.business_type || null,
           complete_steps: completeSteps,
         }),
       });
       setProfile(data.profile);
+      profileRef.current = data.profile;
+      lastSavedProfileRef.current = profileSnapshot(data.profile);
       if (data.onboarding) setOnboarding(data.onboarding);
       toast.push("Saved", "success");
       await refreshCrm();
@@ -542,7 +630,15 @@ function OnboardingPageInner() {
     setPreviewModules(cfg.preview_template?.modules || []);
   }
 
-  function go(delta: number) {
+  async function go(delta: number) {
+    if (
+      delta > 0 &&
+      activeStep === "business_profile" &&
+      canUpdate &&
+      !closed
+    ) {
+      await autosaveBusinessProfile({ quiet: true });
+    }
     const next = WIZARD_STEPS[stepIndex + delta];
     if (next) setActiveStep(next);
   }
@@ -669,14 +765,22 @@ function OnboardingPageInner() {
           <Surface className="space-y-4 p-5">
             {activeStep === "business_profile" ? (
               <>
-                <h2 className="text-sm font-semibold">Business profile</h2>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold">Business profile</h2>
+                  {profileSaving ? (
+                    <span className="text-xs text-text-muted">Saving…</span>
+                  ) : null}
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Business name">
                     <Input
                       value={profile.business_name || ""}
                       disabled={!canUpdate || closed}
                       onChange={(e) =>
-                        setProfile({ ...profile, business_name: e.target.value })
+                        updateProfile({ business_name: e.target.value })
+                      }
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     />
                   </Field>
@@ -684,8 +788,12 @@ function OnboardingPageInner() {
                     <Select
                       value={profile.business_size || ""}
                       disabled={!canUpdate || closed}
-                      onChange={(e) =>
-                        setProfile({ ...profile, business_size: e.target.value })
+                      onChange={(e) => {
+                        updateProfile({ business_size: e.target.value });
+                        void autosaveBusinessProfile({ quiet: true });
+                      }}
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     >
                       <option value="">Select…</option>
@@ -707,13 +815,16 @@ function OnboardingPageInner() {
                             nextCountry,
                             countryCatalog,
                           ) || profile.currency;
-                        setProfile({
-                          ...profile,
+                        updateProfile({
                           country: nextCountry,
                           state: "",
                           currency: nextCurrency,
                         });
+                        void autosaveBusinessProfile({ quiet: true });
                       }}
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
+                      }
                     >
                       <option value="">Select…</option>
                       {countryOptions.map((c) => (
@@ -728,10 +839,17 @@ function OnboardingPageInner() {
                       <Select
                         value={profile.state || ""}
                         disabled={
-                          !canUpdate || closed || regionsLoading || !profile.country
+                          !canUpdate ||
+                          closed ||
+                          regionsLoading ||
+                          !profile.country
                         }
-                        onChange={(e) =>
-                          setProfile({ ...profile, state: e.target.value })
+                        onChange={(e) => {
+                          updateProfile({ state: e.target.value });
+                          void autosaveBusinessProfile({ quiet: true });
+                        }}
+                        onBlur={() =>
+                          void autosaveBusinessProfile({ quiet: true })
                         }
                       >
                         <option value="">
@@ -753,7 +871,10 @@ function OnboardingPageInner() {
                             : "Select a country first"
                         }
                         onChange={(e) =>
-                          setProfile({ ...profile, state: e.target.value })
+                          updateProfile({ state: e.target.value })
+                        }
+                        onBlur={() =>
+                          void autosaveBusinessProfile({ quiet: true })
                         }
                       />
                     )}
@@ -762,8 +883,12 @@ function OnboardingPageInner() {
                     <Select
                       value={profile.timezone || "UTC"}
                       disabled={!canUpdate || closed}
-                      onChange={(e) =>
-                        setProfile({ ...profile, timezone: e.target.value })
+                      onChange={(e) => {
+                        updateProfile({ timezone: e.target.value });
+                        void autosaveBusinessProfile({ quiet: true });
+                      }}
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     >
                       {timezoneOptions.map((tz) => (
@@ -779,8 +904,12 @@ function OnboardingPageInner() {
                         normalizeCurrencyCode(profile.currency) || "USD"
                       }
                       disabled={!canUpdate || closed}
-                      onChange={(e) =>
-                        setProfile({ ...profile, currency: e.target.value })
+                      onChange={(e) => {
+                        updateProfile({ currency: e.target.value });
+                        void autosaveBusinessProfile({ quiet: true });
+                      }}
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     >
                       {currencyOptions.map((c) => (
@@ -795,7 +924,10 @@ function OnboardingPageInner() {
                       value={profile.website || ""}
                       disabled={!canUpdate || closed}
                       onChange={(e) =>
-                        setProfile({ ...profile, website: e.target.value })
+                        updateProfile({ website: e.target.value })
+                      }
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     />
                   </Field>
@@ -804,7 +936,10 @@ function OnboardingPageInner() {
                       value={profile.phone || ""}
                       disabled={!canUpdate || closed}
                       onChange={(e) =>
-                        setProfile({ ...profile, phone: e.target.value })
+                        updateProfile({ phone: e.target.value })
+                      }
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     />
                   </Field>
@@ -813,20 +948,14 @@ function OnboardingPageInner() {
                       value={profile.email || ""}
                       disabled={!canUpdate || closed}
                       onChange={(e) =>
-                        setProfile({ ...profile, email: e.target.value })
+                        updateProfile({ email: e.target.value })
+                      }
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     />
                   </Field>
                 </div>
-                {canUpdate && !closed ? (
-                  <Button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => saveProfile(["business_profile"])}
-                  >
-                    Save & continue
-                  </Button>
-                ) : null}
               </>
             ) : null}
 
@@ -1115,8 +1244,8 @@ function OnboardingPageInner() {
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={stepIndex === 0 || busy}
-                  onClick={() => go(-1)}
+                  disabled={stepIndex === 0 || busy || profileSaving}
+                  onClick={() => void go(-1)}
                 >
                   Back
                 </Button>
@@ -1141,8 +1270,12 @@ function OnboardingPageInner() {
                   <Button
                     type="button"
                     variant="secondary"
-                    disabled={stepIndex >= WIZARD_STEPS.length - 1 || busy}
-                    onClick={() => go(1)}
+                    disabled={
+                      stepIndex >= WIZARD_STEPS.length - 1 ||
+                      busy ||
+                      profileSaving
+                    }
+                    onClick={() => void go(1)}
                   >
                     Next
                   </Button>
