@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Check } from "lucide-react";
 import { OnboardingChoice } from "@/components/onboarding/onboarding-choice";
 import { OnboardingShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
@@ -747,18 +748,36 @@ function OnboardingPageInner() {
             <div className="flex flex-wrap gap-2">
               {WIZARD_STEPS.map((key) => {
                 const meta = onboarding.steps.find((s) => s.key === key);
+                const done =
+                  meta?.state === "completed" || meta?.state === "skipped";
+                const active = activeStep === key;
                 return (
                   <button
                     key={key}
                     type="button"
-                    className={`rounded-full border px-3 py-1 text-xs ${
-                      activeStep === key
+                    aria-current={active ? "step" : undefined}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${
+                      active
                         ? "border-teal bg-teal-soft text-teal"
-                        : "border-border text-text-secondary"
+                        : done
+                          ? "border-teal/40 bg-teal-soft/50 text-teal"
+                          : "border-border text-text-secondary"
                     }`}
                     onClick={() => setActiveStep(key)}
                   >
-                    {meta?.title || key}
+                    {done ? (
+                      <Check
+                        className="size-3.5 shrink-0"
+                        aria-hidden
+                        strokeWidth={2.5}
+                      />
+                    ) : null}
+                    <span>{meta?.title || key}</span>
+                    {meta?.state === "skipped" ? (
+                      <span className="sr-only">(skipped)</span>
+                    ) : done ? (
+                      <span className="sr-only">(completed)</span>
+                    ) : null}
                   </button>
                 );
               })}
