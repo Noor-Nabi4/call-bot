@@ -36,6 +36,7 @@ import {
   Input,
   LoadingSkeleton,
   PageHeader,
+  PhoneE164Input,
   Select,
   StatusPill,
   Surface,
@@ -433,11 +434,26 @@ function OnboardingPageInner() {
   }, [profile.country]);
 
   function updateProfile(patch: Partial<BusinessProfile>) {
-    setProfile((prev) => {
-      const next = { ...prev, ...patch };
-      profileRef.current = next;
-      return next;
-    });
+    const next = { ...profileRef.current, ...patch };
+    profileRef.current = next;
+    setProfile(next);
+  }
+
+  function applyServerProfile(server: BusinessProfile) {
+    const next = {
+      ...profileRef.current,
+      ...server,
+      // Keep optimistic selection if server omits a just-picked value.
+      industry: server.industry ?? profileRef.current.industry,
+      business_type: server.business_type ?? profileRef.current.business_type,
+      business_model:
+        server.business_model ??
+        server.business_type ??
+        profileRef.current.business_model,
+    };
+    profileRef.current = next;
+    lastSavedProfileRef.current = profileSnapshot(next);
+    setProfile(next);
   }
 
   async function autosaveBusinessProfile(opts?: { quiet?: boolean }) {
@@ -472,9 +488,7 @@ function OnboardingPageInner() {
           complete_steps: ["business_profile"],
         }),
       });
-      setProfile(data.profile);
-      profileRef.current = data.profile;
-      lastSavedProfileRef.current = profileSnapshot(data.profile);
+      applyServerProfile(data.profile);
       if (data.onboarding) setOnboarding(data.onboarding);
       if (!opts?.quiet) toast.push("Saved", "success");
       await refreshCrm();
@@ -486,39 +500,26 @@ function OnboardingPageInner() {
     }
   }
 
-  async function saveProfile(completeSteps: string[]) {
-    if (!canUpdate) return;
+  async function saveIndustry(industryKey: string, opts?: { quiet?: boolean }) {
+    const key = industryKey.trim();
+    if (!canUpdate || !key) return;
+    updateProfile({ industry: key });
     setBusy(true);
     try {
-      const current = profileRef.current;
-      const country = normalizeCountryCode(current.country) || null;
-      const currency =
-        normalizeCurrencyCode(current.currency) || current.currency || "USD";
+      // Only patch industry — avoid failing the whole save on unrelated geo/phone.
       const data = await api<{
         profile: BusinessProfile;
         onboarding?: OnboardingState;
       }>("/api/admin/organization/business-profile", {
         method: "PATCH",
         body: JSON.stringify({
-          business_name: current.business_name || null,
-          industry: current.industry || null,
-          country,
-          state: current.state || null,
-          timezone: current.timezone || "UTC",
-          currency,
-          website: current.website || null,
-          phone: current.phone || null,
-          email: current.email || null,
-          business_size: current.business_size || null,
-          business_type: current.business_type || null,
-          complete_steps: completeSteps,
+          industry: key,
+          complete_steps: ["industry"],
         }),
       });
-      setProfile(data.profile);
-      profileRef.current = data.profile;
-      lastSavedProfileRef.current = profileSnapshot(data.profile);
+      applyServerProfile(data.profile);
       if (data.onboarding) setOnboarding(data.onboarding);
-      toast.push("Saved", "success");
+      if (!opts?.quiet) toast.push("Saved", "success");
       await refreshCrm();
     } catch (e) {
       toast.push(safeUserError(e, errors.saveFailed), "error");
@@ -527,8 +528,10 @@ function OnboardingPageInner() {
     }
   }
 
-  async function saveModel() {
-    if (!canUpdate || !profile.business_type) return;
+  async function saveModel(modelKey?: string, opts?: { quiet?: boolean }) {
+    const key = (modelKey || profileRef.current.business_type || "").trim();
+    if (!canUpdate || !key) return;
+    updateProfile({ business_type: key, business_model: key });
     setBusy(true);
     try {
       const data = await api<{
@@ -536,15 +539,15 @@ function OnboardingPageInner() {
         onboarding: OnboardingState;
       }>("/api/admin/organization/business-model", {
         method: "PUT",
-        body: JSON.stringify({ business_model: profile.business_type }),
+        body: JSON.stringify({ business_model: key }),
       });
-      setProfile((p) => ({
-        ...p,
+      applyServerProfile({
+        ...profileRef.current,
         business_type: data.business_model,
         business_model: data.business_model,
-      }));
+      });
       setOnboarding(data.onboarding);
-      toast.push("Business model saved", "success");
+      if (!opts?.quiet) toast.push("Business model saved", "success");
       await refreshCrm();
     } catch (e) {
       toast.push(safeUserError(e, errors.saveFailed), "error");
@@ -931,19 +934,18 @@ function OnboardingPageInner() {
                       }
                     />
                   </Field>
-                  <Field label="Phone">
-                    <Input
+                  <Field label="Phone" className="sm:col-span-2">
+                    <PhoneE164Input
                       value={profile.phone || ""}
+                      countryIso={profile.country}
                       disabled={!canUpdate || closed}
-                      onChange={(e) =>
-                        updateProfile({ phone: e.target.value })
-                      }
+                      onChange={(e164) => updateProfile({ phone: e164 })}
                       onBlur={() =>
                         void autosaveBusinessProfile({ quiet: true })
                       }
                     />
                   </Field>
-                  <Field label="Email">
+                  <Field label="Email" className="sm:col-span-2">
                     <Input
                       value={profile.email || ""}
                       disabled={!canUpdate || closed}
@@ -963,34 +965,31 @@ function OnboardingPageInner() {
               <>
                 <h2 className="text-sm font-semibold">Industry</h2>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {industries.map((ind) => (
-                    <button
-                      key={ind.key}
-                      type="button"
-                      disabled={!canUpdate || closed}
-                      className={`rounded-lg border p-3 text-left ${
-                        profile.industry === ind.key
-                          ? "border-teal bg-teal-soft"
-                          : "border-border"
-                      }`}
-                      onClick={() => setProfile({ ...profile, industry: ind.key })}
-                    >
-                      <div className="font-medium">{ind.name}</div>
-                      <div className="text-xs text-text-secondary">
-                        {ind.description}
-                      </div>
-                    </button>
-                  ))}
+                  {industries.map((ind) => {
+                    const selected = profile.industry === ind.key;
+                    return (
+                      <button
+                        key={ind.key}
+                        type="button"
+                        disabled={!canUpdate || closed || busy}
+                        aria-pressed={selected}
+                        className={`rounded-lg border p-3 text-left transition-colors ${
+                          selected
+                            ? "border-teal bg-teal-soft font-semibold text-teal-deep shadow-[var(--shadow-sm)]"
+                            : "border-border hover:border-teal/40"
+                        }`}
+                        onClick={() =>
+                          void saveIndustry(ind.key, { quiet: true })
+                        }
+                      >
+                        <div className="font-medium">{ind.name}</div>
+                        <div className="text-xs font-normal text-text-secondary">
+                          {ind.description}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-                {canUpdate && !closed ? (
-                  <Button
-                    type="button"
-                    disabled={busy || !profile.industry}
-                    onClick={() => saveProfile(["industry"])}
-                  >
-                    Save industry
-                  </Button>
-                ) : null}
               </>
             ) : null}
 
@@ -998,40 +997,29 @@ function OnboardingPageInner() {
               <>
                 <h2 className="text-sm font-semibold">Business model</h2>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {models.map((m) => (
-                    <button
-                      key={m.key}
-                      type="button"
-                      disabled={!canUpdate || closed}
-                      className={`rounded-lg border p-3 text-left ${
-                        profile.business_type === m.key
-                          ? "border-teal bg-teal-soft"
-                          : "border-border"
-                      }`}
-                      onClick={() =>
-                        setProfile({
-                          ...profile,
-                          business_type: m.key,
-                          business_model: m.key,
-                        })
-                      }
-                    >
-                      <div className="font-medium">{m.name}</div>
-                      <div className="text-xs text-text-secondary">
-                        {m.description}
-                      </div>
-                    </button>
-                  ))}
+                  {models.map((m) => {
+                    const selected = profile.business_type === m.key;
+                    return (
+                      <button
+                        key={m.key}
+                        type="button"
+                        disabled={!canUpdate || closed || busy}
+                        aria-pressed={selected}
+                        className={`rounded-lg border p-3 text-left transition-colors ${
+                          selected
+                            ? "border-teal bg-teal-soft font-semibold text-teal-deep shadow-[var(--shadow-sm)]"
+                            : "border-border hover:border-teal/40"
+                        }`}
+                        onClick={() => void saveModel(m.key, { quiet: true })}
+                      >
+                        <div className="font-medium">{m.name}</div>
+                        <div className="text-xs font-normal text-text-secondary">
+                          {m.description}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-                {canUpdate && !closed ? (
-                  <Button
-                    type="button"
-                    disabled={busy || !profile.business_type}
-                    onClick={() => void saveModel()}
-                  >
-                    Save business model
-                  </Button>
-                ) : null}
               </>
             ) : null}
 

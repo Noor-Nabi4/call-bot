@@ -17,6 +17,7 @@ import {
   Input,
   LoadingSkeleton,
   PageHeader,
+  PhoneE164Input,
   Select,
   Surface,
   useToast,
@@ -346,15 +347,14 @@ export default function SettingsPage() {
                     placeholder="https://"
                   />
                 </Field>
-                <Field label={copy.phone}>
-                  <Input
-                    type="tel"
+                <Field label={copy.phone} className="sm:col-span-2">
+                  <PhoneE164Input
                     value={org.phone}
-                    onChange={(e) => setOrg({ ...org, phone: e.target.value })}
-                    autoComplete="tel"
+                    countryIso={org.country}
+                    onChange={(e164) => setOrg({ ...org, phone: e164 })}
                   />
                 </Field>
-                <Field label={copy.email}>
+                <Field label={copy.email} className="sm:col-span-2">
                   <Input
                     type="email"
                     value={org.email}
