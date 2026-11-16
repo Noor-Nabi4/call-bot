@@ -6,6 +6,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from callbot_platform.geo.currency_display import currency_symbol as _currency_symbol
 from callbot_platform.geo.repos import GeoCatalogRepository
 
 
@@ -22,10 +23,19 @@ class GeoCatalogService:
     def catalog_payload(self) -> dict[str, Any]:
         return {
             "countries": [
-                {"key": c.code, "name": c.name} for c in self._repo.list_countries()
+                {
+                    "key": c.code,
+                    "name": c.name,
+                    "default_currency_code": c.default_currency_code,
+                }
+                for c in self._repo.list_countries()
             ],
             "currencies": [
-                {"key": c.code, "name": f"{c.code} — {c.name}"}
+                {
+                    "key": c.code,
+                    "name": c.name,
+                    "symbol": _currency_symbol(c.code),
+                }
                 for c in self._repo.list_currencies()
             ],
             "timezones": [

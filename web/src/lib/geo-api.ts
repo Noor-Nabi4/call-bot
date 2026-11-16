@@ -4,7 +4,12 @@ const API =
   process.env.NEXT_PUBLIC_PLATFORM_API_URL?.replace(/\/$/, "") ||
   "http://localhost:8000";
 
-export type GeoCatalogItem = { key: string; name: string };
+export type GeoCatalogItem = {
+  key: string;
+  name: string;
+  default_currency_code?: string | null;
+  symbol?: string | null;
+};
 
 export type GeoCatalog = {
   countries: GeoCatalogItem[];

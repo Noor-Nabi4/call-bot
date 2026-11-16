@@ -43,10 +43,14 @@ import {
 } from "@/components/ui";
 import { fetchOrgGeoRegions } from "@/lib/geo-api";
 import {
+  catalogToCountryOptions,
+  catalogToCurrencyOptions,
   catalogToOptions,
+  defaultCurrencyForCountry,
   normalizeCountryCode,
   normalizeCurrencyCode,
   optionsWithCurrent,
+  type CountryCatalogItem,
   type GeoOption,
 } from "@/lib/geo-options";
 import { timezoneOptionsForSelect } from "@/lib/timezones";
@@ -156,6 +160,9 @@ function OnboardingPageInner() {
   const [models, setModels] = useState<CatalogOption[]>([]);
   const [sizes, setSizes] = useState<CatalogOption[]>([]);
   const [countries, setCountries] = useState<GeoOption[]>([]);
+  const [countryCatalog, setCountryCatalog] = useState<CountryCatalogItem[]>(
+    [],
+  );
   const [currencies, setCurrencies] = useState<GeoOption[]>([]);
   const [timezones, setTimezones] = useState<GeoOption[]>([]);
   const [regions, setRegions] = useState<GeoOption[]>([]);
@@ -178,8 +185,12 @@ function OnboardingPageInner() {
           industries: CatalogOption[];
           business_models: CatalogOption[];
           business_sizes: CatalogOption[];
-          countries?: CatalogOption[];
-          currencies?: CatalogOption[];
+          countries?: CountryCatalogItem[];
+          currencies?: Array<{
+            key: string;
+            name: string;
+            symbol?: string | null;
+          }>;
           timezones?: CatalogOption[];
         };
       }>("/api/admin/organization/business-profile"),
@@ -202,8 +213,9 @@ function OnboardingPageInner() {
     setIndustries(bp.catalogs.industries || []);
     setModels(bp.catalogs.business_models || []);
     setSizes(bp.catalogs.business_sizes || []);
-    setCountries(catalogToOptions(bp.catalogs.countries));
-    setCurrencies(catalogToOptions(bp.catalogs.currencies));
+    setCountryCatalog(bp.catalogs.countries || []);
+    setCountries(catalogToCountryOptions(bp.catalogs.countries));
+    setCurrencies(catalogToCurrencyOptions(bp.catalogs.currencies));
     setTimezones(catalogToOptions(bp.catalogs.timezones));
     setCrm(cfg.configuration);
     setPreviewModules(cfg.preview_template?.modules || []);
@@ -681,10 +693,17 @@ function OnboardingPageInner() {
                       value={normalizeCountryCode(profile.country) || ""}
                       disabled={!canUpdate || closed}
                       onChange={(e) => {
+                        const nextCountry = e.target.value;
+                        const nextCurrency =
+                          defaultCurrencyForCountry(
+                            nextCountry,
+                            countryCatalog,
+                          ) || profile.currency;
                         setProfile({
                           ...profile,
-                          country: e.target.value,
+                          country: nextCountry,
                           state: "",
+                          currency: nextCurrency,
                         });
                       }}
                     >

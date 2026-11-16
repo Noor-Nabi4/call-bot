@@ -75,8 +75,11 @@ def test_geo_service_regions_and_validation(session: Session) -> None:
     svc = GeoCatalogService(session)
 
     catalog = svc.catalog_payload()
-    assert any(c["key"] == "US" for c in catalog["countries"])
-    assert any(c["key"] == "USD" for c in catalog["currencies"])
+    us = next(c for c in catalog["countries"] if c["key"] == "US")
+    assert us["default_currency_code"] == "USD"
+    usd = next(c for c in catalog["currencies"] if c["key"] == "USD")
+    assert usd["symbol"] == "$"
+    assert usd["name"] == "US Dollar"
     assert any(t["key"] == "UTC" for t in catalog["timezones"])
 
     regions = svc.regions_payload("pk")
