@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Check } from "lucide-react";
 import { OnboardingChoice } from "@/components/onboarding/onboarding-choice";
 import { OnboardingShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
@@ -36,6 +37,7 @@ import {
   Input,
   LoadingSkeleton,
   PageHeader,
+  PhoneE164Input,
   Select,
   StatusPill,
   Surface,
@@ -121,8 +123,6 @@ const WIZARD_STEPS = [
   "business_profile",
   "industry",
   "business_model",
-  "catalog",
-  "customers",
   "business_hours",
   "ai_configuration",
   "phone_setup",
@@ -175,7 +175,27 @@ function OnboardingPageInner() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pathBusy, setPathBusy] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
   const leftCompletedRef = useRef(false);
+  const profileRef = useRef<BusinessProfile>({});
+  const lastSavedProfileRef = useRef<string>("");
+  const profileSaveInFlightRef = useRef(false);
+
+  function profileSnapshot(p: BusinessProfile): string {
+    return JSON.stringify({
+      business_name: p.business_name || null,
+      industry: p.industry || null,
+      country: normalizeCountryCode(p.country) || p.country || null,
+      state: p.state || null,
+      timezone: p.timezone || "UTC",
+      currency: normalizeCurrencyCode(p.currency) || p.currency || "USD",
+      website: p.website || null,
+      phone: p.phone || null,
+      email: p.email || null,
+      business_size: p.business_size || null,
+      business_type: p.business_type || null,
+    });
+  }
 
   const load = useCallback(async () => {
     const [ob, bp, cfg] = await Promise.all([
@@ -203,21 +223,32 @@ function OnboardingPageInner() {
     setOnboarding(ob.onboarding);
     const rawProfile = bp.profile || {};
     const countryRows = bp.catalogs.countries || [];
-    const withLive = applyLiveGeoDefaults(
-      {
-        ...rawProfile,
-        country: normalizeCountryCode(rawProfile.country) || rawProfile.country,
-        currency:
-          normalizeCurrencyCode(rawProfile.currency) || rawProfile.currency,
-        timezone: rawProfile.timezone || null,
-      },
-      countryRows,
+    const normalizedRaw = {
+      ...rawProfile,
+      country: normalizeCountryCode(rawProfile.country) || rawProfile.country,
+      currency:
+        normalizeCurrencyCode(rawProfile.currency) || rawProfile.currency,
+      timezone: rawProfile.timezone || null,
+    };
+    // Saved country must never be rewritten by browser locale/timezone on refresh.
+    const hasSavedCountry = Boolean(
+      normalizeCountryCode(normalizedRaw.country),
     );
-    setProfile({
+    const withLive = hasSavedCountry
+      ? {
+          ...normalizedRaw,
+          currency: normalizeCurrencyCode(normalizedRaw.currency) || "USD",
+          timezone: (normalizedRaw.timezone || "").trim() || "UTC",
+        }
+      : applyLiveGeoDefaults(normalizedRaw, countryRows);
+    const loadedProfile = {
       ...withLive,
       currency: normalizeCurrencyCode(withLive.currency) || "USD",
       timezone: withLive.timezone || "UTC",
-    });
+    };
+    setProfile(loadedProfile);
+    profileRef.current = loadedProfile;
+    lastSavedProfileRef.current = profileSnapshot(loadedProfile);
     setIndustries(bp.catalogs.industries || []);
     setModels(bp.catalogs.business_models || []);
     setSizes(bp.catalogs.business_sizes || []);
@@ -401,36 +432,93 @@ function OnboardingPageInner() {
     return () => controller.abort();
   }, [profile.country]);
 
-  async function saveProfile(completeSteps: string[]) {
-    if (!canUpdate) return;
-    setBusy(true);
+  function updateProfile(patch: Partial<BusinessProfile>) {
+    const next = { ...profileRef.current, ...patch };
+    profileRef.current = next;
+    setProfile(next);
+  }
+
+  function applyServerProfile(server: BusinessProfile) {
+    const next = {
+      ...profileRef.current,
+      ...server,
+      // Keep optimistic selection if server omits a just-picked value.
+      industry: server.industry ?? profileRef.current.industry,
+      business_type: server.business_type ?? profileRef.current.business_type,
+      business_model:
+        server.business_model ??
+        server.business_type ??
+        profileRef.current.business_model,
+    };
+    profileRef.current = next;
+    lastSavedProfileRef.current = profileSnapshot(next);
+    setProfile(next);
+  }
+
+  async function autosaveBusinessProfile(opts?: { quiet?: boolean }) {
+    if (!canUpdate || closed) return;
+    const current = profileRef.current;
+    const snapshot = profileSnapshot(current);
+    if (snapshot === lastSavedProfileRef.current) return;
+    if (profileSaveInFlightRef.current) return;
+    profileSaveInFlightRef.current = true;
+    setProfileSaving(true);
     try {
-      const country = normalizeCountryCode(profile.country) || null;
+      const country = normalizeCountryCode(current.country) || null;
       const currency =
-        normalizeCurrencyCode(profile.currency) || profile.currency || "USD";
+        normalizeCurrencyCode(current.currency) || current.currency || "USD";
       const data = await api<{
         profile: BusinessProfile;
         onboarding?: OnboardingState;
       }>("/api/admin/organization/business-profile", {
         method: "PATCH",
         body: JSON.stringify({
-          business_name: profile.business_name || null,
-          industry: profile.industry || null,
+          business_name: current.business_name || null,
+          industry: current.industry || null,
           country,
-          state: profile.state || null,
-          timezone: profile.timezone || "UTC",
+          state: current.state || null,
+          timezone: current.timezone || "UTC",
           currency,
-          website: profile.website || null,
-          phone: profile.phone || null,
-          email: profile.email || null,
-          business_size: profile.business_size || null,
-          business_type: profile.business_type || null,
-          complete_steps: completeSteps,
+          website: current.website || null,
+          phone: current.phone || null,
+          email: current.email || null,
+          business_size: current.business_size || null,
+          business_type: current.business_type || null,
+          complete_steps: ["business_profile"],
         }),
       });
-      setProfile(data.profile);
+      applyServerProfile(data.profile);
       if (data.onboarding) setOnboarding(data.onboarding);
-      toast.push("Saved", "success");
+      if (!opts?.quiet) toast.push("Saved", "success");
+      await refreshCrm();
+    } catch (e) {
+      toast.push(safeUserError(e, errors.saveFailed), "error");
+    } finally {
+      profileSaveInFlightRef.current = false;
+      setProfileSaving(false);
+    }
+  }
+
+  async function saveIndustry(industryKey: string, opts?: { quiet?: boolean }) {
+    const key = industryKey.trim();
+    if (!canUpdate || !key) return;
+    updateProfile({ industry: key });
+    setBusy(true);
+    try {
+      // Only patch industry — avoid failing the whole save on unrelated geo/phone.
+      const data = await api<{
+        profile: BusinessProfile;
+        onboarding?: OnboardingState;
+      }>("/api/admin/organization/business-profile", {
+        method: "PATCH",
+        body: JSON.stringify({
+          industry: key,
+          complete_steps: ["industry"],
+        }),
+      });
+      applyServerProfile(data.profile);
+      if (data.onboarding) setOnboarding(data.onboarding);
+      if (!opts?.quiet) toast.push("Saved", "success");
       await refreshCrm();
     } catch (e) {
       toast.push(safeUserError(e, errors.saveFailed), "error");
@@ -439,8 +527,10 @@ function OnboardingPageInner() {
     }
   }
 
-  async function saveModel() {
-    if (!canUpdate || !profile.business_type) return;
+  async function saveModel(modelKey?: string, opts?: { quiet?: boolean }) {
+    const key = (modelKey || profileRef.current.business_type || "").trim();
+    if (!canUpdate || !key) return;
+    updateProfile({ business_type: key, business_model: key });
     setBusy(true);
     try {
       const data = await api<{
@@ -448,15 +538,15 @@ function OnboardingPageInner() {
         onboarding: OnboardingState;
       }>("/api/admin/organization/business-model", {
         method: "PUT",
-        body: JSON.stringify({ business_model: profile.business_type }),
+        body: JSON.stringify({ business_model: key }),
       });
-      setProfile((p) => ({
-        ...p,
+      applyServerProfile({
+        ...profileRef.current,
         business_type: data.business_model,
         business_model: data.business_model,
-      }));
+      });
       setOnboarding(data.onboarding);
-      toast.push("Business model saved", "success");
+      if (!opts?.quiet) toast.push("Business model saved", "success");
       await refreshCrm();
     } catch (e) {
       toast.push(safeUserError(e, errors.saveFailed), "error");
@@ -542,7 +632,15 @@ function OnboardingPageInner() {
     setPreviewModules(cfg.preview_template?.modules || []);
   }
 
-  function go(delta: number) {
+  async function go(delta: number) {
+    if (
+      delta > 0 &&
+      activeStep === "business_profile" &&
+      canUpdate &&
+      !closed
+    ) {
+      await autosaveBusinessProfile({ quiet: true });
+    }
     const next = WIZARD_STEPS[stepIndex + delta];
     if (next) setActiveStep(next);
   }
@@ -648,18 +746,36 @@ function OnboardingPageInner() {
             <div className="flex flex-wrap gap-2">
               {WIZARD_STEPS.map((key) => {
                 const meta = onboarding.steps.find((s) => s.key === key);
+                const done =
+                  meta?.state === "completed" || meta?.state === "skipped";
+                const active = activeStep === key;
                 return (
                   <button
                     key={key}
                     type="button"
-                    className={`rounded-full border px-3 py-1 text-xs ${
-                      activeStep === key
+                    aria-current={active ? "step" : undefined}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${
+                      active
                         ? "border-teal bg-teal-soft text-teal"
-                        : "border-border text-text-secondary"
+                        : done
+                          ? "border-teal/40 bg-teal-soft/50 text-teal"
+                          : "border-border text-text-secondary"
                     }`}
                     onClick={() => setActiveStep(key)}
                   >
-                    {meta?.title || key}
+                    {done ? (
+                      <Check
+                        className="size-3.5 shrink-0"
+                        aria-hidden
+                        strokeWidth={2.5}
+                      />
+                    ) : null}
+                    <span>{meta?.title || key}</span>
+                    {meta?.state === "skipped" ? (
+                      <span className="sr-only">(skipped)</span>
+                    ) : done ? (
+                      <span className="sr-only">(completed)</span>
+                    ) : null}
                   </button>
                 );
               })}
@@ -669,14 +785,22 @@ function OnboardingPageInner() {
           <Surface className="space-y-4 p-5">
             {activeStep === "business_profile" ? (
               <>
-                <h2 className="text-sm font-semibold">Business profile</h2>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-sm font-semibold">Business profile</h2>
+                  {profileSaving ? (
+                    <span className="text-xs text-text-muted">Saving…</span>
+                  ) : null}
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="Business name">
                     <Input
                       value={profile.business_name || ""}
                       disabled={!canUpdate || closed}
                       onChange={(e) =>
-                        setProfile({ ...profile, business_name: e.target.value })
+                        updateProfile({ business_name: e.target.value })
+                      }
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     />
                   </Field>
@@ -684,8 +808,12 @@ function OnboardingPageInner() {
                     <Select
                       value={profile.business_size || ""}
                       disabled={!canUpdate || closed}
-                      onChange={(e) =>
-                        setProfile({ ...profile, business_size: e.target.value })
+                      onChange={(e) => {
+                        updateProfile({ business_size: e.target.value });
+                        void autosaveBusinessProfile({ quiet: true });
+                      }}
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     >
                       <option value="">Select…</option>
@@ -707,13 +835,16 @@ function OnboardingPageInner() {
                             nextCountry,
                             countryCatalog,
                           ) || profile.currency;
-                        setProfile({
-                          ...profile,
+                        updateProfile({
                           country: nextCountry,
                           state: "",
                           currency: nextCurrency,
                         });
+                        void autosaveBusinessProfile({ quiet: true });
                       }}
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
+                      }
                     >
                       <option value="">Select…</option>
                       {countryOptions.map((c) => (
@@ -728,10 +859,17 @@ function OnboardingPageInner() {
                       <Select
                         value={profile.state || ""}
                         disabled={
-                          !canUpdate || closed || regionsLoading || !profile.country
+                          !canUpdate ||
+                          closed ||
+                          regionsLoading ||
+                          !profile.country
                         }
-                        onChange={(e) =>
-                          setProfile({ ...profile, state: e.target.value })
+                        onChange={(e) => {
+                          updateProfile({ state: e.target.value });
+                          void autosaveBusinessProfile({ quiet: true });
+                        }}
+                        onBlur={() =>
+                          void autosaveBusinessProfile({ quiet: true })
                         }
                       >
                         <option value="">
@@ -753,7 +891,10 @@ function OnboardingPageInner() {
                             : "Select a country first"
                         }
                         onChange={(e) =>
-                          setProfile({ ...profile, state: e.target.value })
+                          updateProfile({ state: e.target.value })
+                        }
+                        onBlur={() =>
+                          void autosaveBusinessProfile({ quiet: true })
                         }
                       />
                     )}
@@ -762,8 +903,12 @@ function OnboardingPageInner() {
                     <Select
                       value={profile.timezone || "UTC"}
                       disabled={!canUpdate || closed}
-                      onChange={(e) =>
-                        setProfile({ ...profile, timezone: e.target.value })
+                      onChange={(e) => {
+                        updateProfile({ timezone: e.target.value });
+                        void autosaveBusinessProfile({ quiet: true });
+                      }}
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     >
                       {timezoneOptions.map((tz) => (
@@ -779,8 +924,12 @@ function OnboardingPageInner() {
                         normalizeCurrencyCode(profile.currency) || "USD"
                       }
                       disabled={!canUpdate || closed}
-                      onChange={(e) =>
-                        setProfile({ ...profile, currency: e.target.value })
+                      onChange={(e) => {
+                        updateProfile({ currency: e.target.value });
+                        void autosaveBusinessProfile({ quiet: true });
+                      }}
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     >
                       {currencyOptions.map((c) => (
@@ -795,38 +944,37 @@ function OnboardingPageInner() {
                       value={profile.website || ""}
                       disabled={!canUpdate || closed}
                       onChange={(e) =>
-                        setProfile({ ...profile, website: e.target.value })
+                        updateProfile({ website: e.target.value })
+                      }
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     />
                   </Field>
-                  <Field label="Phone">
-                    <Input
+                  <Field label="Phone" className="sm:col-span-2">
+                    <PhoneE164Input
                       value={profile.phone || ""}
+                      countryIso={profile.country}
                       disabled={!canUpdate || closed}
-                      onChange={(e) =>
-                        setProfile({ ...profile, phone: e.target.value })
+                      onChange={(e164) => updateProfile({ phone: e164 })}
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     />
                   </Field>
-                  <Field label="Email">
+                  <Field label="Email" className="sm:col-span-2">
                     <Input
                       value={profile.email || ""}
                       disabled={!canUpdate || closed}
                       onChange={(e) =>
-                        setProfile({ ...profile, email: e.target.value })
+                        updateProfile({ email: e.target.value })
+                      }
+                      onBlur={() =>
+                        void autosaveBusinessProfile({ quiet: true })
                       }
                     />
                   </Field>
                 </div>
-                {canUpdate && !closed ? (
-                  <Button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => saveProfile(["business_profile"])}
-                  >
-                    Save & continue
-                  </Button>
-                ) : null}
               </>
             ) : null}
 
@@ -834,34 +982,31 @@ function OnboardingPageInner() {
               <>
                 <h2 className="text-sm font-semibold">Industry</h2>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {industries.map((ind) => (
-                    <button
-                      key={ind.key}
-                      type="button"
-                      disabled={!canUpdate || closed}
-                      className={`rounded-lg border p-3 text-left ${
-                        profile.industry === ind.key
-                          ? "border-teal bg-teal-soft"
-                          : "border-border"
-                      }`}
-                      onClick={() => setProfile({ ...profile, industry: ind.key })}
-                    >
-                      <div className="font-medium">{ind.name}</div>
-                      <div className="text-xs text-text-secondary">
-                        {ind.description}
-                      </div>
-                    </button>
-                  ))}
+                  {industries.map((ind) => {
+                    const selected = profile.industry === ind.key;
+                    return (
+                      <button
+                        key={ind.key}
+                        type="button"
+                        disabled={!canUpdate || closed || busy}
+                        aria-pressed={selected}
+                        className={`rounded-lg border p-3 text-left transition-colors ${
+                          selected
+                            ? "border-teal bg-teal-soft font-semibold text-teal-deep shadow-[var(--shadow-sm)]"
+                            : "border-border hover:border-teal/40"
+                        }`}
+                        onClick={() =>
+                          void saveIndustry(ind.key, { quiet: true })
+                        }
+                      >
+                        <div className="font-medium">{ind.name}</div>
+                        <div className="text-xs font-normal text-text-secondary">
+                          {ind.description}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-                {canUpdate && !closed ? (
-                  <Button
-                    type="button"
-                    disabled={busy || !profile.industry}
-                    onClick={() => saveProfile(["industry"])}
-                  >
-                    Save industry
-                  </Button>
-                ) : null}
               </>
             ) : null}
 
@@ -869,70 +1014,57 @@ function OnboardingPageInner() {
               <>
                 <h2 className="text-sm font-semibold">Business model</h2>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {models.map((m) => (
-                    <button
-                      key={m.key}
-                      type="button"
-                      disabled={!canUpdate || closed}
-                      className={`rounded-lg border p-3 text-left ${
-                        profile.business_type === m.key
-                          ? "border-teal bg-teal-soft"
-                          : "border-border"
-                      }`}
-                      onClick={() =>
-                        setProfile({
-                          ...profile,
-                          business_type: m.key,
-                          business_model: m.key,
-                        })
-                      }
-                    >
-                      <div className="font-medium">{m.name}</div>
-                      <div className="text-xs text-text-secondary">
-                        {m.description}
-                      </div>
-                    </button>
-                  ))}
+                  {models.map((m) => {
+                    const selected = profile.business_type === m.key;
+                    return (
+                      <button
+                        key={m.key}
+                        type="button"
+                        disabled={!canUpdate || closed || busy}
+                        aria-pressed={selected}
+                        className={`rounded-lg border p-3 text-left transition-colors ${
+                          selected
+                            ? "border-teal bg-teal-soft font-semibold text-teal-deep shadow-[var(--shadow-sm)]"
+                            : "border-border hover:border-teal/40"
+                        }`}
+                        onClick={() => void saveModel(m.key, { quiet: true })}
+                      >
+                        <div className="font-medium">{m.name}</div>
+                        <div className="text-xs font-normal text-text-secondary">
+                          {m.description}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-                {canUpdate && !closed ? (
-                  <Button
-                    type="button"
-                    disabled={busy || !profile.business_type}
-                    onClick={() => void saveModel()}
-                  >
-                    Save business model
-                  </Button>
-                ) : null}
               </>
             ) : null}
 
-            {activeStep === "catalog" ||
-            activeStep === "customers" ||
-            activeStep === "ai_configuration" ? (
+            {activeStep === "ai_configuration" ? (
               <>
                 <h2 className="text-sm font-semibold">
                   {onboarding.steps.find((s) => s.key === activeStep)?.title}
                 </h2>
                 <p className="text-sm text-text-secondary">
-                  Full domain setup ships in later phases. You can skip this
-                  optional step or mark it complete to continue.
+                  Required before go-live. Set up your voice AI agent, then
+                  continue. You can refine prompts and tools later in Agents.
                 </p>
                 {canUpdate && !closed ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       disabled={busy}
-                      onClick={() => void completeOrSkip(activeStep)}
+                      onClick={() => router.push(ONBOARDING_AI_PATH)}
                     >
-                      Mark complete
+                      Set up AI agent
                     </Button>
                     <Button
                       type="button"
                       variant="secondary"
                       disabled={busy}
-                      onClick={() => void completeOrSkip(activeStep, true)}
+                      onClick={() => void completeOrSkip(activeStep)}
                     >
-                      Skip
+                      I've configured my agent — continue
                     </Button>
                   </div>
                 ) : null}
@@ -943,9 +1075,9 @@ function OnboardingPageInner() {
               <>
                 <h2 className="text-sm font-semibold">Scheduling defaults</h2>
                 <p className="text-sm text-text-secondary">
-                  Timezone is taken from your business profile (
-                  {profile.timezone || "UTC"}). Full scheduling configuration is
-                  Phase 11.
+                  Scheduling will use your business profile timezone (
+                  {profile.timezone || "UTC"}). You can adjust business hours
+                  later in Settings.
                 </p>
                 {canUpdate && !closed ? (
                   <Button
@@ -998,10 +1130,31 @@ function OnboardingPageInner() {
                   </p>
                   {onboarding.phone_setup?.primary_e164 ? (
                     <p className="mt-1 text-text-secondary">
-                      Number: {onboarding.phone_setup.primary_e164}
+                      Number:{" "}
+                      <strong className="font-mono text-text-primary">
+                        {onboarding.phone_setup.primary_e164}
+                      </strong>
                     </p>
                   ) : null}
-                  {onboarding.phone_setup?.message ? (
+                  {onboarding.phone_setup?.verification_status === "pending" &&
+                  onboarding.phone_setup?.primary_e164 ? (
+                    <div
+                      role="status"
+                      className="mt-3 rounded-md border border-teal/40 bg-teal-soft px-3 py-2 text-text-primary"
+                    >
+                      <p className="font-semibold">
+                        Call this number from another phone
+                      </p>
+                      <p className="mt-1">
+                        Dial{" "}
+                        <strong className="font-mono tracking-wide">
+                          {onboarding.phone_setup.primary_e164}
+                        </strong>{" "}
+                        now. After we detect the inbound call, status becomes
+                        Ready and you can continue.
+                      </p>
+                    </div>
+                  ) : onboarding.phone_setup?.message ? (
                     <p className="mt-2 text-text-secondary">
                       {onboarding.phone_setup.message}
                     </p>
@@ -1010,10 +1163,27 @@ function OnboardingPageInner() {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
+                    onClick={() =>
+                      router.push(`${PHONES_ONBOARDING_PATH}&action=connect`)
+                    }
+                  >
+                    Connect my Twilio number
+                  </Button>
+                  <Button
+                    type="button"
                     variant="secondary"
+                    onClick={() =>
+                      router.push(`${PHONES_ONBOARDING_PATH}&action=buy`)
+                    }
+                  >
+                    Buy a new number
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
                     onClick={() => router.push(PHONES_ONBOARDING_PATH)}
                   >
-                    Open phone setup
+                    Open phones page
                   </Button>
                   <Button
                     type="button"
@@ -1103,8 +1273,8 @@ function OnboardingPageInner() {
                   </p>
                 ) : (
                   <p className="text-sm text-text-secondary">
-                    Completing onboarding will initialize CRM configuration
-                    idempotently from the industry template.
+                    Completing onboarding will set up your CRM from the selected
+                    industry template.
                   </p>
                 )}
               </>
@@ -1115,8 +1285,8 @@ function OnboardingPageInner() {
                 <Button
                   type="button"
                   variant="secondary"
-                  disabled={stepIndex === 0 || busy}
-                  onClick={() => go(-1)}
+                  disabled={stepIndex === 0 || busy || profileSaving}
+                  onClick={() => void go(-1)}
                 >
                   Back
                 </Button>
@@ -1141,8 +1311,12 @@ function OnboardingPageInner() {
                   <Button
                     type="button"
                     variant="secondary"
-                    disabled={stepIndex >= WIZARD_STEPS.length - 1 || busy}
-                    onClick={() => go(1)}
+                    disabled={
+                      stepIndex >= WIZARD_STEPS.length - 1 ||
+                      busy ||
+                      profileSaving
+                    }
+                    onClick={() => void go(1)}
                   >
                     Next
                   </Button>

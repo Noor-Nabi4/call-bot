@@ -66,6 +66,8 @@ class EffectiveCrmConfigurationService:
         cfg = CrmSetupService(self._session).get(tenant_id)
         modules = ModuleConfigService(self._session).list_modules(tenant_id)
         enabled_modules = [m for m in modules if m.get("enabled")]
+        # Nav only includes modules with a real workspace page (ui_live).
+        nav_modules = [m for m in enabled_modules if m.get("ui_live")]
 
         navigation = [
             {
@@ -77,7 +79,7 @@ class EffectiveCrmConfigurationService:
                 "display_order": m.get("display_order"),
                 "category": m.get("category"),
             }
-            for m in enabled_modules
+            for m in nav_modules
         ]
         navigation.sort(key=lambda n: (n["display_order"] or 100, n["label"]))
 

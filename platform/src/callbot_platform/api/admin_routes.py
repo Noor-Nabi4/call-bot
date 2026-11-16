@@ -17,8 +17,10 @@ from callbot_platform.api.deps import (
     db_dep,
     require_entitled_permission,
     require_platform_operator,
+    settings_dep,
 )
 from callbot_platform.auth.repos import AuthError, AuthRepository
+from callbot_platform.config import Settings
 from callbot_platform.security.session import VALID_ROLES
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -653,3 +655,202 @@ def put_agent_settings(
         actor=user.email,
     )
     return {"settings": settings, "business_name": user.tenant_name}
+
+
+class AdminWalletAdjustBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    amount_cents: int = Field(..., gt=0, le=5_000_000)
+    reason: str = Field(..., min_length=3, max_length=500)
+    idempotency_key: str = Field(..., min_length=8, max_length=128)
+
+
+@router.get(
+    "/wallets/{tenant_id}",
+    dependencies=[Depends(require_platform_operator)],
+)
+def admin_get_wallet(
+    tenant_id: UUID,
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    from callbot_platform.billing.wallet.service import WalletService
+
+    return {"wallet": WalletService(session).get_balance(tenant_id)}
+
+
+@router.get(
+    "/wallets/{tenant_id}/transactions",
+    dependencies=[Depends(require_platform_operator)],
+)
+def admin_wallet_transactions(
+    tenant_id: UUID,
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    from callbot_platform.billing.wallet.service import WalletService
+
+    return {
+        "transactions": WalletService(session).list_transactions(
+            tenant_id, limit=limit, offset=offset
+        )
+    }
+
+
+@router.post(
+    "/wallets/{tenant_id}/credit",
+    dependencies=[Depends(require_platform_operator)],
+)
+def admin_wallet_credit(
+    tenant_id: UUID,
+    body: AdminWalletAdjustBody,
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    from callbot_platform.billing.wallet.service import WalletError, WalletService
+    from callbot_platform.telephony.audit import write_audit
+
+    actor = "platform_operator"
+    try:
+        txn = WalletService(session).credit(
+            tenant_id,
+            amount_cents=body.amount_cents,
+            idempotency_key=f"admin_credit:{body.idempotency_key}",
+            reference_type="ADMIN",
+            reference_id=actor,
+            description=body.reason,
+            transaction_type="ADJUSTMENT",
+        )
+        write_audit(
+            session,
+            tenant_id=tenant_id,
+            actor=actor,
+            action="wallet_admin_credit",
+            resource_ids={"amount_cents": body.amount_cents, "txn": str(txn.id)},
+        )
+        session.commit()
+        return {
+            "transaction_id": str(txn.id),
+            "balance_after_cents": txn.balance_after_cents,
+        }
+    except WalletError as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+
+
+@router.post(
+    "/wallets/{tenant_id}/debit",
+    dependencies=[Depends(require_platform_operator)],
+)
+def admin_wallet_debit(
+    tenant_id: UUID,
+    body: AdminWalletAdjustBody,
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    from callbot_platform.billing.wallet.service import WalletError, WalletService
+    from callbot_platform.telephony.audit import write_audit
+
+    actor = "platform_operator"
+    try:
+        txn = WalletService(session).debit(
+            tenant_id,
+            amount_cents=body.amount_cents,
+            idempotency_key=f"admin_debit:{body.idempotency_key}",
+            reference_type="ADMIN",
+            reference_id=actor,
+            description=body.reason,
+        )
+        write_audit(
+            session,
+            tenant_id=tenant_id,
+            actor=actor,
+            action="wallet_admin_debit",
+            resource_ids={"amount_cents": body.amount_cents, "txn": str(txn.id)},
+        )
+        session.commit()
+        return {
+            "transaction_id": str(txn.id),
+            "balance_after_cents": txn.balance_after_cents,
+        }
+    except WalletError as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+
+
+@router.post(
+    "/wallets/{tenant_id}/freeze",
+    dependencies=[Depends(require_platform_operator)],
+)
+def admin_wallet_freeze(
+    tenant_id: UUID,
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    from callbot_platform.billing.wallet.service import WalletService
+    from callbot_platform.telephony.audit import write_audit
+
+    actor = "platform_operator"
+    wallet = WalletService(session).freeze(tenant_id, reason=f"admin:{actor}")
+    write_audit(
+        session,
+        tenant_id=tenant_id,
+        actor=actor,
+        action="wallet_admin_freeze",
+        resource_ids={"wallet_id": str(wallet.id)},
+    )
+    session.commit()
+    return {"status": wallet.status}
+
+
+@router.post(
+    "/wallets/{tenant_id}/unfreeze",
+    dependencies=[Depends(require_platform_operator)],
+)
+def admin_wallet_unfreeze(
+    tenant_id: UUID,
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    from callbot_platform.billing.wallet.service import WalletError, WalletService
+    from callbot_platform.telephony.audit import write_audit
+
+    actor = "platform_operator"
+    try:
+        wallet = WalletService(session).unfreeze(tenant_id)
+    except WalletError as exc:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, detail={"code": exc.code, "message": str(exc)}
+        ) from exc
+    write_audit(
+        session,
+        tenant_id=tenant_id,
+        actor=actor,
+        action="wallet_admin_unfreeze",
+        resource_ids={"wallet_id": str(wallet.id)},
+    )
+    session.commit()
+    return {"status": wallet.status}
+
+
+@router.post(
+    "/billing/renewals/run",
+    dependencies=[Depends(require_platform_operator)],
+)
+def admin_run_subscription_renewals(
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
+) -> dict[str, Any]:
+    from callbot_platform.billing.renewal_jobs import (
+        enqueue_subscription_renewal,
+        run_renewal_and_alerts,
+    )
+
+    result = run_renewal_and_alerts(session)
+    job = enqueue_subscription_renewal(session, settings=settings)
+    session.commit()
+    return {
+        **result,
+        "job_id": str(job.id) if job is not None else None,
+    }

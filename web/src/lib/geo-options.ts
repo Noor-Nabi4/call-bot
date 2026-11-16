@@ -249,8 +249,11 @@ export function resolveLiveGeoDefaults(
 }
 
 /**
- * Fill blank / placeholder geo fields from the browser without overwriting
- * real saved profile values.
+ * Fill blank geo fields from the browser without overwriting saved values.
+ *
+ * Once country/currency/timezone are persisted, refresh must keep them even if
+ * the browser locale/timezone would suggest a different country (e.g. en-US
+ * language with Asia/Karachi clock).
  */
 export function applyLiveGeoDefaults<
   T extends {
@@ -263,40 +266,24 @@ export function applyLiveGeoDefaults<
   countries?: CountryCatalogItem[] | null,
 ): T {
   const savedTimezone = (profile.timezone || "").trim();
-  const live = resolveLiveGeoDefaults(countries, savedTimezone || null);
-  const timezone =
-    savedTimezone && savedTimezone !== "UTC"
-      ? savedTimezone
-      : live.timezone || savedTimezone || "UTC";
-
   const savedCountry = normalizeCountryCode(profile.country);
-  const tzCountry = countryFromTimezone(timezone);
-  const liveCountry = live.country || tzCountry || "";
-  // Language locale (en-US) often disagrees with wall-clock timezone (Asia/Karachi).
-  // Prefer timezone country when saved country is empty or still a USD/US placeholder.
   const savedCurrency = normalizeCurrencyCode(profile.currency);
-  const looksLikeUsPlaceholder =
-    savedCountry === "US" &&
-    (!savedCurrency || savedCurrency === "USD") &&
-    Boolean(tzCountry) &&
-    tzCountry !== "US";
-  const country =
-    !savedCountry || looksLikeUsPlaceholder
-      ? liveCountry || savedCountry || ""
-      : savedCountry;
+  const live = resolveLiveGeoDefaults(countries, savedTimezone || null);
+
+  // Only fill missing timezone; never replace an explicit saved value (incl. UTC).
+  const timezone = savedTimezone || live.timezone || "UTC";
+
+  // Never overwrite a saved country on refresh — US+USD is a valid saved profile.
+  const country = savedCountry || live.country || countryFromTimezone(timezone) || "";
 
   let currency = savedCurrency;
-  const countryJustInferred = !savedCountry || looksLikeUsPlaceholder;
-  if (countryJustInferred && country) {
-    if (!currency || currency === "USD" || looksLikeUsPlaceholder) {
-      currency =
-        defaultCurrencyForCountry(country, countries) ||
-        live.currency ||
-        currency ||
-        "USD";
-    }
-  } else if (!currency) {
-    currency = live.currency || "USD";
+  if (!currency) {
+    currency =
+      (country
+        ? defaultCurrencyForCountry(country, countries)
+        : null) ||
+      live.currency ||
+      "USD";
   }
 
   return {

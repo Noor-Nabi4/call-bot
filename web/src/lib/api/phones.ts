@@ -68,8 +68,18 @@ export function confirmPhoneTrunk(
   );
 }
 
+export type PhoneVerificationStart = {
+  phone_number_id: string;
+  e164: string;
+  verification_status: string;
+  connection_status: string;
+  verification_token?: string;
+  expires_at?: string;
+  instructions: string;
+};
+
 export function startPhoneVerification(phoneNumberId: string) {
-  return api<Record<string, unknown>>(
+  return api<PhoneVerificationStart>(
     `/api/admin/phone-numbers/${phoneNumberId}/verification/start`,
     { method: "POST" },
   );

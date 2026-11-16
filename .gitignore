@@ -1,6 +1,4 @@
 # Local secrets and tooling
-.env
-.env.*
 !.env.example
 !.env.production.example
 .DS_Store
@@ -10,7 +8,6 @@
 .ruff_cache/
 *.egg-info/
 .idea/
-.vscode/
 node_modules/
 .next/
 
@@ -32,3 +29,4 @@ platform/data/
 deploy/generated/
 deploy/answers.env
 docker-compose.selfhost.yml
+config.bat

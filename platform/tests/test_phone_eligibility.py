@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 
+from helpers import make_phone
 from sqlalchemy.orm import Session
 
 from callbot_platform.db.models import Tenant
@@ -12,7 +13,6 @@ from callbot_platform.telephony.eligibility import (
     phone_setup_readiness,
     tenant_has_eligible_inbound_number,
 )
-from helpers import make_phone
 
 
 def test_eligible_requires_active_verified_and_livekit(session: Session) -> None:
@@ -50,6 +50,9 @@ def test_pending_and_released_states(session: Session) -> None:
     )
     pending = phone_setup_readiness(session, tenant.id)
     assert pending["state"] == "setup_in_progress"
+    assert pending["primary_e164"]
+    assert "Call " in pending["message"]
+    assert pending["primary_e164"] in pending["message"]
 
     other = Tenant(name="Released", slug=f"rel-{uuid.uuid4().hex[:8]}")
     session.add(other)

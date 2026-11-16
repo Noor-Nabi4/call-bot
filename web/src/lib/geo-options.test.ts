@@ -58,7 +58,7 @@ describe("geo-options", () => {
     );
   });
 
-  it("applies live defaults only over blank / placeholder geo fields", () => {
+  it("applies live defaults only over blank geo fields", () => {
     const countries = [
       { key: "PK", name: "Pakistan", default_currency_code: "PKR" },
       { key: "US", name: "United States", default_currency_code: "USD" },
@@ -75,20 +75,31 @@ describe("geo-options", () => {
     assert.equal(filled.currency, "USD");
     assert.equal(filled.timezone, "America/New_York");
 
-    // en-US language would suggest US, but Asia/Karachi must win → PK + PKR.
-    const karachi = applyLiveGeoDefaults(
+    // Saved US+USD must survive refresh even when wall clock is Asia/Karachi.
+    const karachiSavedUs = applyLiveGeoDefaults(
       { country: "US", currency: "USD", timezone: "Asia/Karachi" },
       countries,
     );
-    assert.equal(karachi.country, "PK");
-    assert.equal(karachi.currency, "PKR");
-    assert.equal(karachi.timezone, "Asia/Karachi");
+    assert.equal(karachiSavedUs.country, "US");
+    assert.equal(karachiSavedUs.currency, "USD");
+    assert.equal(karachiSavedUs.timezone, "Asia/Karachi");
 
+    // Blank country may be inferred from timezone for first-time fill only.
     const blank = applyLiveGeoDefaults(
-      { country: null, currency: "USD", timezone: "Asia/Karachi" },
+      { country: null, currency: null, timezone: "Asia/Karachi" },
       countries,
     );
     assert.equal(blank.country, "PK");
     assert.equal(blank.currency, "PKR");
+    assert.equal(blank.timezone, "Asia/Karachi");
+
+    // Explicit UTC stays UTC; blank timezone may take browser/live value.
+    const explicitUtc = applyLiveGeoDefaults(
+      { country: "GB", currency: "GBP", timezone: "UTC" },
+      countries,
+    );
+    assert.equal(explicitUtc.country, "GB");
+    assert.equal(explicitUtc.currency, "GBP");
+    assert.equal(explicitUtc.timezone, "UTC");
   });
 });

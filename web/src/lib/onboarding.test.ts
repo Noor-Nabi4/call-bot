@@ -23,7 +23,7 @@ function state(partial: Partial<OnboardingState>): OnboardingState {
     skipped_steps: [],
     progress_percent: 9,
     completed_count: 1,
-    total_count: 11,
+    total_count: 9,
     required_remaining: ["industry"],
     can_resume: true,
     steps: [],
@@ -55,7 +55,7 @@ function user(
 
 describe("onboarding helpers", () => {
   it("formats progress label", () => {
-    assert.equal(progressLabel(state({})), "1 of 11 steps · 9%");
+    assert.equal(progressLabel(state({})), "1 of 9 steps · 9%");
   });
 
   it("resumeTarget prefers resume_step while in progress", () => {

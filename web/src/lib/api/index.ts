@@ -61,6 +61,7 @@ export {
   startPhoneVerification,
   releasePhoneNumber,
   createTestCall,
+  type PhoneVerificationStart,
 } from "./phones";
 export { listAppointments, listCalls, reviewCallQuality, listCustomers, listTeamUsers, inviteTeamUser, updateTeamUser, getSupervisorSnapshot, listQueue, claimQueueItem, completeQueueItem, type TeamUser, type SupervisorSnapshot, type QueueItem } from "./admin";
 export {
@@ -205,10 +206,19 @@ export {
 export {
   getSubscription,
   getUsage,
+  getWallet,
+  getWalletTransactions,
+  getBillingSummary,
   createCheckout,
+  createWalletTopup,
+  subscribeFromWallet,
+  changePlan,
   createPortal,
+  formatCentsUsd,
   type TenantSubscription,
   type TenantUsage,
+  type WalletBalance,
+  type WalletTransaction,
 } from "./billing";
 export {
   getCogsSummary,

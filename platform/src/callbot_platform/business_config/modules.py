@@ -31,6 +31,8 @@ class ModuleDef:
     delete_permission: str | None = None
     # Existing ops UI path when a first-class page exists.
     href: str | None = None
+    # True when the href resolves to a shipped workspace page (not a catch-all stub).
+    ui_live: bool = False
 
 
 def _m(
@@ -47,6 +49,7 @@ def _m(
     update_permission: str | None = None,
     delete_permission: str | None = None,
     href: str | None = None,
+    ui_live: bool = False,
     supports_custom_fields: bool = True,
     supports_relationships: bool = True,
 ) -> ModuleDef:
@@ -63,6 +66,7 @@ def _m(
         update_permission=update_permission,
         delete_permission=delete_permission,
         href=href,
+        ui_live=ui_live,
         supports_custom_fields=supports_custom_fields,
         supports_relationships=supports_relationships,
     )
@@ -81,6 +85,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         create_permission="customers.create",
         update_permission="customers.update",
         href="/customers",
+        ui_live=True,
     ),
     _m(
         "COMPANIES",
@@ -103,6 +108,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         read_permission="leads.read",
         create_permission="leads.create",
         href="/crm/leads",
+        ui_live=True,
     ),
     _m(
         "DEALS",
@@ -128,6 +134,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         update_permission="products.update",
         delete_permission="products.delete",
         href="/crm/products",
+        ui_live=True,
     ),
     _m(
         "SERVICES",
@@ -141,6 +148,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         update_permission="services.update",
         delete_permission="services.delete",
         href="/crm/services",
+        ui_live=True,
     ),
     _m(
         "PRICEBOOKS",
@@ -154,11 +162,12 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         update_permission="pricebooks.update",
         delete_permission="pricebooks.delete",
         href="/crm/pricebooks",
+        ui_live=True,
     ),
     _m(
         "ORDERS",
         "Orders",
-        description="Customer orders (commerce ships later)",
+        description="Customer orders",
         icon="shopping-cart",
         category="commerce",
         default_order=40,
@@ -167,6 +176,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         update_permission="orders.update",
         delete_permission="orders.delete",
         href="/crm/orders",
+        ui_live=True,
     ),
     _m(
         "JOBS",
@@ -180,6 +190,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         update_permission="jobs.update",
         delete_permission="jobs.delete",
         href="/crm/jobs",
+        ui_live=True,
     ),
     _m(
         "APPOINTMENTS",
@@ -192,6 +203,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         create_permission="appointments.create",
         update_permission="appointments.update",
         href="/crm/appointments",
+        ui_live=True,
     ),
     _m(
         "ESTIMATES",
@@ -205,6 +217,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         update_permission="estimates.update",
         delete_permission="estimates.delete",
         href="/crm/estimates",
+        ui_live=True,
     ),
     _m(
         "INVOICES",
@@ -218,6 +231,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         update_permission="invoices.update",
         delete_permission="invoices.delete",
         href="/crm/invoices",
+        ui_live=True,
     ),
     _m(
         "PAYMENTS",
@@ -244,6 +258,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         update_permission="equipment.update",
         delete_permission="equipment.delete",
         href="/crm/equipment",
+        ui_live=True,
     ),
     _m(
         "AUTOMATIONS",
@@ -257,6 +272,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         update_permission="automations.update",
         delete_permission="automations.delete",
         href="/crm/automations",
+        ui_live=True,
     ),
     _m(
         "MEMBERSHIPS",
@@ -270,6 +286,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         update_permission="memberships.update",
         delete_permission="memberships.delete",
         href="/crm/memberships",
+        ui_live=True,
     ),
     _m(
         "CALLS",
@@ -283,6 +300,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         update_permission="calls.update",
         href="/calls",
         supports_custom_fields=False,
+        ui_live=True,
     ),
     _m(
         "CONVERSATIONS",
@@ -310,7 +328,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         delete_permission="tasks.delete",
         href="/crm/tasks",
     ),
-    # Retained for industry templates from Phase 2 (still valid module keys).
+    # Retained keys for templates / future UI (ui_live=False until a real page ships).
     _m(
         "CATEGORIES",
         "Categories",
@@ -320,16 +338,18 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         default_order=95,
         read_permission="products.read",
         href="/crm/categories",
+        ui_live=True,
     ),
     _m(
         "INVENTORY",
         "Inventory",
-        description="Stock levels (commerce ships later)",
+        description="Stock levels",
         icon="layers",
         category="commerce",
         default_order=96,
         read_permission="products.read",
         href="/crm/inventory",
+        ui_live=True,
     ),
     _m(
         "DISPATCH",
@@ -341,6 +361,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         read_permission="dispatch.read",
         href="/crm/dispatch",
         supports_custom_fields=False,
+        ui_live=True,
     ),
     _m(
         "TECHNICIANS",
@@ -353,6 +374,7 @@ CRM_MODULES: tuple[ModuleDef, ...] = (
         update_permission="technicians.manage",
         href="/settings/team",
         supports_custom_fields=False,
+        ui_live=True,
     ),
     _m(
         "PROPERTIES",
@@ -435,12 +457,36 @@ def serialize_module(m: ModuleDef) -> dict[str, Any]:
         "supports_search": m.supports_search,
         "supports_archive": m.supports_archive,
         "required": m.required,
+        "ui_live": m.ui_live,
         "read_permission": m.read_permission,
         "create_permission": m.create_permission,
         "update_permission": m.update_permission,
         "delete_permission": m.delete_permission,
         "href": m.href,
     }
+
+
+def is_ui_live(key: str) -> bool:
+    meta = MODULE_BY_KEY.get(str(key).strip().upper())
+    return bool(meta and meta.ui_live)
+
+
+def filter_ui_live_keys(keys: list[str]) -> list[str]:
+    """Keep only modules with a shipped workspace page (plus required keys)."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in keys:
+        key = str(raw).strip().upper()
+        meta = MODULE_BY_KEY.get(key)
+        if meta is None:
+            continue
+        if not meta.ui_live and not meta.required:
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(key)
+    return out
 
 
 def assert_module_keys(keys: list[str]) -> list[str]:

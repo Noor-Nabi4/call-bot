@@ -18,13 +18,19 @@ import { useAuth } from "@/lib/use-auth";
 import { billing as copy } from "@/lib/ops-copy";
 import { safeUserError } from "@/lib/safe-error";
 import {
-  createCheckout,
-  createPortal,
+  changePlan,
+  createWalletTopup,
+  formatCentsUsd,
   formatWhen,
   getSubscription,
   getUsage,
+  getWallet,
+  getWalletTransactions,
+  subscribeFromWallet,
   type TenantSubscription,
   type TenantUsage,
+  type WalletBalance,
+  type WalletTransaction,
 } from "@/lib/api";
 import { UsageSummaryPanel } from "@/components/ops";
 import {
@@ -65,18 +71,25 @@ export default function BillingPage() {
     null,
   );
   const [usage, setUsage] = useState<TenantUsage | null>(null);
+  const [wallet, setWallet] = useState<WalletBalance | null>(null);
+  const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [fetching, setFetching] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [portalBusy, setPortalBusy] = useState(false);
-  const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [topupBusy, setTopupBusy] = useState<number | null>(null);
+  const [subscribeBusy, setSubscribeBusy] = useState(false);
+  const [planBusy, setPlanBusy] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const [subData, usageData] = await Promise.all([
+    const [subData, usageData, walletData, txnData] = await Promise.all([
       getSubscription(),
       getUsage(),
+      getWallet(),
+      getWalletTransactions(20),
     ]);
     setSubscription(subData.subscription);
     setUsage(usageData.usage);
+    setWallet(walletData.wallet);
+    setTransactions(txnData.transactions);
   }, []);
 
   useEffect(() => {
@@ -115,27 +128,40 @@ export default function BillingPage() {
     );
   }, [user, subscription?.is_entitled, checkoutSuccess, router]);
 
-  async function onPortal() {
-    setPortalBusy(true);
+  async function onTopup(amountCents: number) {
+    setTopupBusy(amountCents);
     try {
-      const { portal_url } = await createPortal();
-      window.location.assign(portal_url);
+      const { checkout_url } = await createWalletTopup(amountCents);
+      window.location.assign(checkout_url);
     } catch (e) {
-      toast.push(safeUserError(e, copy.portalFailed), "error");
-      setPortalBusy(false);
+      toast.push(safeUserError(e, "Could not start wallet top-up"), "error");
+      setTopupBusy(null);
     }
   }
 
-  async function onCheckout() {
-    setCheckoutBusy(true);
+  async function onActivatePlan() {
+    setSubscribeBusy(true);
     try {
-      const { checkout_url } = await createCheckout(
-        subscription?.plan_key || undefined,
-      );
-      window.location.assign(checkout_url);
+      await subscribeFromWallet(subscription?.plan_key || undefined);
+      await refresh();
+      toast.push("Plan activated from wallet", "success");
     } catch (e) {
-      toast.push(safeUserError(e, copy.checkoutFailed), "error");
-      setCheckoutBusy(false);
+      toast.push(safeUserError(e, "Could not activate plan"), "error");
+    } finally {
+      setSubscribeBusy(false);
+    }
+  }
+
+  async function onChangePlan(planKey: string) {
+    setPlanBusy(planKey);
+    try {
+      await changePlan(planKey);
+      await refresh();
+      toast.push(`Plan updated to ${planDisplayName(planKey)}`, "success");
+    } catch (e) {
+      toast.push(safeUserError(e, "Could not change plan"), "error");
+    } finally {
+      setPlanBusy(null);
     }
   }
 
@@ -152,8 +178,13 @@ export default function BillingPage() {
   }
 
   const awaitingWebhook = checkoutSuccess && !subscription?.is_entitled;
-  const canCheckout =
-    !subscription || CHECKOUT_ELIGIBLE.has(subscription.status);
+  const canActivate =
+    !!subscription &&
+    CHECKOUT_ELIGIBLE.has(subscription.status) &&
+    (wallet?.available_balance_cents ?? 0) > 0;
+  const canChangePlan =
+    !!subscription &&
+    (subscription.status === "active" || subscription.status === "trialing");
   const entitlements = subscription?.entitlements;
 
   const limitRows = entitlements
@@ -206,25 +237,12 @@ export default function BillingPage() {
     <AppShell user={user}>
       <PageHeader
         title={copy.title}
-        description={copy.description}
+        description="USD wallet balance funds your plan and voice overage. Add funds anytime."
         actions={
-          subscription ? (
-            <div className="flex flex-wrap gap-2">
-              {canCheckout ? (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={onCheckout}
-                  disabled={checkoutBusy}
-                >
-                  {checkoutBusy ? copy.startingCheckout : copy.completeCheckout}
-                </Button>
-              ) : null}
-              <Button size="sm" onClick={onPortal} disabled={portalBusy}>
-                <CreditCard className="size-3.5" aria-hidden />
-                {portalBusy ? copy.managing : copy.manage}
-              </Button>
-            </div>
+          canActivate ? (
+            <Button size="sm" disabled={subscribeBusy} onClick={onActivatePlan}>
+              {subscribeBusy ? "Activating…" : "Activate plan"}
+            </Button>
           ) : null
         }
       />
@@ -246,6 +264,75 @@ export default function BillingPage() {
                 {copy.confirmingHint}
               </p>
             </div>
+          ) : null}
+
+          {wallet ? (
+            <Surface className="ops-surface-rise p-5">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="m-0 text-[11px] font-medium tracking-[0.12em] text-text-muted uppercase">
+                    USD wallet
+                  </p>
+                  <p className="mt-1 m-0 font-display text-3xl font-semibold text-ink">
+                    {formatCentsUsd(wallet.available_balance_cents)}
+                  </p>
+                  <p className="mt-1 m-0 text-sm text-text-secondary">
+                    Status: {wallet.status}
+                    {wallet.available_balance_cents <= wallet.low_balance_cents
+                      ? " · Low balance"
+                      : ""}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[1000, 2500, 5000, 10000, 25000].map((cents) => (
+                    <Button
+                      key={cents}
+                      size="sm"
+                      variant="secondary"
+                      disabled={topupBusy !== null}
+                      onClick={() => onTopup(cents)}
+                    >
+                      {topupBusy === cents
+                        ? "Starting…"
+                        : `Add ${formatCentsUsd(cents)}`}
+                    </Button>
+                  ))}
+                  {canActivate ? (
+                    <Button
+                      size="sm"
+                      disabled={subscribeBusy}
+                      onClick={onActivatePlan}
+                    >
+                      {subscribeBusy ? "Activating…" : "Activate plan"}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              {transactions.length > 0 ? (
+                <ul className="mt-5 m-0 list-none space-y-2 border-t border-border/70 p-0 pt-4">
+                  {transactions.map((txn) => (
+                    <li
+                      key={txn.id}
+                      className="flex items-center justify-between gap-3 text-sm"
+                    >
+                      <span className="min-w-0 truncate text-text-secondary">
+                        {txn.description || txn.reference_type || txn.transaction_type}
+                      </span>
+                      <span
+                        className={
+                          txn.signed_amount_cents >= 0
+                            ? "font-mono text-teal"
+                            : "font-mono text-ink"
+                        }
+                      >
+                        {txn.signed_amount_cents >= 0 ? "+" : ""}
+                        {formatCentsUsd(txn.signed_amount_cents)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </Surface>
           ) : null}
 
           {subscription ? (
@@ -288,14 +375,38 @@ export default function BillingPage() {
             <EmptyState
               icon={<CreditCard className="size-8" />}
               title={copy.noSubscription}
-              description={copy.noSubscriptionHint}
-              action={
-                <Button onClick={onCheckout} disabled={checkoutBusy}>
-                  {checkoutBusy ? copy.startingCheckout : copy.completeCheckout}
-                </Button>
-              }
+              description="Add funds to your wallet, then activate a plan from your balance."
             />
           )}
+
+          {canChangePlan ? (
+            <Surface className="ops-surface-rise p-5">
+              <h2 className="m-0 text-sm font-semibold text-ink">Change plan</h2>
+              <p className="mt-1 m-0 text-sm text-text-secondary">
+                Upgrades debit the prorated difference now. Downgrades apply at
+                the next billing period.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {(["starter", "growth", "pro"] as const).map((key) => (
+                  <Button
+                    key={key}
+                    size="sm"
+                    variant={
+                      subscription?.plan_key === key ? "primary" : "secondary"
+                    }
+                    disabled={
+                      planBusy !== null || subscription?.plan_key === key
+                    }
+                    onClick={() => onChangePlan(key)}
+                  >
+                    {planBusy === key
+                      ? "Updating…"
+                      : planDisplayName(key)}
+                  </Button>
+                ))}
+              </div>
+            </Surface>
+          ) : null}
 
           {usage ? (
             <UsageSummaryPanel usage={usage} className="ops-surface-rise" />
