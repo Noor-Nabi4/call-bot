@@ -1,4 +1,4 @@
-"""Customer repository."""
+"""Customer repository (voice-era lookup/upsert compatibility layer)."""
 
 from __future__ import annotations
 
@@ -9,13 +9,18 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from callbot_platform.crm.customers.normalize import normalize_email
+from callbot_platform.crm.customers.serialize import serialize_customer
+from callbot_platform.crm.customers.status import DEFAULT_CUSTOMER_STATUS
 from callbot_platform.crm.errors import CrmError
-from callbot_platform.db.models import Customer, CustomerPhone
+from callbot_platform.db.models import Customer, CustomerPhone, CustomerTagLink
 from callbot_platform.domain.phone import normalize_e164
 from callbot_platform.telephony.audit import write_audit
 
 
 class CustomerRepository:
+    """Preserves voice agent lookup/upsert contracts on the extended Customer model."""
+
     def __init__(self, session: Session) -> None:
         self._session = session
 
@@ -27,11 +32,18 @@ class CustomerRepository:
                 CustomerPhone.tenant_id == tenant_id,
                 CustomerPhone.e164 == e164,
             )
-            .options(selectinload(CustomerPhone.customer).selectinload(Customer.phones))
+            .options(
+                selectinload(CustomerPhone.customer).selectinload(Customer.phones),
+                selectinload(CustomerPhone.customer)
+                .selectinload(Customer.tag_links)
+                .selectinload(CustomerTagLink.tag),
+            )
         )
-        if row is None:
+        if row is None or row.customer is None:
             return None
-        return self._serialize_customer(row.customer)
+        if row.customer.tenant_id != tenant_id:
+            return None
+        return serialize_customer(row.customer)
 
     def upsert(
         self,
@@ -46,6 +58,7 @@ class CustomerRepository:
         if not name or not name.strip():
             raise CrmError("invalid_name", "Customer name is required")
         e164 = normalize_e164(phone)
+        email_norm = normalize_email(email) if email is not None else None
         existing_phone = self._session.scalar(
             select(CustomerPhone).where(
                 CustomerPhone.tenant_id == tenant_id,
@@ -58,17 +71,26 @@ class CustomerRepository:
                 raise CrmError("not_found", "Customer not found for tenant")
             customer.name = name.strip()
             if email is not None:
-                customer.email = email.strip() or None
+                customer.email = email_norm
+                customer.email_normalized = email_norm
             if address is not None:
                 customer.address = address.strip() or None
+            customer.updated_by = actor
             customer.updated_at = datetime.now(UTC)
+            # Voice upsert may restore an archived match by phone.
+            if customer.archived_at is not None:
+                customer.archived_at = None
             created = False
         else:
             customer = Customer(
                 tenant_id=tenant_id,
                 name=name.strip(),
-                email=(email.strip() if email else None) or None,
+                email=email_norm,
+                email_normalized=email_norm,
                 address=(address.strip() if address else None) or None,
+                status=DEFAULT_CUSTOMER_STATUS,
+                created_by=actor,
+                updated_by=actor,
             )
             self._session.add(customer)
             self._session.flush()
@@ -86,31 +108,17 @@ class CustomerRepository:
             action="customer_created" if created else "customer_updated",
             resource_ids={"customer_id": str(customer.id), "e164": e164},
         )
-        return self._serialize_customer(customer)
+        return serialize_customer(customer)
 
     def get(self, tenant_id: UUID, customer_id: UUID) -> dict[str, Any] | None:
         customer = self._session.scalar(
             select(Customer)
             .where(Customer.id == customer_id, Customer.tenant_id == tenant_id)
-            .options(selectinload(Customer.phones))
+            .options(
+                selectinload(Customer.phones),
+                selectinload(Customer.tag_links).selectinload(CustomerTagLink.tag),
+            )
         )
         if customer is None:
             return None
-        return self._serialize_customer(customer)
-
-    def _serialize_customer(self, customer: Customer) -> dict[str, Any]:
-        phones = [p.e164 for p in (customer.phones or [])]
-        return {
-            "id": str(customer.id),
-            "tenant_id": str(customer.tenant_id),
-            "name": customer.name,
-            "email": customer.email,
-            "address": customer.address,
-            "phones": phones,
-            "created_at": customer.created_at.isoformat()
-            if customer.created_at
-            else None,
-            "updated_at": customer.updated_at.isoformat()
-            if customer.updated_at
-            else None,
-        }
+        return serialize_customer(customer)

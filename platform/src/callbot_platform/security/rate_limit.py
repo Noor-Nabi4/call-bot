@@ -41,3 +41,11 @@ class SlidingWindowRateLimiter:
 
 # Agent settings mutations: 20 updates / minute / actor.
 AGENT_SETTINGS_RATE_LIMITER = SlidingWindowRateLimiter(max_requests=20, window_sec=60.0)
+
+# Auth surfaces (in-process; multi-replica deploys should also rate-limit at the edge).
+AUTH_LOGIN_RATE_LIMITER = SlidingWindowRateLimiter(max_requests=20, window_sec=60.0)
+AUTH_SIGNUP_RATE_LIMITER = SlidingWindowRateLimiter(max_requests=10, window_sec=3600.0)
+# Signup field validation (debounced client-side; still bound per IP).
+AUTH_SIGNUP_VALIDATE_RATE_LIMITER = SlidingWindowRateLimiter(
+    max_requests=30, window_sec=60.0
+)

@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import type { OpsUser } from "@/lib/api";
+import { hasPermission, isTechnicianShell } from "@/lib/permissions";
 import { NotificationsMenu } from "@/components/notifications-menu";
 import { CommandSearch } from "./command-search";
 import { MobileNavDrawer } from "./mobile-nav";
@@ -77,7 +78,7 @@ export function AppShell({
     getSidebarCollapsedServerSnapshot,
   );
   const [branding, setBranding] = useState<Branding | null>(null);
-  const isTech = user.role === "technician";
+  const isTech = isTechnicianShell(user);
   const productName = branding?.product_name?.trim() || "Call & Flow";
 
   useEffect(() => {
@@ -96,7 +97,9 @@ export function AppShell({
   }, []);
 
   useEffect(() => {
-    if (user.role !== "admin" && user.role !== "dispatcher") return;
+    if (!hasPermission(user, "branding.manage") && !hasPermission(user, "organization.read")) {
+      return;
+    }
     let cancelled = false;
     fetch(`${API}/api/admin/branding`, { credentials: "include" })
       .then(async (res) => {
@@ -112,7 +115,7 @@ export function AppShell({
     return () => {
       cancelled = true;
     };
-  }, [user.role]);
+  }, [user]);
 
   function toggleSidebarCollapsed() {
     setSidebarCollapsedPreference(!sidebarCollapsed);

@@ -1,4 +1,4 @@
-"""Assign agent profiles to phone numbers and refresh LiveKit dispatch metadata."""
+"""Assign agent profiles to phone numbers; LiveKit refresh via async job."""
 
 from __future__ import annotations
 
@@ -9,14 +9,13 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from callbot_platform.async_jobs.service import AsyncJobService
+from callbot_platform.async_jobs.types import JobType
 from callbot_platform.config import Settings
 from callbot_platform.crm.repos.agent_profile_repo import AgentProfileRepository
 from callbot_platform.db.models import Tenant, TenantPhoneNumber
 from callbot_platform.security.metadata import MetadataSigner
-from callbot_platform.telephony.adapters.livekit_sip import (
-    LiveKitApiError,
-    LiveKitSipService,
-)
+from callbot_platform.telephony.adapters.livekit_sip import LiveKitSipService
 from callbot_platform.telephony.audit import write_audit
 
 
@@ -77,16 +76,28 @@ class PhoneAssignmentService:
             tenant_id,
             phone_profile_id=resolved_id,
         )
+        job_id = None
         if (
             refresh_dispatch
             and phone.livekit_dispatch_rule_id
             and phone.livekit_inbound_trunk_id
         ):
-            self._refresh_dispatch(
-                tenant=tenant,
-                phone=phone,
-                agent_profile_id=effective_profile_id,
+            job = AsyncJobService(self._session, settings=self._settings).enqueue(
+                tenant_id=tenant_id,
+                job_type=JobType.TELEPHONY_REFRESH_DISPATCH,
+                idempotency_key=(
+                    f"tenant:{tenant_id}:phone:{phone.id}:refresh_dispatch:"
+                    f"{effective_profile_id or 'none'}"
+                ),
+                resource_id=str(phone.id),
+                payload={
+                    "phone_number_id": str(phone.id),
+                    "agent_profile_id": str(effective_profile_id)
+                    if effective_profile_id
+                    else None,
+                },
             )
+            job_id = str(job.id)
 
         write_audit(
             self._session,
@@ -99,9 +110,14 @@ class PhoneAssignmentService:
                 "effective_agent_profile_id": str(effective_profile_id)
                 if effective_profile_id
                 else None,
+                "job_id": job_id,
             },
         )
-        return self.serialize_phone(phone, effective_profile_id=effective_profile_id)
+        out = self.serialize_phone(phone, effective_profile_id=effective_profile_id)
+        if job_id:
+            out["dispatch_refresh_job_id"] = job_id
+            out["dispatch_refresh"] = "queued"
+        return out
 
     def serialize_phone(
         self,
@@ -118,7 +134,7 @@ class PhoneAssignmentService:
         phone_sid = details.get("phone_number_sid")
         can_release = (
             phone.onboarding_path == "platform_purchase"
-            and phone.connection_status != "released"
+            and phone.connection_status not in {"released", "releasing"}
             and isinstance(phone_sid, str)
             and bool(phone_sid.strip())
         )
@@ -154,40 +170,13 @@ class PhoneAssignmentService:
         )
         return [self.serialize_phone(r) for r in rows]
 
-    def _refresh_dispatch(
-        self,
-        *,
-        tenant: Tenant,
-        phone: TenantPhoneNumber,
-        agent_profile_id: UUID | None,
-    ) -> None:
-        assert phone.livekit_dispatch_rule_id
-        assert phone.livekit_inbound_trunk_id
-        payload: dict[str, Any] = {
-            "tenant_id": str(tenant.id),
-            "did": phone.e164,
-            "phone_number_id": str(phone.id),
-            "source": "sip_dispatch",
-        }
-        if agent_profile_id is not None:
-            payload["agent_profile_id"] = str(agent_profile_id)
-        metadata = self._signer.sign_payload(payload)
-        try:
-            self._livekit.update_dispatch_rule_agent_metadata(
-                dispatch_rule_id=phone.livekit_dispatch_rule_id,
-                name=f"dispatch-{tenant.slug}-{phone.e164}",
-                agent_name=self._settings.agent_name,
-                metadata=metadata,
-                trunk_ids=[phone.livekit_inbound_trunk_id],
-            )
-        except LiveKitApiError as exc:
-            raise PhoneAssignError(
-                "dispatch_update_failed",
-                f"Failed to refresh LiveKit dispatch metadata: {exc}",
-            ) from exc
-
     def _owned_phone(self, tenant_id: UUID, phone_number_id: UUID) -> TenantPhoneNumber:
-        row = self._session.get(TenantPhoneNumber, phone_number_id)
-        if row is None or row.tenant_id != tenant_id:
+        row = self._session.scalar(
+            select(TenantPhoneNumber).where(
+                TenantPhoneNumber.id == phone_number_id,
+                TenantPhoneNumber.tenant_id == tenant_id,
+            )
+        )
+        if row is None:
             raise PhoneAssignError("not_found", "Phone number not found for tenant")
         return row

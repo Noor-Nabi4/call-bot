@@ -213,6 +213,131 @@ export function CallsBookingChart({
   );
 }
 
+export function RevenueChart({
+  data,
+  rangeDays,
+  onRangeChange,
+  loading,
+}: {
+  data: { label: string; revenue: number }[];
+  rangeDays: DateRangeDays;
+  onRangeChange: (days: DateRangeDays) => void;
+  loading?: boolean;
+}) {
+  const hasData = data.some((d) => d.revenue > 0);
+
+  return (
+    <DashboardChartCard
+      title="Revenue"
+      description="Succeeded payments in the selected window."
+      action={
+        <DateRangeSelector value={rangeDays} onChange={onRangeChange} />
+      }
+    >
+      {loading ? (
+        <ChartSkeleton />
+      ) : !hasData ? (
+        <ChartEmptyState message="No payment revenue in this period." />
+      ) : (
+        <div className="h-52 w-full" role="img" aria-label="Revenue over time">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={CHART_COLORS.primary} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
+              <XAxis
+                dataKey="label"
+                tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                width={56}
+              />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                name="Revenue"
+                stroke={CHART_COLORS.primary}
+                fill="url(#revFill)"
+                strokeWidth={2}
+                isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </DashboardChartCard>
+  );
+}
+
+export function AdminCallsVolumeChart({
+  data,
+  rangeDays,
+  onRangeChange,
+  loading,
+}: {
+  data: { label: string; calls: number }[];
+  rangeDays: DateRangeDays;
+  onRangeChange: (days: DateRangeDays) => void;
+  loading?: boolean;
+}) {
+  const hasData = data.some((d) => d.calls > 0);
+
+  return (
+    <DashboardChartCard
+      title="Call volume"
+      description="Calls started per day from admin metrics."
+      action={
+        <DateRangeSelector value={rangeDays} onChange={onRangeChange} />
+      }
+    >
+      {loading ? (
+        <ChartSkeleton />
+      ) : !hasData ? (
+        <ChartEmptyState message="No calls in this period." />
+      ) : (
+        <div className="h-52 w-full" role="img" aria-label="Call volume over time">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid stroke={CHART_COLORS.grid} strokeDasharray="3 3" />
+              <XAxis
+                dataKey="label"
+                tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fill: CHART_COLORS.text, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                width={32}
+              />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar
+                dataKey="calls"
+                name="Calls"
+                fill={CHART_COLORS.secondary}
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={false}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </DashboardChartCard>
+  );
+}
+
 export function TechnicianWorkloadChart({
   data,
   loading,

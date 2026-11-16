@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 
 from callbot_platform.automation.webhooks import (
     WebhookError,
-    deliver_webhook,
     normalize_webhook_config,
 )
 from callbot_platform.db.models import AutomationRule
@@ -325,30 +324,41 @@ class AutomationService:
                 cfg = normalize_webhook_config(row.config)
             except WebhookError as exc:
                 raise AutomationError(exc.code, str(exc)) from exc
-            result = deliver_webhook(
+            # Enqueue only — never HTTP inside the request DB transaction.
+            from callbot_platform.scheduling.notifications import NotificationService
+
+            call_id = payload.get("call_id")
+            idem = (
+                f"webhook:{row.id}:{row.trigger_key}:{call_id}"
+                if call_id
+                else f"webhook:{row.id}:{row.trigger_key}:{payload.get('event_id', row.id)}"
+            )
+            queued = NotificationService(self._session).enqueue_webhook(
+                tenant_id=row.tenant_id,
                 url=cfg["url"],
-                payload=payload,
+                event=row.trigger_key,
+                event_payload=payload,
                 secret=cfg.get("secret"),
                 timeout_sec=float(cfg["timeout_sec"]),
-                event=row.trigger_key,
-                tenant_id=str(row.tenant_id),
                 rule_id=str(row.id),
+                idempotency_key=idem[:128],
             )
             write_audit(
                 self._session,
                 tenant_id=row.tenant_id,
                 actor="automation",
-                action="automation_webhook_sent",
+                action="automation_webhook_enqueued",
                 resource_ids={
                     "rule_id": str(row.id),
                     "trigger": row.trigger_key,
+                    "outbox_id": queued.get("outbox_id"),
                 },
                 payload_summary={
-                    "status_code": result.get("status_code"),
                     "host": cfg["url"].split("/")[2] if "://" in cfg["url"] else None,
+                    "status": queued.get("status"),
                 },
             )
-            return result
+            return {"enqueued": True, **queued}
 
         raise AutomationError("invalid_action", f"Unknown action {row.action_key}")
 

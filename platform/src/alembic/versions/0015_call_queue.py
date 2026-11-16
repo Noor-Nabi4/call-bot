@@ -16,7 +16,9 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "call_queue_items",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
+        sa.Column(
+            "id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False
+        ),
         sa.Column(
             "tenant_id",
             postgresql.UUID(as_uuid=True),
@@ -29,8 +31,12 @@ def upgrade() -> None:
             sa.ForeignKey("calls.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("status", sa.String(length=32), nullable=False, server_default="waiting"),
-        sa.Column("reason", sa.String(length=64), nullable=False, server_default="handoff"),
+        sa.Column(
+            "status", sa.String(length=32), nullable=False, server_default="waiting"
+        ),
+        sa.Column(
+            "reason", sa.String(length=64), nullable=False, server_default="handoff"
+        ),
         sa.Column("priority", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("notes", sa.Text(), nullable=True),
         sa.Column("claimed_by", sa.String(length=255), nullable=True),
@@ -46,9 +52,7 @@ def upgrade() -> None:
             "tenant_id", "call_id", name="uq_call_queue_items_tenant_call"
         ),
     )
-    op.create_index(
-        "ix_call_queue_items_tenant_id", "call_queue_items", ["tenant_id"]
-    )
+    op.create_index("ix_call_queue_items_tenant_id", "call_queue_items", ["tenant_id"])
     op.create_index(
         "ix_call_queue_items_tenant_status",
         "call_queue_items",

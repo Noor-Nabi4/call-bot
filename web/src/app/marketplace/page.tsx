@@ -17,6 +17,7 @@ import {
   ConfirmDialog,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   FilterBar,
   LoadingSkeleton,
   PageHeader,
@@ -26,7 +27,7 @@ import {
 } from "@/components/ui";
 
 export default function MarketplacePage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "agents.manage" });
   const toast = useToast();
   const [templates, setTemplates] = useState<IndustryTemplate[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -91,6 +92,14 @@ export default function MarketplacePage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

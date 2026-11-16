@@ -1,0 +1,67 @@
+---
+description: Relational modeling and table normalization standards
+globs: "**/db/models/**/*.py,**/alembic/versions/**/*.py,**/repos/**/*.py"
+alwaysApply: false
+---
+
+# Database Normalization
+
+Principle: **one table = one clear business responsibility.**
+
+Normalize around real entities and relationships. Avoid both giant tables and micro-tables for every 2–3 fields.
+
+## Do
+
+- Keep core identity fields on the primary entity (`customers`: name, email, status, timestamps)
+- Split repeating or growing data into related tables (`customer_phones`, `job_notes`, `order_items`)
+- Use many-to-many join tables for tags/categories when they must be queried
+- Use history/status tables when state transitions must be auditable
+- Preserve snapshot values on financial/order rows (do not rely only on current product price)
+- Prefer JSON only for opaque config, metrics, or provider-specific bags that are not filtered/joined
+- Scope uniqueness with `tenant_id` when the business rule is per-tenant: `UNIQUE (tenant_id, sku)`
+- Add indexes from real query patterns: `(tenant_id, status)`, `(tenant_id, created_at)`
+
+## Do not
+
+- Put every CRM/commerce/ops field on one wide row
+- Create a table for a handful of always-1:1 scalar fields with no independent lifecycle
+- Store large binaries in Postgres (use object storage + metadata row)
+- Invent commerce/order/inventory schemas before the product needs them
+- Over-normalize hot voice-path config (`agent_profiles`) into many joins
+- Add indexes “just in case”
+
+## Examples
+
+```text
+# ❌ BAD — growing history on the parent row
+customers.note1, note2, note3  /  jobs.checklist_item_1…
+
+# ✅ GOOD
+customers + customer_notes
+jobs + job_notes / job_checklist_items (when items need status/audit)
+```
+
+```text
+# ❌ BAD — micro-table with no query value
+customer_names(first_name, last_name) separate from customers
+
+# ✅ GOOD
+customers(first_name, last_name, email, phone, status, created_at)
+```
+
+```text
+# ❌ BAD — queryable structure buried in JSON forever
+customers.tags = '["vip","hvac"]' used in filters
+
+# ✅ GOOD (when filtering/search requires it)
+tags + customer_tags
+# OK to keep JSON for prompt bags / metrics / audit snapshots
+```
+
+## Migrations
+
+- Schema changes go through Alembic; keep models and migrations in sync (including indexes)
+- Prefer additive, backward-compatible migrations; do not destroy production data
+- For large tables, avoid long exclusive locks; backfill carefully
+
+See also: `docs/DATABASE_ARCHITECTURE.md`, `docs/DATA_OWNERSHIP.md`

@@ -1,0 +1,34 @@
+---
+description: Architecture phase gates — do not start Phase 4 business domains early
+alwaysApply: true
+---
+
+# Architecture Phase Gates
+
+Phases 1–3.1 cover tenancy, outbox, object storage, async jobs/sagas, and call-scope.
+
+## Do not implement Phase 4 until the staging gate is closed
+
+Do **not** add or expand business-domain schemas/APIs for:
+
+```text
+Customers (new commerce CRM) · Products · Services · Inventory · Orders
+Jobs (field service) · Appointments · Technicians · Dispatch
+Estimates · Invoices · Payments · Equipment · Memberships
+Business onboarding packs · Analytics product surfaces
+```
+
+Existing CRM/scheduling/telephony tables used by the voice platform are not a license to build full field-service commerce.
+
+## Prefer
+
+- Hardening reliability, security, workers, storage, and ops docs
+- Closing `NOT AVAILABLE` / `NOT EXECUTED` items in `docs/PRODUCTION_READINESS.md`
+
+## Do not
+
+- Introduce microservices, Kafka, CQRS, or event sourcing “for scale”
+- Add speculative indexes/tables without measured query plans
+- Redesign working Phase 1–3 architecture during verification
+
+Gate status lives in `docs/PRODUCTION_READINESS.md` (`READY FOR PHASE 4` vs `NOT READY`).

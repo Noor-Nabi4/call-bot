@@ -174,7 +174,9 @@ class TenantDidResolver(Protocol):
 
 
 class NumberVerificationService(Protocol):
-    def start_verification(self, *, tenant_id: UUID, phone_number_id: UUID) -> dict[str, Any]: ...
+    def start_verification(
+        self, *, tenant_id: UUID, phone_number_id: UUID
+    ) -> dict[str, Any]: ...
 
     def observe_inbound(
         self,

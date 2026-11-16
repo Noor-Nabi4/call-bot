@@ -52,6 +52,10 @@ def _int_env(name: str, default: int) -> int:
         raise ConfigurationError(f"{name} must be an integer, got {raw!r}") from exc
 
 
+_VALID_VAD_EAGERNESS = frozenset({"auto", "low", "medium", "high"})
+_VALID_NOISE_REDUCTION = frozenset({"near_field", "far_field"})
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     """Production settings loaded from the environment."""
@@ -74,10 +78,18 @@ class Settings:
     agent_name: str
     # Phase 0/1 single-tenant runtime. Multi-tenant resolution comes in Phase 2-3.
     tenant_id: str | None
+    # OpenAI Realtime semantic VAD eagerness (docs: low lets callers pause).
+    vad_eagerness: str
+    # Optional OpenAI input noise reduction before turn detection.
+    input_audio_noise_reduction: str | None
+    # Brief gap between consecutive agent utterances (more natural cadence).
+    min_consecutive_speech_delay_sec: float
+    # Minimum user speech duration to count as an interruption (seconds).
+    min_interruption_duration_sec: float
 
     @classmethod
     def from_env(cls) -> Settings:
-        temperature = _float_env("OPENAI_TEMPERATURE", 0.8)
+        temperature = _float_env("OPENAI_TEMPERATURE", 0.85)
         if not 0.6 <= temperature <= 1.2:
             raise ConfigurationError(
                 "OPENAI_TEMPERATURE must be between 0.6 and 1.2 "
@@ -91,6 +103,31 @@ class Settings:
         user_away_timeout_sec = _float_env("USER_AWAY_TIMEOUT_SEC", 15.0)
         if user_away_timeout_sec <= 0:
             raise ConfigurationError("USER_AWAY_TIMEOUT_SEC must be positive")
+
+        vad_eagerness = (
+            os.getenv("OPENAI_VAD_EAGERNESS", "low").strip().lower() or "low"
+        )
+        if vad_eagerness not in _VALID_VAD_EAGERNESS:
+            raise ConfigurationError(
+                "OPENAI_VAD_EAGERNESS must be one of: auto, low, medium, high"
+            )
+
+        noise_raw = _optional("OPENAI_INPUT_AUDIO_NOISE_REDUCTION")
+        noise_reduction: str | None = None
+        if noise_raw is not None:
+            noise_reduction = noise_raw.lower()
+            if noise_reduction not in _VALID_NOISE_REDUCTION:
+                raise ConfigurationError(
+                    "OPENAI_INPUT_AUDIO_NOISE_REDUCTION must be near_field or far_field"
+                )
+
+        min_speech_delay = _float_env("MIN_CONSECUTIVE_SPEECH_DELAY_SEC", 0.25)
+        if min_speech_delay < 0:
+            raise ConfigurationError("MIN_CONSECUTIVE_SPEECH_DELAY_SEC must be >= 0")
+
+        min_interruption = _float_env("MIN_INTERRUPTION_DURATION_SEC", 0.5)
+        if min_interruption < 0:
+            raise ConfigurationError("MIN_INTERRUPTION_DURATION_SEC must be >= 0")
 
         business_facts = BusinessFacts(
             hours=_optional("BUSINESS_HOURS"),
@@ -125,6 +162,10 @@ class Settings:
             max_spoken_sentences=_int_env("MAX_SPOKEN_SENTENCES", 2),
             agent_name=os.getenv("AGENT_NAME", "voice-agent").strip() or "voice-agent",
             tenant_id=_optional("TENANT_ID"),
+            vad_eagerness=vad_eagerness,
+            input_audio_noise_reduction=noise_reduction,
+            min_consecutive_speech_delay_sec=min_speech_delay,
+            min_interruption_duration_sec=min_interruption,
         )
 
 

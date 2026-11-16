@@ -7,16 +7,16 @@ from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from callbot_platform.api.deps import db_dep, settings_dep
 from callbot_platform.auth.repos import AuthRepository
 from callbot_platform.config import Settings, get_settings
 from callbot_platform.crm.repos import AgentSettingsRepository
-from callbot_platform.db.models import Tenant, TelephonyAuditEvent
+from callbot_platform.db.models import TelephonyAuditEvent, Tenant
 from callbot_platform.main import app
 from callbot_platform.security.session import create_session_token
-from sqlalchemy import select
 
 
 @pytest.fixture()

@@ -7,6 +7,8 @@ import os
 from typing import Any
 from urllib import error, request
 
+from tools.call_scope import CallScopeMixin
+
 
 class PlatformHandoffError(RuntimeError):
     def __init__(self, code: str, message: str) -> None:
@@ -14,13 +16,19 @@ class PlatformHandoffError(RuntimeError):
         self.code = code
 
 
-class PlatformHandoffClient:
+class PlatformHandoffClient(CallScopeMixin):
     def __init__(
-        self, *, base_url: str, internal_token: str, timeout_sec: float = 8.0
+        self,
+        *,
+        base_url: str,
+        internal_token: str,
+        timeout_sec: float = 8.0,
+        call_scope: str | None = None,
     ) -> None:
         self._base = base_url.rstrip("/")
         self._token = internal_token
         self._timeout = timeout_sec
+        self._call_scope = call_scope
 
     def get_settings(self, tenant_id: str) -> dict[str, Any]:
         if not self._base or not self._token:
@@ -30,7 +38,7 @@ class PlatformHandoffClient:
             )
         req = request.Request(
             f"{self._base}/internal/handoff/{tenant_id}",
-            headers={"X-Internal-Token": self._token},
+            headers=self._scope_headers({"X-Internal-Token": self._token}),
             method="GET",
         )
         try:

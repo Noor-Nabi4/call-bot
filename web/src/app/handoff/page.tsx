@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/use-auth";
 import {
   Button,
   ErrorState,
+  ForbiddenState,
   Field,
   Input,
   LoadingSkeleton,
@@ -32,7 +33,7 @@ type Settings = {
 };
 
 export default function HandoffPage() {
-  const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const { user, loading, forbidden } = useAuth({ permission: "handoff.read" });
   const toast = useToast();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +69,14 @@ export default function HandoffPage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

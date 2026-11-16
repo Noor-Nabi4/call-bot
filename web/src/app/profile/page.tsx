@@ -5,6 +5,7 @@ import { AppShell } from "@/components/shell";
 import {
   Button,
   ErrorState,
+  ForbiddenState,
   Field,
   Input,
   LoadingSkeleton,
@@ -18,7 +19,9 @@ import { safeUserError } from "@/lib/safe-error";
 import { useAuth } from "@/lib/use-auth";
 
 export default function ProfilePage() {
-  const { user, loading, refresh } = useAuth();
+  const { user, loading, refresh, forbidden } = useAuth({
+    allowIncompleteOnboarding: true,
+  });
   const toast = useToast();
   const [name, setName] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -37,6 +40,14 @@ export default function ProfilePage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

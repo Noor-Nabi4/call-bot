@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock, patch
 from uuid import UUID, uuid4
@@ -10,12 +9,14 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.orm import Session
 
+from callbot_platform.async_jobs.runner import run_async_job
 from callbot_platform.auth.repos import AuthRepository
 from callbot_platform.billing.errors import BillingError
 from callbot_platform.billing.plans import VALID_PLAN_KEYS, plan_by_key
 from callbot_platform.billing.repos import BillingRepository
 from callbot_platform.billing.service import BillingService
 from callbot_platform.config import Settings
+from callbot_platform.db import get_session_factory
 from callbot_platform.db.models import Tenant
 from callbot_platform.domain.enums import TenantStatus
 
@@ -95,11 +96,11 @@ def test_signup_creates_pending_tenant(session: Session) -> None:
 
     with (
         patch(
-            "callbot_platform.billing.service.stripe.Customer.create",
+            "callbot_platform.async_jobs.handlers.stripe_billing.stripe.Customer.create",
             return_value=customer,
         ),
         patch(
-            "callbot_platform.billing.service.stripe.checkout.Session.create",
+            "callbot_platform.async_jobs.handlers.stripe_billing.stripe.checkout.Session.create",
             return_value=checkout,
         ) as create_session,
     ):
@@ -112,18 +113,27 @@ def test_signup_creates_pending_tenant(session: Session) -> None:
             password="password123",
             plan_key="growth",
         )
+        session.commit()
+        run_async_job(
+            get_session_factory(), UUID(str(result["job_id"])), settings=settings
+        )
+        checkout_info = service.get_signup_checkout(UUID(str(result["tenant_id"])))
+        result["checkout_url"] = checkout_info["checkout_url"]
 
-    session.flush()
+    session.expire_all()
     assert result["checkout_url"] == "https://checkout.stripe.test/session"
     assert result["user"]["email"] == "owner@acme.test"
     assert result["user"]["role"] == "admin"
 
-    # Checkout must use price_data (no registered Stripe Price IDs).
+    # Signup funds the USD wallet via one-time Checkout (not Stripe Subscriptions).
     kwargs = create_session.call_args.kwargs
+    assert kwargs["mode"] == "payment"
+    assert kwargs["metadata"]["purpose"] == "wallet_topup"
+    assert kwargs["metadata"]["plan_key"] == "growth"
     line_item = kwargs["line_items"][0]
     assert "price" not in line_item
     assert line_item["price_data"]["unit_amount"] == 24900
-    assert line_item["price_data"]["product_data"]["metadata"]["plan_key"] == "growth"
+    assert "recurring" not in line_item["price_data"]
 
     tenant = session.get(Tenant, UUID(result["user"]["tenant_id"]))
     assert tenant is not None
@@ -135,6 +145,61 @@ def test_signup_creates_pending_tenant(session: Session) -> None:
     assert sub.plan_key == "growth"
     assert sub.stripe_customer_id == "cus_test_1"
     assert sub.status != "active"
+
+
+def test_validate_signup_fields_per_field(session: Session) -> None:
+    service = BillingService(session, _settings())
+    free = f"free-{uuid4().hex[:8]}"
+    ok = service.validate_signup_fields(slug=free, email="owner@acme.test")
+    assert ok == {"ok": True, "errors": {}}
+
+    taken_slug = f"taken-{uuid4().hex[:8]}"
+    session.add(
+        Tenant(
+            name="Taken Co",
+            slug=taken_slug,
+            status=TenantStatus.ACTIVE.value,
+        )
+    )
+    session.flush()
+
+    denied = service.validate_signup_fields(
+        slug=taken_slug.upper(),
+        email="bad-email",
+        plan_key="enterprise",
+    )
+    assert denied["ok"] is False
+    assert denied["errors"]["slug"]["code"] == "slug_taken"
+    assert denied["errors"]["email"]["code"] == "invalid_email"
+    assert denied["errors"]["plan_key"]["code"] == "invalid_plan"
+
+    # Only provided fields are validated.
+    slug_only = service.validate_signup_fields(slug="Bad_Slug")
+    assert slug_only["ok"] is False
+    assert set(slug_only["errors"]) == {"slug"}
+    assert slug_only["errors"]["slug"]["code"] == "invalid_slug"
+
+
+def test_allocate_signup_slug_from_business_name(session: Session) -> None:
+    service = BillingService(session, _settings())
+    assert service.slugify_business_name("Acme HVAC Co.") == "acme-hvac-co"
+    assert service.slugify_business_name("!!!") == "workspace"
+
+    free_name = f"Fresh HVAC {uuid4().hex[:6]}"
+    allocated = service.allocate_signup_slug(free_name)
+    assert allocated == service.slugify_business_name(free_name)
+
+    session.add(
+        Tenant(
+            name=free_name,
+            slug=allocated,
+            status=TenantStatus.ACTIVE.value,
+        )
+    )
+    session.flush()
+    collision = service.allocate_signup_slug(free_name)
+    assert collision != allocated
+    assert collision.startswith(allocated[:8])
 
 
 def test_signup_rejects_invalid_plan(session: Session) -> None:
@@ -152,7 +217,8 @@ def test_signup_rejects_invalid_plan(session: Session) -> None:
     assert exc.value.code == "invalid_plan"
 
 
-def test_webhook_activates_subscription(session: Session) -> None:
+def test_webhook_credits_wallet_topup(session: Session) -> None:
+    """checkout.session.completed (payment) credits wallet; legacy sub events ignored."""
     settings = _settings()
     tenant = Tenant(
         name="Webhook Co",
@@ -174,24 +240,44 @@ def test_webhook_activates_subscription(session: Session) -> None:
     )
     session.flush()
 
+    from callbot_platform.billing.wallet.service import WalletService
+    from callbot_platform.db.models.wallet import WalletTopup
+
+    wallets = WalletService(session)
+    wallet = wallets.ensure_wallet(tenant.id)
+    topup = WalletTopup(
+        tenant_id=tenant.id,
+        wallet_id=wallet.id,
+        amount_cents=20000,
+        currency="USD",
+        status="PENDING",
+        stripe_checkout_session_id="cs_wh_1",
+        stripe_payment_intent_id="pi_wh_1",
+    )
+    session.add(topup)
+    session.flush()
+
     service = BillingService(session, settings)
-    period_end = int(datetime(2026, 8, 1, tzinfo=UTC).timestamp())
-    subscription_obj = {
-        "id": "sub_wh_1",
-        "customer": "cus_wh_1",
-        "status": "active",
-        "cancel_at_period_end": False,
-        "current_period_end": period_end,
-        "trial_end": None,
-        "metadata": {"tenant_id": str(tenant.id), "plan_key": "starter"},
-        "items": {
-            "data": [{"price": {"id": "price_auto_from_checkout"}}],
-        },
-    }
     event = {
         "id": "evt_test_1",
-        "type": "customer.subscription.updated",
-        "data": {"object": subscription_obj},
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": "cs_wh_1",
+                "mode": "payment",
+                "payment_status": "paid",
+                "amount_total": 20000,
+                "payment_intent": "pi_wh_1",
+                "customer": "cus_wh_1",
+                "metadata": {
+                    "purpose": "wallet_topup",
+                    "tenant_id": str(tenant.id),
+                    "wallet_topup_id": str(topup.id),
+                    "plan_key": "starter",
+                    "auto_activate_plan": "1",
+                },
+            }
+        },
     }
 
     result = service.handle_webhook_event(event)  # type: ignore[arg-type]
@@ -204,11 +290,26 @@ def test_webhook_activates_subscription(session: Session) -> None:
     assert sub is not None
     assert sub.status == "active"
     assert sub.plan_key == "starter"
-    assert sub.stripe_subscription_id == "sub_wh_1"
     assert service.tenant_is_entitled(tenant.id)
 
     replay = service.handle_webhook_event(event)  # type: ignore[arg-type]
     assert replay["duplicate"] is True
+
+    ignored = service.handle_webhook_event(
+        {
+            "id": "evt_test_2",
+            "type": "customer.subscription.updated",
+            "data": {
+                "object": {
+                    "id": "sub_ignored",
+                    "customer": "cus_wh_1",
+                    "status": "active",
+                    "metadata": {"tenant_id": str(tenant.id)},
+                }
+            },
+        }  # type: ignore[arg-type]
+    )
+    assert ignored["ok"] is True
 
 
 def test_invalid_webhook_signature_rejected(session: Session) -> None:

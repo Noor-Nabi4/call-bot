@@ -6,7 +6,9 @@ Multi-tenant AI voice platform for service businesses and call centers
 ## Docs
 
 - Complete feature reference: [`FEATURES.md`](./FEATURES.md)
-- Product / phase plan: [`TASKS.md`](./TASKS.md)
+- Product / phase plan (voice platform, completed in code): [`TASKS.md`](./TASKS.md)
+- Advanced Business OS build plan: [`ADVANCED_BUILD_TASKS.md`](./ADVANCED_BUILD_TASKS.md)
+- Architecture audit (Phase 0): [`docs/ARCHITECTURE_AUDIT.md`](./docs/ARCHITECTURE_AUDIT.md)
 - Voice agent details: [`voice-agent/README.md`](./voice-agent/README.md)
 - Phase 2 telephony checklist: [`voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md`](./voice-agent/docs/PHASE2_TELEPHONY_CHECKLIST.md)
 - Phase 3 CRM checklist: [`voice-agent/docs/PHASE3_CRM_CHECKLIST.md`](./voice-agent/docs/PHASE3_CRM_CHECKLIST.md)
@@ -78,7 +80,9 @@ Stripe webhook: `https://api.callandflow.com/billing/webhooks/stripe`.
 
 ```text
 call-bot/
-├── TASKS.md                 # phased product plan
+├── TASKS.md                 # voice-platform phase plan (completed in code)
+├── ADVANCED_BUILD_TASKS.md  # AI Business OS expansion plan
+├── docs/ARCHITECTURE_AUDIT.md
 ├── docker-compose.yml       # redis + voice-agent
 ├── .github/workflows/       # CI
 ├── platform/                # FastAPI telephony + CRM + scheduling + jobs

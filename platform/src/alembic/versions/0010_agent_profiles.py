@@ -52,7 +52,9 @@ def upgrade() -> None:
         sa.Column("agent_type", sa.String(length=64), nullable=False),
         sa.Column("industry_key", sa.String(length=64), nullable=True),
         sa.Column("status", sa.String(length=32), nullable=False),
-        sa.Column("is_default", sa.Boolean(), nullable=False, server_default=sa.text("false")),
+        sa.Column(
+            "is_default", sa.Boolean(), nullable=False, server_default=sa.text("false")
+        ),
         sa.Column("business_prompt_facts", sa.JSON(), nullable=False),
         sa.Column("voice", sa.String(length=64), nullable=False),
         sa.Column("language", sa.String(length=16), nullable=False),
@@ -128,9 +130,10 @@ def upgrade() -> None:
 
     # Migrate legacy tenant_agent_settings → default agent_profiles
     conn = op.get_bind()
-    rows = conn.execute(
-        sa.text(
-            """
+    rows = (
+        conn.execute(
+            sa.text(
+                """
             SELECT s.id, s.tenant_id, s.business_prompt_facts, s.voice, s.language,
                    s.greeting, s.assistant_name, s.business_description, s.tone,
                    s.supported_languages, s.response_style, s.service_areas,
@@ -140,8 +143,11 @@ def upgrade() -> None:
                    s.created_at, s.updated_at
             FROM tenant_agent_settings s
             """
+            )
         )
-    ).mappings().all()
+        .mappings()
+        .all()
+    )
 
     for row in rows:
         profile_id = uuid.uuid4()
@@ -222,7 +228,9 @@ def downgrade() -> None:
     op.drop_constraint(
         "fk_tenants_default_agent_profile_id", "tenants", type_="foreignkey"
     )
-    op.drop_index("ix_knowledge_articles_agent_profile_id", table_name="knowledge_articles")
+    op.drop_index(
+        "ix_knowledge_articles_agent_profile_id", table_name="knowledge_articles"
+    )
     op.drop_column("knowledge_articles", "agent_profile_id")
     op.drop_index(
         "ix_tenant_phone_numbers_agent_profile_id", table_name="tenant_phone_numbers"

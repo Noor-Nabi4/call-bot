@@ -5,8 +5,24 @@ export type OpsUser = {
   tenant_name: string;
   email: string;
   name: string;
+  /** Legacy display/compatibility role string — not authoritative for auth. */
   role: string;
   technician_id: string | null;
+  roles?: { id: string; name: string; system: boolean }[];
+  permissions?: {
+    key: string;
+    resource: string;
+    action: string;
+    scope: string;
+  }[];
+  /** Server-authoritative onboarding status (UX only — APIs enforce). */
+  onboarding_status?: "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED" | "SKIPPED" | null;
+  /** Business wizard COMPLETED (does not imply phone readiness). */
+  business_onboarding_complete?: boolean;
+  /** Eligible inbound DID exists for this tenant. */
+  phone_ready?: boolean;
+  /** Gate-aligned: business complete AND phone ready. */
+  onboarding_complete?: boolean;
 };
 
 export type Job = {

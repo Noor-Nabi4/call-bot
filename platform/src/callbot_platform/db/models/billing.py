@@ -11,7 +11,9 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
@@ -43,7 +45,7 @@ class TenantSubscription(Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False
     )
-    stripe_customer_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    stripe_customer_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
     stripe_subscription_id: Mapped[str | None] = mapped_column(
         String(128), nullable=True
     )
@@ -52,13 +54,36 @@ class TenantSubscription(Base):
         String(32), nullable=False, default="incomplete"
     )
     stripe_price_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    checkout_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provisioning_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="ready"
+    )
     current_period_end: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+    billing_period_start: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    billing_period_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    next_billing_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    monthly_price_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    included_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    overage_rate_cents: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Minutes already consumed against included allowance this period.
+    included_minutes_consumed: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
     )
     cancel_at_period_end: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )
     trial_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    grace_period_ends_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(

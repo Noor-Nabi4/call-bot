@@ -7,7 +7,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from callbot_platform.billing.usage import (
     compute_billable_seconds,
@@ -18,7 +18,10 @@ from callbot_platform.db.models import (
     Appointment,
     Call,
     Customer,
+    Invoice,
     Job,
+    Lead,
+    Payment,
     TelephonyAuditEvent,
     TenantRetentionSettings,
     TenantUser,
@@ -39,23 +42,23 @@ class AdminRepository:
     def list_customers(
         self, tenant_id: UUID, *, limit: int = 100
     ) -> list[dict[str, Any]]:
-        rows = self._session.scalars(
-            select(Customer)
-            .where(Customer.tenant_id == tenant_id)
-            .options(selectinload(Customer.phones))
-            .order_by(Customer.updated_at.desc())
-            .limit(max(1, min(limit, 200)))
-        ).all()
+        from callbot_platform.crm.customers import CustomerService
+
+        page = CustomerService(self._session).list(
+            tenant_id, include_archived=False, limit=max(1, min(limit, 200))
+        )
+        # Preserve legacy admin/v1 shape used by pickers and older clients.
         return [
             {
-                "id": str(c.id),
-                "name": c.name,
-                "email": c.email,
-                "address": c.address,
-                "phones": [p.e164 for p in (c.phones or [])],
-                "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+                "id": c["id"],
+                "name": c["name"],
+                "email": c.get("email"),
+                "address": c.get("address"),
+                "phones": c.get("phones") or [],
+                "status": c.get("status"),
+                "updated_at": c.get("updated_at"),
             }
-            for c in rows
+            for c in page.get("customers") or []
         ]
 
     def list_calls(
@@ -64,22 +67,46 @@ class AdminRepository:
         *,
         status: str | None = None,
         limit: int = 100,
-    ) -> list[dict[str, Any]]:
-        """List tenant calls, optionally filtered by status (e.g. active for live monitor)."""
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        """List tenant calls with optional status filter and keyset cursor."""
+        from sqlalchemy import and_, or_
+
+        from callbot_platform.db.cursor import CallCursor, parse_call_page
+
+        page, decoded = parse_call_page(limit=limit, cursor=cursor)
         stmt = select(Call).where(Call.tenant_id == tenant_id)
         if status is not None:
             normalized = status.strip().lower()
             if not normalized or len(normalized) > 32:
                 raise AdminError("invalid_status", "Invalid call status filter")
             stmt = stmt.where(Call.status == normalized)
-        rows = self._session.scalars(
-            stmt.order_by(Call.started_at.desc()).limit(max(1, min(limit, 200)))
-        ).all()
+        if decoded is not None:
+            stmt = stmt.where(
+                or_(
+                    Call.started_at < decoded.started_at,
+                    and_(
+                        Call.started_at == decoded.started_at,
+                        Call.id < decoded.id,
+                    ),
+                )
+            )
+        rows = list(
+            self._session.scalars(
+                stmt.order_by(Call.started_at.desc(), Call.id.desc()).limit(
+                    page.limit + 1
+                )
+            ).all()
+        )
         now = datetime.now(UTC)
-        out: list[dict[str, Any]] = []
-        for c in rows:
-            out.append(self._serialize_call(c, now=now))
-        return out
+        has_more = len(rows) > page.limit
+        rows = rows[: page.limit]
+        items = [self._serialize_call(c, now=now) for c in rows]
+        next_cursor = None
+        if has_more and rows:
+            last = rows[-1]
+            next_cursor = CallCursor(started_at=last.started_at, id=last.id).encode()
+        return {"calls": items, "next_cursor": next_cursor, "limit": page.limit}
 
     def _serialize_call(
         self, c: Call, *, now: datetime | None = None
@@ -175,8 +202,8 @@ class AdminRepository:
     ) -> dict[str, Any]:
         """Read-only call-center snapshot for supervisors (no listen-in)."""
         limit = max(1, min(recent_limit, 50))
-        active = self.list_calls(tenant_id, status="active", limit=100)
-        recent_all = self.list_calls(tenant_id, limit=limit + len(active))
+        active = self.list_calls(tenant_id, status="active", limit=100)["calls"]
+        recent_all = self.list_calls(tenant_id, limit=limit + len(active))["calls"]
         recent = [c for c in recent_all if c["status"] != "active"][:limit]
         attention = [c for c in active if c.get("handoff_requested")]
         today_metrics = self.metrics_summary(tenant_id, days=1)
@@ -249,8 +276,9 @@ class AdminRepository:
             .select_from(Job)
             .where(
                 Job.tenant_id == tenant_id,
-                Job.status == "completed",
-                Job.updated_at >= since,
+                Job.status == "COMPLETED",
+                Job.completed_at.is_not(None),
+                Job.completed_at >= since,
             )
         )
         appts = self._session.scalar(
@@ -263,6 +291,25 @@ class AdminRepository:
             .select_from(Customer)
             .where(Customer.tenant_id == tenant_id)
         )
+        leads = self._session.scalar(
+            select(func.count())
+            .select_from(Lead)
+            .where(
+                Lead.tenant_id == tenant_id,
+                Lead.created_at >= since,
+                Lead.archived_at.is_(None),
+            )
+        )
+        leads_by_status = dict(
+            self._session.execute(
+                select(Lead.status, func.count())
+                .where(
+                    Lead.tenant_id == tenant_id,
+                    Lead.archived_at.is_(None),
+                )
+                .group_by(Lead.status)
+            ).all()
+        )
         by_status = dict(
             self._session.execute(
                 select(Job.status, func.count())
@@ -270,6 +317,36 @@ class AdminRepository:
                 .group_by(Job.status)
             ).all()
         )
+
+        # Revenue from succeeded customer payments in the window (Phase 19).
+        payment_rows = self._session.execute(
+            select(Payment.amount, Payment.succeeded_at, Payment.created_at).where(
+                Payment.tenant_id == tenant_id,
+                Payment.status == "SUCCEEDED",
+                func.coalesce(Payment.succeeded_at, Payment.created_at) >= since,
+            )
+        ).all()
+        revenue_total = 0.0
+        revenue_by_day: dict[str, float] = {}
+        for amount, succeeded_at, created_at in payment_rows:
+            ts = succeeded_at or created_at
+            if ts is None:
+                continue
+            day_key = ts.astimezone(UTC).date().isoformat()
+            value = float(amount or 0)
+            revenue_total += value
+            revenue_by_day[day_key] = revenue_by_day.get(day_key, 0.0) + value
+
+        # Outstanding = open invoice balances (exclude draft/void/fully paid).
+        outstanding_rows = self._session.execute(
+            select(func.count(), func.coalesce(func.sum(Invoice.balance_due), 0)).where(
+                Invoice.tenant_id == tenant_id,
+                Invoice.balance_due > 0,
+                Invoice.status.in_(("SENT", "PARTIALLY_PAID", "OVERDUE")),
+            )
+        ).one()
+        outstanding_count = int(outstanding_rows[0] or 0)
+        outstanding_balance = float(outstanding_rows[1] or 0)
 
         call_rows = self._session.scalars(
             select(Call).where(
@@ -311,13 +388,25 @@ class AdminRepository:
             if quality_scores
             else None
         )
+        # AI resolved without human handoff among ended calls in the window.
+        resolved_without_handoff = max(0, ended_count - handoffs)
+        ai_resolution_rate = (
+            round(resolved_without_handoff / ended_count, 3) if ended_count else None
+        )
         # Fill every calendar day in the window so the Ops chart has a continuous axis.
         series: list[dict[str, Any]] = []
+        revenue_series: list[dict[str, Any]] = []
         cursor = since.astimezone(UTC).date()
         today = datetime.now(UTC).date()
         while cursor <= today:
             key = cursor.isoformat()
             series.append({"date": key, "calls": calls_by_day.get(key, 0)})
+            revenue_series.append(
+                {
+                    "date": key,
+                    "revenue": round(revenue_by_day.get(key, 0.0), 4),
+                }
+            )
             cursor += timedelta(days=1)
 
         return {
@@ -332,11 +421,18 @@ class AdminRepository:
             "quality_reviews": len(quality_scores),
             "handoffs_requested": handoffs,
             "handoff_rate": round(handoffs / ended_count, 3) if ended_count else 0.0,
+            "ai_resolution_rate": ai_resolution_rate,
             "appointment_booked_calls": appointments_booked_flag,
             "appointments": int(appts or 0),
             "jobs": int(jobs or 0),
             "jobs_completed": int(completed or 0),
             "customers": int(customers or 0),
+            "leads": int(leads or 0),
+            "leads_by_status": {str(k): int(v) for k, v in leads_by_status.items()},
+            "revenue": round(revenue_total, 4),
+            "revenue_by_day": revenue_series,
+            "outstanding_invoices": outstanding_count,
+            "outstanding_balance": round(outstanding_balance, 4),
             "jobs_by_status": {str(k): int(v) for k, v in by_status.items()},
             "disconnect_reasons": disconnect_reasons,
             "calls_by_day": series,
@@ -366,16 +462,28 @@ class AdminRepository:
             .where(TenantUser.tenant_id == tenant_id)
             .order_by(TenantUser.created_at.desc())
         ).all()
-        return [
-            {
-                "id": str(u.id),
-                "email": u.email,
-                "name": u.name,
-                "role": u.role,
-                "is_active": u.is_active,
-            }
-            for u in rows
-        ]
+        from callbot_platform.rbac.errors import RbacError
+        from callbot_platform.rbac.repos import RoleRepository
+
+        role_repo = RoleRepository(self._session)
+        result: list[dict[str, Any]] = []
+        for u in rows:
+            try:
+                roles = role_repo.list_member_roles(tenant_id, u.id).get("roles") or []
+            except RbacError:
+                roles = []
+            result.append(
+                {
+                    "id": str(u.id),
+                    "email": u.email,
+                    "name": u.name,
+                    "role": u.role,
+                    "status": u.status,
+                    "is_active": u.is_active,
+                    "roles": roles,
+                }
+            )
+        return result
 
     def get_retention(self, tenant_id: UUID) -> dict[str, Any]:
         row = self._session.scalar(

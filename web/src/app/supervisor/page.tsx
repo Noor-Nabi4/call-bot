@@ -17,6 +17,7 @@ import {
   DataTable,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   LoadingSkeleton,
   MetricSummary,
   PageHeader,
@@ -102,7 +103,7 @@ function callColumns(showEnded: boolean): DataTableColumn<Call>[] {
 }
 
 export default function SupervisorPage() {
-  const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const { user, loading, forbidden } = useAuth({ permission: "handoff.read" });
   const [snapshot, setSnapshot] = useState<SupervisorSnapshot | null>(null);
   const [fetching, setFetching] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -163,6 +164,14 @@ export default function SupervisorPage() {
       <div className="p-6">
         <LoadingSkeleton rows={8} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

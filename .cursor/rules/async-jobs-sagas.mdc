@@ -1,0 +1,37 @@
+---
+description: Async job sagas for provider I/O (Twilio, LiveKit, Stripe)
+globs: "platform/src/callbot_platform/async_jobs/**/*.py,platform/src/callbot_platform/telephony/**/*.py,platform/src/callbot_platform/billing/**/*.py,platform/src/callbot_platform/workers/**/*.py"
+alwaysApply: false
+---
+
+# Async Jobs & Provider Sagas
+
+Long-running or dual-write provider work goes through `async_jobs`, not request transactions.
+
+## Required sequence
+
+```text
+intent row + async_jobs enqueue → COMMIT
+→ worker claim (FOR UPDATE SKIP LOCKED) → COMMIT claim
+→ provider I/O
+→ reconcile DB → success | retry | DLQ
+```
+
+## Must
+
+- Stable per-tenant `idempotency_key`
+- Leases + expired-lease reclaim; never leave work permanently stuck
+- Handlers idempotent / safely re-entrant
+- `TenantContext` from the job row
+- Graceful SIGTERM: stop claiming; finish or release current work
+
+## Must not
+
+- Call Twilio / LiveKit / Stripe inside an open business TX
+- Claim success without reconciliation
+- Process the same job concurrently on two workers
+- Use production credentials for destructive sandbox tests
+
+Run workers: `python -m callbot_platform.workers.run_jobs`
+
+See: `docs/SAGA_ARCHITECTURE.md`, `docs/WORKER_OPERATIONS.md`

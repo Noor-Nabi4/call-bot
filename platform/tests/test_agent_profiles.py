@@ -257,8 +257,9 @@ def test_admin_agent_profile_apis(
         assert installed.status_code == 200, installed.text
         assert installed.json()["profile"]["industry_key"] == "hvac"
         assert installed.json()["profile"]["name"] == "HVAC Front Desk"
-        assert "heating or cooling" in (
-            installed.json()["profile"].get("greeting") or ""
-        ).lower()
+        assert (
+            "heating or cooling"
+            in (installed.json()["profile"].get("greeting") or "").lower()
+        )
     finally:
         app.dependency_overrides.clear()

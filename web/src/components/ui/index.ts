@@ -11,6 +11,7 @@ export {
   MetricSummary,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   LoadingSkeleton,
   TechnicianAvatar,
 } from "./feedback";

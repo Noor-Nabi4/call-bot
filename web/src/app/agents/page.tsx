@@ -21,6 +21,7 @@ import {
   DetailDrawer,
   EmptyState,
   ErrorState,
+  ForbiddenState,
   Field,
   Input,
   LoadingSkeleton,
@@ -33,7 +34,7 @@ import {
 const CREATE_FORM_ID = "create-agent-form";
 
 export default function AgentsPage() {
-  const { user, loading } = useAuth({ roles: ["admin"] });
+  const { user, loading, forbidden } = useAuth({ permission: "agents.manage" });
   const toast = useToast();
   const [profiles, setProfiles] = useState<AgentProfile[]>([]);
   const [templates, setTemplates] = useState<IndustryTemplate[]>([]);
@@ -138,6 +139,14 @@ export default function AgentsPage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

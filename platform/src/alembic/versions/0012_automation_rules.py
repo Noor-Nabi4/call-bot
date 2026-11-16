@@ -16,7 +16,9 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         "automation_rules",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
+        sa.Column(
+            "id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False
+        ),
         sa.Column(
             "tenant_id",
             postgresql.UUID(as_uuid=True),
@@ -55,9 +57,7 @@ def upgrade() -> None:
             "tenant_id", "name", name="uq_automation_rules_tenant_name"
         ),
     )
-    op.create_index(
-        "ix_automation_rules_tenant_id", "automation_rules", ["tenant_id"]
-    )
+    op.create_index("ix_automation_rules_tenant_id", "automation_rules", ["tenant_id"])
     op.create_index(
         "ix_automation_rules_tenant_trigger",
         "automation_rules",
@@ -66,8 +66,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_automation_rules_tenant_trigger", table_name="automation_rules"
-    )
+    op.drop_index("ix_automation_rules_tenant_trigger", table_name="automation_rules")
     op.drop_index("ix_automation_rules_tenant_id", table_name="automation_rules")
     op.drop_table("automation_rules")

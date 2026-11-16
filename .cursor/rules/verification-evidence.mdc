@@ -1,0 +1,29 @@
+---
+description: Honest verification statuses — never fabricate staging/prod evidence
+alwaysApply: true
+---
+
+# Verification Evidence
+
+Only claim what was actually executed in a real environment.
+
+## Allowed statuses
+
+`VERIFIED` | `NOT VERIFIED` | `NOT EXECUTED` | `NOT AVAILABLE` | `BLOCKED`
+
+## Forbidden
+
+- Marking staging/prod **VERIFIED** from local pytest alone
+- Treating fake/mock provider tests as live Twilio/LiveKit/Stripe verification
+- Publishing local RTO/RPO as production disaster-recovery numbers
+- Inventing load-test p50/p95/p99/RPS or EXPLAIN results
+- Touching production DBs for restore, EXPLAIN, or destructive provider drills
+
+## When infrastructure is missing
+
+```text
+STATUS = NOT AVAILABLE
+REASON = <what credential/fleet is missing>
+```
+
+Update `docs/PRODUCTION_READINESS.md` with evidence and environment columns. Prefer documenting gaps over speculative architecture changes.

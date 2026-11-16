@@ -6,11 +6,17 @@ from typing import Any
 from uuid import UUID
 
 import pytest
+from helpers import make_phone
+from provisioning_helpers import connect_and_provision, purchase_and_provision
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from callbot_platform.config import Settings
-from callbot_platform.db.models import Tenant, TenantPhoneNumber, TelephonyIdempotencyKey
+from callbot_platform.db.models import (
+    TelephonyIdempotencyKey,
+    Tenant,
+    TenantPhoneNumber,
+)
 from callbot_platform.domain.enums import ConnectionStatus, VerificationStatus
 from callbot_platform.security.crypto import CredentialCipher
 from callbot_platform.security.metadata import MetadataSigner
@@ -25,9 +31,11 @@ from callbot_platform.telephony.services.connect_existing import (
     ConnectExistingError,
     ConnectExistingService,
 )
-from callbot_platform.telephony.services.purchase import PlatformPurchaseService, PurchaseError
+from callbot_platform.telephony.services.purchase import (
+    PlatformPurchaseService,
+    PurchaseError,
+)
 from callbot_platform.telephony.services.verification import DbNumberVerificationService
-from helpers import make_phone
 
 
 class FakeLiveKit:
@@ -40,7 +48,7 @@ class FakeLiveKit:
     def create_livekit_inbound_trunk(
         self, *, name: str, numbers: list[str], metadata: str | None = None
     ) -> LiveKitInboundTrunkInfo:
-        trunk_id = f"ST_{len(self.trunks)+1}"
+        trunk_id = f"ST_{len(self.trunks) + 1}"
         self.trunks.append(trunk_id)
         return LiveKitInboundTrunkInfo(trunk_id=trunk_id, name=name, numbers=numbers)
 
@@ -56,7 +64,7 @@ class FakeLiveKit:
         trunk_ids: list[str],
         room_prefix: str = "call-",
     ) -> LiveKitDispatchRuleInfo:
-        rule_id = f"SDR_{len(self.rules)+1}"
+        rule_id = f"SDR_{len(self.rules) + 1}"
         self.rules.append(rule_id)
         return LiveKitDispatchRuleInfo(dispatch_rule_id=rule_id, name=name)
 
@@ -136,8 +144,17 @@ def test_connect_existing_registers_and_creates_livekit(
     session: Session, tenant: Tenant, signer: MetadataSigner
 ) -> None:
     lk = FakeLiveKit()
-    service = ConnectExistingService(session, _settings(), lk, signer)  # type: ignore[arg-type]
-    result = service.start(tenant_id=tenant.id, phone_number="+1 555 111 2222")
+    settings = _settings()
+    service = ConnectExistingService(session, settings, lk, signer)  # type: ignore[arg-type]
+    result = connect_and_provision(
+        session,
+        service,
+        settings,
+        tenant_id=tenant.id,
+        phone_number="+1 555 111 2222",
+        livekit=lk,
+        signer=signer,
+    )
     phone = result["phone_number"]
     assert phone["e164"] == "+15551112222"
     assert phone["livekit_inbound_trunk_id"]
@@ -160,8 +177,17 @@ def test_verification_flow(
     session: Session, tenant: Tenant, signer: MetadataSigner
 ) -> None:
     lk = FakeLiveKit()
-    connect = ConnectExistingService(session, _settings(), lk, signer)  # type: ignore[arg-type]
-    started = connect.start(tenant_id=tenant.id, phone_number="+15553334444")
+    settings = _settings()
+    connect = ConnectExistingService(session, settings, lk, signer)  # type: ignore[arg-type]
+    started = connect_and_provision(
+        session,
+        connect,
+        settings,
+        tenant_id=tenant.id,
+        phone_number="+15553334444",
+        livekit=lk,
+        signer=signer,
+    )
     phone_id = UUID(started["phone_number"]["id"])
     connect.confirm_trunk(
         tenant_id=tenant.id, phone_number_id=phone_id, twilio_trunk_sid="TKabc"
@@ -218,21 +244,25 @@ def test_idempotent_purchase(
     cipher: CredentialCipher,
 ) -> None:
     provisioning = FakeProvisioning()
-    service = PlatformPurchaseService(
+    settings = _settings()
+    deps = {
+        "cipher": cipher,
+        "signer": signer,
+        "inventory": FakeInventory(),
+        "provisioning": provisioning,
+        "twilio_sip": FakeTwilioSip(),
+        "livekit": FakeLiveKit(),
+    }
+    service = PlatformPurchaseService(session, settings, **deps)  # type: ignore[arg-type]
+    first = purchase_and_provision(
         session,
-        _settings(),
-        cipher=cipher,
-        signer=signer,
-        inventory=FakeInventory(),  # type: ignore[arg-type]
-        provisioning=provisioning,  # type: ignore[arg-type]
-        twilio_sip=FakeTwilioSip(),  # type: ignore[arg-type]
-        livekit=FakeLiveKit(),  # type: ignore[arg-type]
-    )
-    first = service.purchase(
+        service,
+        settings,
         tenant_id=tenant.id,
         phone_number="+15559876543",
         confirm=True,
         idempotency_key="same-key",
+        deps=deps,
     )
     second = service.purchase(
         tenant_id=tenant.id,
@@ -240,7 +270,7 @@ def test_idempotent_purchase(
         confirm=True,
         idempotency_key="same-key",
     )
-    assert first == second
+    assert first["phone_number"]["id"] == second["phone_number"]["id"]
     assert len(provisioning.purchases) == 1
 
 
@@ -252,22 +282,26 @@ def test_failed_purchase_not_blindly_retried(
 ) -> None:
     provisioning = FakeProvisioning()
     provisioning.fail_next = True
-    service = PlatformPurchaseService(
-        session,
-        _settings(),
-        cipher=cipher,
-        signer=signer,
-        inventory=FakeInventory(),  # type: ignore[arg-type]
-        provisioning=provisioning,  # type: ignore[arg-type]
-        twilio_sip=FakeTwilioSip(),  # type: ignore[arg-type]
-        livekit=FakeLiveKit(),  # type: ignore[arg-type]
-    )
+    settings = _settings()
+    deps = {
+        "cipher": cipher,
+        "signer": signer,
+        "inventory": FakeInventory(),
+        "provisioning": provisioning,
+        "twilio_sip": FakeTwilioSip(),
+        "livekit": FakeLiveKit(),
+    }
+    service = PlatformPurchaseService(session, settings, **deps)  # type: ignore[arg-type]
     with pytest.raises(PurchaseError) as exc:
-        service.purchase(
+        purchase_and_provision(
+            session,
+            service,
+            settings,
             tenant_id=tenant.id,
             phone_number="+15557654321",
             confirm=True,
             idempotency_key="fail-key",
+            deps=deps,
         )
     assert exc.value.code == "partial_provisioning"
     # Blind retry with same key refused
@@ -280,9 +314,7 @@ def test_failed_purchase_not_blindly_retried(
         )
     assert exc2.value.code == "failed_purchase_not_retryable"
     row = session.scalar(
-        select(TelephonyIdempotencyKey).where(
-            TelephonyIdempotencyKey.key == "fail-key"
-        )
+        select(TelephonyIdempotencyKey).where(TelephonyIdempotencyKey.key == "fail-key")
     )
     assert row is not None
     assert row.status == "failed"
@@ -304,6 +336,7 @@ def test_inventory_mapping(
         twilio_sip=FakeTwilioSip(),  # type: ignore[arg-type]
         livekit=FakeLiveKit(),  # type: ignore[arg-type]
     )
+    service.ensure_subaccount(tenant_id=tenant.id)
     items = service.search_inventory(tenant_id=tenant.id, country="US")
     assert items[0]["e164"] == "+15559876543"
     assert items[0]["monthly_price"] == "1.15"
@@ -335,9 +368,7 @@ def test_release_authorization_path_a_denied(
     assert exc.value.code == "release_not_allowed"
 
 
-def test_tenant_isolation_on_verification(
-    session: Session, tenant: Tenant
-) -> None:
+def test_tenant_isolation_on_verification(session: Session, tenant: Tenant) -> None:
     other = Tenant(name="Other", slug="other")
     session.add(other)
     session.flush()
@@ -349,6 +380,4 @@ def test_tenant_isolation_on_verification(
     )
     verification = DbNumberVerificationService(session)
     with pytest.raises(Exception):
-        verification.start_verification(
-            tenant_id=other.id, phone_number_id=phone.id
-        )
+        verification.start_verification(tenant_id=other.id, phone_number_id=phone.id)

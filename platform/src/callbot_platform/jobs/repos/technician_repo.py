@@ -51,8 +51,22 @@ class TechnicianRepository:
         tech_id = user.get("technician_id")
         if not tech_id:
             raise JobsError("tech_create_failed", "Technician profile was not created")
-        tech = self._session.get(Technician, UUID(tech_id))
-        assert tech is not None
+        tech = self._session.scalar(
+            select(Technician).where(
+                Technician.id == UUID(tech_id),
+                Technician.tenant_id == tenant_id,
+            )
+        )
+        if tech is None:
+            raise JobsError("tech_create_failed", "Technician profile was not created")
+        from callbot_platform.crm.dispatch.status import TechnicianStatusService
+
+        TechnicianStatusService(self._session).ensure_row(
+            tenant_id,
+            tech.id,
+            actor=actor,
+            initial_status="AVAILABLE" if tech.is_active else "OFFLINE",
+        )
         return self._serialize(tech)
 
     def update_location(

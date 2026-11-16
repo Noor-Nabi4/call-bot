@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 from collections.abc import Callable, Generator
 from dataclasses import dataclass
 from typing import Any
@@ -31,6 +32,11 @@ from callbot_platform.telephony.services.connect_existing import ConnectExisting
 from callbot_platform.telephony.services.purchase import PlatformPurchaseService
 from callbot_platform.telephony.services.resolver import DbTenantDidResolver
 from callbot_platform.telephony.services.verification import DbNumberVerificationService
+from callbot_platform.tenancy import (
+    TenantContext,
+    TenantSource,
+    set_tenant_context,
+)
 
 _API_KEY_LIMITER = SlidingWindowRateLimiter(max_requests=120, window_sec=60.0)
 
@@ -82,15 +88,40 @@ def db_dep() -> Generator[Session, None, None]:
     yield from get_db()
 
 
+def _constant_time_token_eq(provided: str | None, expected: str) -> bool:
+    """Compare secrets without early length short-circuit in application code."""
+    a = (provided or "").encode("utf-8")
+    b = expected.encode("utf-8")
+    if len(a) != len(b):
+        hmac.compare_digest(b, b)
+        return False
+    return hmac.compare_digest(a, b)
+
+
 def require_internal_token(
     settings: Settings = Depends(settings_dep),
     x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
 ) -> None:
     expected = settings.internal_service_token
     if not expected:
-        raise HTTPException(status_code=500, detail="INTERNAL_SERVICE_TOKEN not configured")
-    if not x_internal_token or x_internal_token != expected:
+        raise HTTPException(
+            status_code=500, detail="INTERNAL_SERVICE_TOKEN not configured"
+        )
+    if not _constant_time_token_eq(x_internal_token, expected):
         raise HTTPException(status_code=401, detail="Invalid internal service token")
+
+
+def require_platform_operator(
+    settings: Settings = Depends(settings_dep),
+    x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
+) -> None:
+    """Platform security boundary (Call & Flow operators only).
+
+    Organization Owner / Admin / any tenant session is NEVER sufficient.
+    Today this is the internal service token; future platform RBAC must remain
+    outside organization role templates (see PLATFORM_PERMISSION_KEYS).
+    """
+    require_internal_token(settings=settings, x_internal_token=x_internal_token)
 
 
 def require_tenant_user(
@@ -117,7 +148,7 @@ def require_tenant_user(
     user = AuthRepository(session).get_user(tenant_id, user_id)
     if user is None:
         raise HTTPException(status_code=401, detail="User not found or inactive")
-    return CurrentUser(
+    current = CurrentUser(
         user_id=user_id,
         tenant_id=tenant_id,
         role=user["role"],
@@ -129,6 +160,10 @@ def require_tenant_user(
             UUID(user["technician_id"]) if user.get("technician_id") else None
         ),
     )
+    set_tenant_context(
+        TenantContext(tenant_id=current.tenant_id, source=TenantSource.SESSION)
+    )
+    return current
 
 
 def require_api_key(
@@ -151,11 +186,17 @@ def require_api_key(
             status_code=401,
             detail={"code": "unauthorized", "message": "Invalid API key"},
         )
+    from callbot_platform.onboarding.access import assert_onboarding_satisfied
+
+    assert_onboarding_satisfied(session, row.tenant_id)
     principal = ApiKeyPrincipal(
         key_id=row.id,
         tenant_id=row.tenant_id,
         scopes=frozenset(row.scopes or []),
         name=row.name,
+    )
+    set_tenant_context(
+        TenantContext(tenant_id=principal.tenant_id, source=TenantSource.API_KEY)
     )
     try:
         _API_KEY_LIMITER.check(str(row.id))
@@ -169,9 +210,15 @@ def require_api_key(
 
 
 def require_ops_roles(*roles: str) -> Callable[..., CurrentUser]:
+    """Deprecated legacy JWT-role gate.
+
+    Task 1.3.1: do not use for authorization. Prefer
+    ``require_permission`` / ``require_entitled_permission``.
+    Kept only so accidental imports fail loudly at review time via audit docs.
+    """
     allowed = frozenset(roles)
 
-    def _dep(user: CurrentUser = Depends(require_tenant_user)) -> CurrentUser:
+    def _dep(user: CurrentUser = Depends(require_tenant_user)) -> CurrentUser:  # noqa: B008
         if user.role not in allowed:
             raise HTTPException(status_code=403, detail="Insufficient role")
         return user
@@ -179,17 +226,83 @@ def require_ops_roles(*roles: str) -> Callable[..., CurrentUser]:
     return _dep
 
 
+def require_permission(
+    permission_key: str,
+    *,
+    allow_incomplete_onboarding: bool = False,
+) -> Callable[..., CurrentUser]:
+    """Session-scoped permission check (RBAC). Entitlement not required here.
+
+    By default, access requires COMPLETED business onboarding AND an eligible
+    inbound phone number. Pass ``allow_incomplete_onboarding=True`` for
+    onboarding/billing/phone-setup/auth endpoints only.
+    """
+
+    def _dep(
+        user: CurrentUser = Depends(require_tenant_user),  # noqa: B008
+        session: Session = Depends(db_dep),  # noqa: B008
+    ) -> CurrentUser:
+        from callbot_platform.onboarding.access import assert_onboarding_satisfied
+        from callbot_platform.rbac.errors import RbacError
+        from callbot_platform.rbac.service import AuthorizationService
+
+        try:
+            AuthorizationService(session).require_permission(
+                user.tenant_id, user.user_id, permission_key
+            )
+        except RbacError as exc:
+            raise HTTPException(
+                status_code=403,
+                detail={"code": exc.code, "message": str(exc)},
+            ) from exc
+        if not allow_incomplete_onboarding:
+            assert_onboarding_satisfied(session, user.tenant_id)
+        return user
+
+    return _dep
+
+
+def require_entitled_permission(
+    permission_key: str,
+    *,
+    allow_incomplete_onboarding: bool = False,
+) -> Callable[..., CurrentUser]:
+    perm_dep = require_permission(
+        permission_key,
+        allow_incomplete_onboarding=allow_incomplete_onboarding,
+    )
+
+    def _dep(
+        user: CurrentUser = Depends(perm_dep),  # noqa: B008
+        session: Session = Depends(db_dep),  # noqa: B008
+        settings: Settings = Depends(settings_dep),  # noqa: B008
+    ) -> CurrentUser:
+        from callbot_platform.billing.service import BillingService
+
+        if not BillingService(session, settings).tenant_is_entitled(user.tenant_id):
+            raise HTTPException(
+                status_code=402,
+                detail={
+                    "code": "subscription_required",
+                    "message": "An active subscription is required. Complete billing setup.",
+                },
+            )
+        return user
+
+    return _dep
+
+
 def require_entitled_ops_roles(*roles: str) -> Callable[..., CurrentUser]:
-    """Ops role check that also requires an active/trialing SaaS subscription.
+    """Deprecated. Prefer ``require_entitled_permission``.
 
     Legacy tenants with no subscription row remain entitled when tenant.status is active.
     """
     role_dep = require_ops_roles(*roles)
 
     def _dep(
-        user: CurrentUser = Depends(role_dep),
-        session: Session = Depends(db_dep),
-        settings: Settings = Depends(settings_dep),
+        user: CurrentUser = Depends(role_dep),  # noqa: B008
+        session: Session = Depends(db_dep),  # noqa: B008
+        settings: Settings = Depends(settings_dep),  # noqa: B008
     ) -> CurrentUser:
         from callbot_platform.billing.service import BillingService
 
@@ -213,6 +326,7 @@ def require_entitled_tenant_user(
 ) -> CurrentUser:
     """Any authenticated tenant user with an entitled subscription."""
     from callbot_platform.billing.service import BillingService
+    from callbot_platform.onboarding.access import assert_onboarding_satisfied
 
     if not BillingService(session, settings).tenant_is_entitled(user.tenant_id):
         raise HTTPException(
@@ -222,6 +336,7 @@ def require_entitled_tenant_user(
                 "message": "An active subscription is required. Complete billing setup.",
             },
         )
+    assert_onboarding_satisfied(session, user.tenant_id)
     return user
 
 

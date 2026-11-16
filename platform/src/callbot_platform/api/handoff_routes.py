@@ -12,18 +12,26 @@ from sqlalchemy.orm import Session
 from callbot_platform.api.deps import (
     CurrentUser,
     db_dep,
+    require_entitled_permission,
     require_internal_token,
-    require_entitled_ops_roles,
 )
 from callbot_platform.domain.phone import PhoneNumberError
 from callbot_platform.handoff.repos import HandoffError, HandoffRepository
-from callbot_platform.security.session import ROLE_ADMIN, ROLE_DISPATCHER
+from callbot_platform.rbac.ai_auth import require_ai_tool_permission
+from callbot_platform.security.call_scope import (
+    CallScope,
+    enforce_body_tenant,
+    optional_or_required_call_scope,
+)
 
 internal_router = APIRouter(
     prefix="/internal/handoff",
     dependencies=[Depends(require_internal_token)],
 )
 ops_router = APIRouter(prefix="/api/handoff")
+
+_require_handoff_read = require_entitled_permission("handoff.read")
+_require_handoff_manage = require_entitled_permission("handoff.manage")
 
 
 class UpsertBody(BaseModel):
@@ -49,15 +57,20 @@ def _http(exc: Exception) -> HTTPException:
 
 @internal_router.get("/{tenant_id}")
 def get_internal(
-    tenant_id: UUID, session: Session = Depends(db_dep)
+    tenant_id: UUID,
+    session: Session = Depends(db_dep),  # noqa: B008
+    scope: CallScope | None = Depends(optional_or_required_call_scope),  # noqa: B008
 ) -> dict[str, Any]:
+    if scope is not None:
+        enforce_body_tenant(scope, tenant_id)
+    require_ai_tool_permission(session, tenant_id, "handoff")
     return {"settings": HandoffRepository(session).get(tenant_id)}
 
 
 @ops_router.get("")
 def get_ops(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_handoff_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     return {"settings": HandoffRepository(session).get(user.tenant_id)}
 
@@ -65,8 +78,8 @@ def get_ops(
 @ops_router.put("")
 def put_ops(
     body: UpsertBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN, ROLE_DISPATCHER)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_handoff_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         settings = HandoffRepository(session).upsert(

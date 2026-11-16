@@ -9,9 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from callbot_platform.api.deps import CurrentUser, db_dep, require_entitled_ops_roles
+from callbot_platform.api.deps import CurrentUser, db_dep, require_entitled_permission
 from callbot_platform.automation.service import AutomationError, AutomationService
-from callbot_platform.security.session import ROLE_ADMIN
+
+_require_automations_read = require_entitled_permission("automations.read")
+_require_automations_manage = require_entitled_permission("automations.manage")
 
 router = APIRouter(prefix="/api/admin/automations", tags=["automations"])
 
@@ -51,8 +53,8 @@ def _http(exc: Exception) -> HTTPException:
 
 @router.get("/catalog")
 def catalog(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_automations_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     _ = user
     return AutomationService(session).catalog()
@@ -60,8 +62,8 @@ def catalog(
 
 @router.get("")
 def list_rules(
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_automations_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     service = AutomationService(session)
     return {"rules": service.list_rules(user.tenant_id), "catalog": service.catalog()}
@@ -70,8 +72,8 @@ def list_rules(
 @router.post("")
 def create_rule(
     body: RuleBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_automations_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         rule = AutomationService(session).create_rule(
@@ -93,8 +95,8 @@ def create_rule(
 def update_rule(
     rule_id: UUID,
     body: RuleUpdateBody,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_automations_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, Any]:
     try:
         rule = AutomationService(session).update_rule(
@@ -116,8 +118,8 @@ def update_rule(
 @router.delete("/{rule_id}")
 def delete_rule(
     rule_id: UUID,
-    user: CurrentUser = Depends(require_entitled_ops_roles(ROLE_ADMIN)),
-    session: Session = Depends(db_dep),
+    user: CurrentUser = Depends(_require_automations_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
 ) -> dict[str, bool]:
     try:
         AutomationService(session).delete_rule(

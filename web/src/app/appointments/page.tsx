@@ -10,6 +10,7 @@ import { safeUserError } from "@/lib/safe-error";
 import {
   EmptyState,
   ErrorState,
+  ForbiddenState,
   FilterBar,
   LoadingSkeleton,
   PageHeader,
@@ -49,7 +50,7 @@ function dayKey(iso?: string | null): string {
 }
 
 export default function AppointmentsPage() {
-  const { user, loading } = useAuth({ roles: ["admin", "dispatcher"] });
+  const { user, loading, forbidden } = useAuth({ permission: "appointments.read" });
   const [rows, setRows] = useState<Appointment[]>([]);
   const [customers, setCustomers] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
@@ -143,6 +144,14 @@ export default function AppointmentsPage() {
       <div className="p-6">
         <LoadingSkeleton rows={6} />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <AppShell user={user}>
+        <ForbiddenState />
+      </AppShell>
     );
   }
 

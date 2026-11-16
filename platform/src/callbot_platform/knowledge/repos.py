@@ -61,13 +61,23 @@ class KnowledgeRepository:
         self._session = session
 
     def list(
-        self, tenant_id: UUID, *, active_only: bool = False
+        self,
+        tenant_id: UUID,
+        *,
+        active_only: bool = False,
+        limit: int = 200,
+        offset: int = 0,
     ) -> list[dict[str, Any]]:
+        from callbot_platform.db.pagination import PageParams
+
+        page = PageParams.parse(limit=limit, offset=offset, default_limit=200)
         q = select(KnowledgeArticle).where(KnowledgeArticle.tenant_id == tenant_id)
         if active_only:
             q = q.where(KnowledgeArticle.is_active.is_(True))
         rows = self._session.scalars(
             q.order_by(KnowledgeArticle.category, KnowledgeArticle.title)
+            .offset(page.offset)
+            .limit(page.limit)
         ).all()
         return [self._serialize(r) for r in rows]
 

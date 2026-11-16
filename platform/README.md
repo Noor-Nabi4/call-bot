@@ -81,6 +81,21 @@ Rates are configured via `COGS_*` env vars (see `.env.example`). OpenAI cost pre
 
 Ops: `/settings/billing` shows usage; `/settings/team` manages invite / role / deactivate.
 
+Organization membership (same `tenant_users` rows; no duplicate members table):
+
+- `GET|POST /api/admin/organization/members`
+- `GET|PATCH /api/admin/organization/members/{id}`
+
+Session-scoped. Status: `active` | `invited` | `disabled` (synced with `is_active` for login).
+
+Organization RBAC (Task 1.3 — see `docs/RBAC_ARCHITECTURE.md`):
+
+- `GET /api/admin/organization/permissions`
+- `GET|POST /api/admin/organization/roles`, `GET|PATCH|DELETE .../roles/{id}`
+- `GET|POST /api/admin/organization/members/{id}/roles`, `DELETE .../roles/{role_id}`
+
+`tenant_users.role` remains for JWT/UI compatibility; `member_roles` is authoritative for permissions. Scoped grants fail closed without `ResourceContext`. Route gates use `require_permission` / `require_entitled_permission`. AI voice tools require the org **AI Agent** role permissions.
+
 Plans are **not** registered as Stripe Products/Prices. Checkout uses inline `price_data` from `billing/plans.py`. Only `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` are required.
 
 Set `SESSION_SECRET` and `OPS_CORS_ORIGINS` (local `http://localhost:3002`; production `https://callandflow.com,https://www.callandflow.com`).
@@ -93,7 +108,8 @@ Configure Stripe (platform account):
 
 Do **not** reuse Stripe Connect keys here. Tenant merchant payments (Phase 6) are separate.
 
-`POST /tenants` requires `X-Internal-Token`. Public onboarding uses `/auth/signup`.
+- Tenant organization profile: `GET|PATCH /api/admin/organization` (admin session; extends `tenants`, not a second org table)
+- `POST /tenants` requires `X-Internal-Token`. Public onboarding uses `/auth/signup`.
 
 Session-authenticated ops API (`/api/...`):
 

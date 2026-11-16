@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from callbot_platform.api.deps import db_dep, require_internal_token
+from callbot_platform.config import get_settings
 from callbot_platform.crm.repos import (
     AgentProfileRepository,
     AgentSettingsRepository,
@@ -21,6 +22,14 @@ from callbot_platform.crm.repos import (
 )
 from callbot_platform.db.models import Tenant
 from callbot_platform.domain.phone import PhoneNumberError
+from callbot_platform.rbac.ai_auth import require_ai_tool_permission
+from callbot_platform.security.call_scope import (
+    CallScope,
+    CallScopeSigner,
+    enforce_body_call,
+    enforce_body_tenant,
+    optional_or_required_call_scope,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -44,14 +53,19 @@ class UpsertCustomerBody(BaseModel):
 
 
 class CreateLeadBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
     tenant_id: UUID
-    customer_id: UUID
     service_type: str
+    customer_id: UUID | None = None
     urgency: str = "normal"
     notes: str | None = None
     preferred_time_window: str | None = None
     call_id: UUID | None = None
     idempotency_key: str | None = None
+    prospect_name: str | None = None
+    prospect_phone: str | None = None
+    prospect_email: str | None = None
 
 
 class CallStartBody(BaseModel):
@@ -140,7 +154,14 @@ def _http_error(exc: Exception) -> HTTPException:
 
 
 @router.post("/customers/lookup")
-def lookup_customer(body: LookupBody, session: Session = Depends(db_dep)) -> dict:
+def lookup_customer(
+    body: LookupBody,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
+) -> dict:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
+    require_ai_tool_permission(session, body.tenant_id, "crm")
     try:
         result = CustomerRepository(session).lookup_by_phone(body.tenant_id, body.phone)
         if result is None:
@@ -152,8 +173,13 @@ def lookup_customer(body: LookupBody, session: Session = Depends(db_dep)) -> dic
 
 @router.post("/customers/upsert")
 def upsert_customer(
-    body: UpsertCustomerBody, session: Session = Depends(db_dep)
+    body: UpsertCustomerBody,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
 ) -> dict:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
+    require_ai_tool_permission(session, body.tenant_id, "crm")
     try:
         customer = CustomerRepository(session).upsert(
             body.tenant_id,
@@ -168,7 +194,16 @@ def upsert_customer(
 
 
 @router.post("/leads")
-def create_lead(body: CreateLeadBody, session: Session = Depends(db_dep)) -> dict:
+def create_lead(
+    body: CreateLeadBody,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
+) -> dict:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
+        if body.call_id is not None:
+            enforce_body_call(scope, body.call_id)
+    require_ai_tool_permission(session, body.tenant_id, "crm")
     try:
         lead = LeadRepository(session).create(
             body.tenant_id,
@@ -179,6 +214,9 @@ def create_lead(body: CreateLeadBody, session: Session = Depends(db_dep)) -> dic
             preferred_time_window=body.preferred_time_window,
             call_id=body.call_id,
             idempotency_key=body.idempotency_key,
+            prospect_name=body.prospect_name,
+            prospect_phone=body.prospect_phone,
+            prospect_email=body.prospect_email,
         )
         return {"lead": lead}
     except Exception as exc:
@@ -201,7 +239,13 @@ def get_lead(
 
 
 @router.post("/calls/start")
-def call_start(body: CallStartBody, session: Session = Depends(db_dep)) -> dict:
+def call_start(
+    body: CallStartBody,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
+) -> dict:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
     try:
         call = CallRepository(session).start(
             body.tenant_id,
@@ -213,13 +257,29 @@ def call_start(body: CallStartBody, session: Session = Depends(db_dep)) -> dict:
             telephony_provider=body.telephony_provider,
             provider_call_id=body.provider_call_id,
         )
-        return {"call": call}
+        settings = get_settings()
+        call_scope_token = None
+        if settings.metadata_hmac_secret:
+            call_scope_token = CallScopeSigner(settings.metadata_hmac_secret).issue(
+                tenant_id=body.tenant_id,
+                call_id=UUID(call["id"]),
+                room_name=body.room_name,
+                ttl_seconds=settings.call_scope_ttl_seconds,
+            )
+        return {"call": call, "call_scope": call_scope_token}
     except Exception as exc:
         raise _http_error(exc) from exc
 
 
 @router.post("/calls/end")
-def call_end(body: CallEndBody, session: Session = Depends(db_dep)) -> dict:
+def call_end(
+    body: CallEndBody,
+    session: Session = Depends(db_dep),
+    scope: CallScope | None = Depends(optional_or_required_call_scope),
+) -> dict:
+    if scope is not None:
+        enforce_body_tenant(scope, body.tenant_id)
+        enforce_body_call(scope, body.call_id)
     try:
         call = CallRepository(session).end(
             body.tenant_id,
@@ -230,6 +290,8 @@ def call_end(body: CallEndBody, session: Session = Depends(db_dep)) -> dict:
             customer_id=body.customer_id,
         )
         from callbot_platform.automation.service import AutomationService
+        from callbot_platform.automations.publishers import publish_call_completed
+        from uuid import UUID as _UUID
 
         automation = AutomationService(session)
         payload = {
@@ -238,6 +300,14 @@ def call_end(body: CallEndBody, session: Session = Depends(db_dep)) -> dict:
             "status": call.get("status"),
             "disconnect_reason": call.get("disconnect_reason"),
         }
+        publish_call_completed(
+            session,
+            tenant_id=body.tenant_id,
+            call_id=_UUID(str(call["id"])),
+            customer_id=(
+                _UUID(str(call["customer_id"])) if call.get("customer_id") else None
+            ),
+        )
         fired = automation.dispatch(body.tenant_id, "call.ended", payload=payload)
         metrics = body.metrics if isinstance(body.metrics, dict) else {}
         if metrics.get("handoff_requested"):

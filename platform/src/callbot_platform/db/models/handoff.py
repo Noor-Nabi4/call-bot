@@ -74,6 +74,15 @@ class TenantRetentionSettings(Base):
     transcript_retention_days: Mapped[int] = mapped_column(
         Integer, nullable=False, default=90
     )
+    analysis_retention_days: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=90
+    )
+    recording_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
+    transcription_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True
+    )
     audit_retention_days: Mapped[int] = mapped_column(
         Integer, nullable=False, default=365
     )

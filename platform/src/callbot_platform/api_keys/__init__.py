@@ -53,13 +53,7 @@ class ApiKeyRepository:
         except ValueError as exc:
             raise ApiKeyError("invalid_scopes", str(exc)) from exc
 
-        active_count = len(
-            [
-                k
-                for k in self.list_keys(tenant_id)
-                if k["is_active"]
-            ]
-        )
+        active_count = len([k for k in self.list_keys(tenant_id) if k["is_active"]])
         if active_count >= 20:
             raise ApiKeyError("key_limit", "At most 20 active API keys per tenant")
 

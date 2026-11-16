@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "0005_knowledge"
 down_revision = "0004_jobs_auth"
@@ -30,7 +31,9 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
     )
-    op.create_index("ix_knowledge_articles_tenant_id", "knowledge_articles", ["tenant_id"])
+    op.create_index(
+        "ix_knowledge_articles_tenant_id", "knowledge_articles", ["tenant_id"]
+    )
     op.create_index(
         "ix_knowledge_articles_tenant_active",
         "knowledge_articles",

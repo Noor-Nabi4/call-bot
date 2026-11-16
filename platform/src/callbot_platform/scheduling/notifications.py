@@ -1,4 +1,4 @@
-"""Booking confirmation notifications: Twilio SMS + email outbox."""
+"""Booking confirmation notifications: enqueue-only outbox (no I/O in TX)."""
 
 from __future__ import annotations
 
@@ -59,6 +59,8 @@ def _confirmation_body(
 
 
 class NotificationService:
+    """Enqueue SMS/email into notification_outbox. Delivery is worker-only."""
+
     def __init__(
         self,
         session: Session,
@@ -68,6 +70,7 @@ class NotificationService:
     ) -> None:
         self._session = session
         self._settings = settings or get_settings()
+        # Kept for tests that inject senders into the worker path; unused in enqueue.
         self._sms_sender = sms_sender
 
     def send_appointment_notifications(
@@ -91,11 +94,12 @@ class NotificationService:
         phone = self._primary_phone(appointment.tenant_id, customer.id)
         if phone:
             results.append(
-                self._enqueue_and_maybe_send_sms(
+                self.enqueue_sms(
                     tenant_id=appointment.tenant_id,
                     appointment_id=appointment.id,
                     to_address=phone,
                     body=body,
+                    idempotency_key=f"sms:{appointment.id}:{action}",
                 )
             )
         else:
@@ -108,22 +112,14 @@ class NotificationService:
             )
 
         if customer.email:
-            row = NotificationOutbox(
-                tenant_id=appointment.tenant_id,
-                appointment_id=appointment.id,
-                channel="email",
-                to_address=customer.email,
-                body=body,
-                status="pending",
-            )
-            self._session.add(row)
-            self._session.flush()
             results.append(
-                {
-                    "channel": "email",
-                    "status": "pending",
-                    "outbox_id": str(row.id),
-                }
+                self.enqueue_email(
+                    tenant_id=appointment.tenant_id,
+                    appointment_id=appointment.id,
+                    to_address=customer.email,
+                    body=body,
+                    idempotency_key=f"email:{appointment.id}:{action}",
+                )
             )
         else:
             results.append(
@@ -135,6 +131,122 @@ class NotificationService:
             )
 
         return results
+
+    def enqueue_sms(
+        self,
+        *,
+        tenant_id: UUID,
+        to_address: str,
+        body: str,
+        appointment_id: UUID | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        return self._enqueue(
+            tenant_id=tenant_id,
+            appointment_id=appointment_id,
+            channel="sms",
+            to_address=to_address,
+            body=body,
+            idempotency_key=idempotency_key,
+        )
+
+    def enqueue_email(
+        self,
+        *,
+        tenant_id: UUID,
+        to_address: str,
+        body: str,
+        appointment_id: UUID | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        return self._enqueue(
+            tenant_id=tenant_id,
+            appointment_id=appointment_id,
+            channel="email",
+            to_address=to_address,
+            body=body,
+            idempotency_key=idempotency_key,
+        )
+
+    def enqueue_webhook(
+        self,
+        *,
+        tenant_id: UUID,
+        url: str,
+        event: str,
+        event_payload: dict[str, Any],
+        secret: str | None = None,
+        timeout_sec: float = 15.0,
+        rule_id: str | None = None,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        return self._enqueue(
+            tenant_id=tenant_id,
+            appointment_id=None,
+            channel="webhook",
+            to_address=url[:255],
+            body=event,
+            idempotency_key=idempotency_key,
+            payload={
+                "url": url,
+                "secret": secret,
+                "timeout_sec": timeout_sec,
+                "event": event,
+                "event_payload": event_payload,
+                "rule_id": rule_id,
+            },
+        )
+
+    def _enqueue(
+        self,
+        *,
+        tenant_id: UUID,
+        channel: str,
+        to_address: str,
+        body: str,
+        appointment_id: UUID | None,
+        idempotency_key: str | None,
+        payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if idempotency_key:
+            from sqlalchemy import select
+
+            existing = self._session.scalar(
+                select(NotificationOutbox).where(
+                    NotificationOutbox.tenant_id == tenant_id,
+                    NotificationOutbox.idempotency_key == idempotency_key,
+                )
+            )
+            if existing is not None:
+                return {
+                    "channel": channel,
+                    "status": existing.status,
+                    "outbox_id": str(existing.id),
+                    "idempotent": True,
+                }
+
+        row = NotificationOutbox(
+            tenant_id=tenant_id,
+            appointment_id=appointment_id,
+            channel=channel,
+            to_address=to_address,
+            body=body,
+            status="pending",
+            idempotency_key=idempotency_key,
+            payload=payload or {},
+            attempt_count=0,
+            next_attempt_at=datetime.now(UTC),
+        )
+        self._session.add(row)
+        self._session.flush()
+        if row.idempotency_key is None:
+            row.idempotency_key = str(row.id)
+            self._session.flush()
+        return {
+            "channel": channel,
+            "status": "pending",
+            "outbox_id": str(row.id),
+        }
 
     def _primary_phone(self, tenant_id: UUID, customer_id: UUID) -> str | None:
         from sqlalchemy import select
@@ -149,66 +261,22 @@ class NotificationService:
         )
         return row.e164 if row else None
 
-    def _enqueue_and_maybe_send_sms(
+    def send_sms_now(
         self,
         *,
         tenant_id: UUID,
-        appointment_id: UUID,
-        to_address: str,
+        to: str,
         body: str,
-    ) -> dict[str, Any]:
-        row = NotificationOutbox(
-            tenant_id=tenant_id,
-            appointment_id=appointment_id,
-            channel="sms",
-            to_address=to_address,
-            body=body,
-            status="pending",
-        )
-        self._session.add(row)
-        self._session.flush()
-
-        try:
-            sid = self._send_sms(tenant_id=tenant_id, to=to_address, body=body)
-        except Exception as exc:
-            logger.exception("sms_send_failed", extra={"tenant_id": str(tenant_id)})
-            row.status = "failed"
-            row.error = str(exc)[:500]
-            row.updated_at = datetime.now(UTC)
-            self._session.flush()
-            return {
-                "channel": "sms",
-                "status": "failed",
-                "outbox_id": str(row.id),
-                "error": row.error,
-            }
-
-        if sid is None:
-            row.status = "skipped"
-            row.error = "twilio_not_configured"
-            row.updated_at = datetime.now(UTC)
-            self._session.flush()
-            return {
-                "channel": "sms",
-                "status": "skipped",
-                "outbox_id": str(row.id),
-                "reason": "twilio_not_configured",
-            }
-
-        row.status = "sent"
-        row.provider_ref = sid
-        row.updated_at = datetime.now(UTC)
-        self._session.flush()
-        return {
-            "channel": "sms",
-            "status": "sent",
-            "outbox_id": str(row.id),
-            "provider_ref": sid,
-        }
-
-    def _send_sms(self, *, tenant_id: UUID, to: str, body: str) -> str | None:
+        idempotency_key: str | None = None,
+    ) -> str | None:
+        """Synchronous SMS for the outbox worker only — never call from request TX."""
         if self._sms_sender is not None:
-            return self._sms_sender(tenant_id=tenant_id, to=to, body=body)
+            return self._sms_sender(
+                tenant_id=tenant_id,
+                to=to,
+                body=body,
+                idempotency_key=idempotency_key,
+            )
 
         creds = self._resolve_twilio_creds(tenant_id)
         if creds is None:
@@ -217,7 +285,16 @@ class NotificationService:
         from twilio.rest import Client
 
         client = Client(account_sid, auth_token)
-        message = client.messages.create(to=to, from_=from_number, body=body)
+        # Pass Idempotency-Key when available so provider timeouts do not double-send.
+        try:
+            message = client.messages.create(
+                to=to,
+                from_=from_number,
+                body=body,
+                idempotency_key=idempotency_key,
+            )
+        except TypeError:
+            message = client.messages.create(to=to, from_=from_number, body=body)
         return message.sid
 
     def _resolve_twilio_creds(self, tenant_id: UUID) -> tuple[str, str, str] | None:

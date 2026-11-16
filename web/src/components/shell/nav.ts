@@ -1,117 +1,288 @@
 import {
+  Badge,
   Bot,
   BookOpen,
   Briefcase,
+  BriefcaseBusiness,
+  Building2,
   Calendar,
+  CalendarDays,
+  ChartNoAxesCombined,
+  CheckSquare,
+  ClipboardList,
   CreditCard,
+  Cpu,
+  FileText,
+  Folder,
+  Handshake,
+  HardHat,
+  Home,
+  Layers,
   LayoutDashboard,
   LayoutGrid,
+  ListOrdered,
+  MessageSquare,
+  Package,
+  Percent,
   Phone,
   PhoneCall,
   PhoneForwarded,
+  Receipt,
+  RotateCcw,
   Settings,
   Shield,
-  ListOrdered,
+  ShoppingCart,
   Store,
   KeyRound,
   Palette,
+  Sparkles,
+  Truck,
   Users,
+  UserPlus,
   Wrench,
-  BarChart3,
   Zap,
   CircleDollarSign,
+  Box,
+  Blocks,
+  type LucideIcon,
 } from "lucide-react";
 import type { OpsUser } from "@/lib/api";
+import {
+  filterNavByPermission,
+  isTechnicianShell,
+} from "@/lib/permissions";
+import type { CrmNavItem } from "@/lib/crm/use-crm-configuration";
+import {
+  AI_LEAVES,
+  ADMIN_LEAVES,
+  CRM_LEAVES,
+  NAV_SECTION_LABELS,
+  NAV_SECTION_ORDER,
+  WORK_LEAVES,
+  defaultOrgLeaves,
+  sectionsFromLeaves,
+  type NavLeaf,
+  type NavSectionId,
+} from "@/lib/nav-model";
+
+export type { NavSectionId };
 
 export type NavItem = {
   href: string;
   label: string;
-  icon: typeof LayoutGrid;
-  roles?: string[];
-  section?: "work" | "ai" | "admin";
+  icon: LucideIcon;
+  /** Effective permission key required to show this item (UX only). */
+  permission?: string;
+  /** Visual grouping only — never used as authorization. */
+  section?: NavSectionId;
 };
 
-const OPS_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, section: "work" },
-  { href: "/dispatch", label: "Dispatch", icon: LayoutGrid, section: "work" },
-  { href: "/customers", label: "Customers", icon: Users, section: "work" },
-  { href: "/live", label: "Live", icon: PhoneCall, section: "work" },
-  { href: "/supervisor", label: "Supervisor", icon: Shield, section: "work" },
-  { href: "/queue", label: "Queue", icon: ListOrdered, section: "work" },
-  { href: "/calls", label: "Calls", icon: Phone, section: "work" },
-  { href: "/appointments", label: "Appointments", icon: Calendar, section: "work" },
-  { href: "/metrics", label: "Metrics", icon: BarChart3, section: "work" },
-  {
-    href: "/playground",
-    label: "Playground",
-    icon: PhoneCall,
-    roles: ["admin"],
-    section: "ai",
-  },
-  { href: "/agents", label: "Agents", icon: Bot, roles: ["admin"], section: "ai" },
-  { href: "/marketplace", label: "Marketplace", icon: Store, roles: ["admin"], section: "ai" },
-  { href: "/phones", label: "Phones", icon: Phone, roles: ["admin"], section: "ai" },
-  { href: "/knowledge", label: "Knowledge", icon: BookOpen, section: "ai" },
-  { href: "/handoff", label: "Handoff", icon: PhoneForwarded, section: "ai" },
-  { href: "/settings", label: "Settings", icon: Settings, roles: ["admin"], section: "admin" },
-  {
-    href: "/settings/team",
-    label: "Team",
-    icon: Users,
-    roles: ["admin"],
-    section: "admin",
-  },
-  {
-    href: "/settings/billing",
-    label: "Billing",
-    icon: CreditCard,
-    roles: ["admin"],
-    section: "admin",
-  },
-  {
-    href: "/settings/cogs",
-    label: "COGS & Profitability",
-    icon: CircleDollarSign,
-    roles: ["admin"],
-    section: "admin",
-  },
-  {
-    href: "/settings/automations",
-    label: "Automations",
-    icon: Zap,
-    roles: ["admin"],
-    section: "admin",
-  },
-  {
-    href: "/settings/api-keys",
-    label: "API keys",
-    icon: KeyRound,
-    roles: ["admin"],
-    section: "admin",
-  },
-  {
-    href: "/settings/branding",
-    label: "Branding",
-    icon: Palette,
-    roles: ["admin"],
-    section: "admin",
-  },
-  { href: "/tech", label: "Tech", icon: Wrench, roles: ["admin"], section: "admin" },
-];
+export type NavSection = {
+  id: NavSectionId;
+  label: string;
+  icon: LucideIcon;
+  items: NavItem[];
+};
+
+const ICON_BY_NAME: Record<string, LucideIcon> = {
+  users: Users,
+  building: Building2,
+  "user-plus": UserPlus,
+  handshake: Handshake,
+  package: Package,
+  wrench: Wrench,
+  "shopping-cart": ShoppingCart,
+  briefcase: Briefcase,
+  calendar: Calendar,
+  "calendar-days": CalendarDays,
+  "briefcase-business": BriefcaseBusiness,
+  truck: Truck,
+  "file-text": FileText,
+  receipt: Receipt,
+  "credit-card": CreditCard,
+  cpu: Cpu,
+  badge: Badge,
+  phone: Phone,
+  "phone-call": PhoneCall,
+  "phone-forwarded": PhoneForwarded,
+  "message-square": MessageSquare,
+  "check-square": CheckSquare,
+  folder: Folder,
+  layers: Layers,
+  map: LayoutGrid,
+  "layout-grid": LayoutGrid,
+  "layout-dashboard": LayoutDashboard,
+  "hard-hat": HardHat,
+  home: Home,
+  "rotate-ccw": RotateCcw,
+  percent: Percent,
+  box: Box,
+  bot: Bot,
+  store: Store,
+  "book-open": BookOpen,
+  shield: Shield,
+  "list-ordered": ListOrdered,
+  chart: ChartNoAxesCombined,
+  settings: Settings,
+  "clipboard-list": ClipboardList,
+  sparkles: Sparkles,
+  zap: Zap,
+  "key-round": KeyRound,
+  blocks: Blocks,
+  palette: Palette,
+  "circle-dollar": CircleDollarSign,
+};
+
+export const NAV_SECTION_META: Record<
+  NavSectionId,
+  { label: string; icon: LucideIcon }
+> = {
+  work: { label: NAV_SECTION_LABELS.work, icon: LayoutDashboard },
+  crm: { label: NAV_SECTION_LABELS.crm, icon: BriefcaseBusiness },
+  ai: { label: NAV_SECTION_LABELS.ai, icon: Bot },
+  admin: { label: NAV_SECTION_LABELS.admin, icon: Settings },
+};
+
+export function iconForCrm(name?: string | null): LucideIcon {
+  if (!name) return Box;
+  return ICON_BY_NAME[name] || Box;
+}
+
+function leafToItem(leaf: NavLeaf): NavItem {
+  return {
+    href: leaf.href,
+    label: leaf.label,
+    icon: ICON_BY_NAME[leaf.icon] || Box,
+    permission: leaf.permission,
+    section: leaf.section,
+  };
+}
 
 const TECH_NAV: NavItem[] = [
-  { href: "/tech", label: "Jobs", icon: Briefcase },
+  { href: "/tech", label: "Jobs", icon: Briefcase, permission: "jobs.read" },
 ];
 
-export function navFor(user: OpsUser): NavItem[] {
-  if (user.role === "technician") return TECH_NAV;
-  return OPS_NAV.filter(
-    (item) => !item.roles || item.roles.includes(user.role),
-  );
+export function crmNavToItems(items: CrmNavItem[]): NavItem[] {
+  const seen = new Set<string>();
+  const out: NavItem[] = [];
+  for (const item of items) {
+    if (!item.href || seen.has(item.href)) continue;
+    seen.add(item.href);
+    out.push({
+      href: item.href,
+      label: item.label,
+      icon: iconForCrm(item.icon),
+      permission: item.permission || undefined,
+      section: "crm",
+    });
+  }
+  return out;
+}
+
+function orgLeaves(crmNavigation?: CrmNavItem[] | null): NavLeaf[] {
+  if (crmNavigation && crmNavigation.length > 0) {
+    const crmLeaves: NavLeaf[] = crmNavigation
+      .filter((item) => Boolean(item.href))
+      .map((item) => ({
+        href: item.href,
+        label: item.label,
+        icon: item.icon || "box",
+        permission: item.permission || undefined,
+        section: "crm" as const,
+      }));
+    const seen = new Set<string>();
+    const out: NavLeaf[] = [];
+    for (const item of [...WORK_LEAVES, ...crmLeaves, ...AI_LEAVES, ...ADMIN_LEAVES]) {
+      if (seen.has(item.href)) continue;
+      seen.add(item.href);
+      out.push(item);
+    }
+    return out;
+  }
+  return defaultOrgLeaves();
+}
+
+/** Flat permission-filtered nav (command palette, tech shell, etc.). */
+export function navFor(
+  user: OpsUser,
+  crmNavigation?: CrmNavItem[] | null,
+): NavItem[] {
+  if (isTechnicianShell(user)) {
+    return filterNavByPermission(user, TECH_NAV);
+  }
+  return filterNavByPermission(user, orgLeaves(crmNavigation).map(leafToItem));
+}
+
+/**
+ * Group already-filtered items into sections.
+ * Sections are visual only — empty sections are dropped.
+ */
+export function groupNavIntoSections(items: NavItem[]): NavSection[] {
+  return NAV_SECTION_ORDER.map((id) => {
+    const meta = NAV_SECTION_META[id];
+    return {
+      id,
+      label: meta.label,
+      icon: meta.icon,
+      items: items.filter((item) => (item.section || "work") === id),
+    };
+  }).filter((section) => section.items.length > 0);
+}
+
+/**
+ * Section-wise nav: filter EACH page by permission, then drop empty sections.
+ * Never hide an entire section because one child permission is missing.
+ */
+export function navSectionsFor(
+  user: OpsUser,
+  crmNavigation?: CrmNavItem[] | null,
+): NavSection[] {
+  if (isTechnicianShell(user)) {
+    const items = filterNavByPermission(user, TECH_NAV);
+    if (!items.length) return [];
+    return [
+      {
+        id: "work",
+        label: "Work",
+        icon: Briefcase,
+        items,
+      },
+    ];
+  }
+  const sections = sectionsFromLeaves(user, orgLeaves(crmNavigation));
+  return sections.map((section) => ({
+    id: section.id,
+    label: section.label,
+    icon: NAV_SECTION_META[section.id].icon,
+    items: section.items.map(leafToItem),
+  }));
+}
+
+export function sectionContainingPath(
+  sections: NavSection[],
+  pathname: string,
+): NavSectionId | null {
+  for (const section of sections) {
+    if (section.items.some((item) => isActivePath(pathname, item.href))) {
+      return section.id;
+    }
+  }
+  return null;
 }
 
 export function isActivePath(pathname: string, href: string): boolean {
   if (href === "/dashboard") return pathname === "/dashboard";
+  if (href === "/analytics") {
+    return pathname === "/analytics" || pathname.startsWith("/analytics/");
+  }
+  if (href === "/crm/scheduling") {
+    return (
+      pathname === "/crm/scheduling" || pathname.startsWith("/crm/scheduling/")
+    );
+  }
+  if (href === "/crm/dispatch") {
+    return pathname === "/crm/dispatch" || pathname.startsWith("/crm/dispatch/");
+  }
   if (href === "/dispatch") {
     return pathname === "/dispatch" || pathname === "/board";
   }
@@ -121,5 +292,11 @@ export function isActivePath(pathname: string, href: string): boolean {
   if (href === "/playground") {
     return pathname === "/playground" || pathname.startsWith("/playground/");
   }
+  if (href.startsWith("/crm/")) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
+
+// Re-export leaf catalogs for tests / diagnostics (icons attached in shell).
+export { CRM_LEAVES, WORK_LEAVES, AI_LEAVES, ADMIN_LEAVES };

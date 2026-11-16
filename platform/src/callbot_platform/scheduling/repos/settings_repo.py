@@ -6,6 +6,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from callbot_platform.db.models import (
@@ -28,15 +29,32 @@ class ScheduleSettingsRepository:
         )
         if row is not None:
             return row
-        row = TenantScheduleSettings(
-            tenant_id=tenant_id,
-            timezone=None,
-            slot_minutes=60,
-            booking_horizon_days=14,
-            weekly_hours=default_weekly_hours(),
-        )
-        self._session.add(row)
-        self._session.flush()
+        try:
+            # The row must be added *inside* the nested transaction: entering
+            # begin_nested() flushes any already-pending objects first (to
+            # snapshot state before the SAVEPOINT), so adding beforehand
+            # would raise the IntegrityError outside the savepoint and
+            # poison the whole session instead of being caught here. Two
+            # concurrent "first appointment for this tenant" requests can
+            # both pass the SELECT above and race on this INSERT.
+            with self._session.begin_nested():
+                row = TenantScheduleSettings(
+                    tenant_id=tenant_id,
+                    timezone=None,
+                    slot_minutes=60,
+                    booking_horizon_days=14,
+                    weekly_hours=default_weekly_hours(),
+                )
+                self._session.add(row)
+                self._session.flush()
+        except IntegrityError:
+            row = self._session.scalar(
+                select(TenantScheduleSettings).where(
+                    TenantScheduleSettings.tenant_id == tenant_id
+                )
+            )
+            if row is None:
+                raise
         return row
 
     def effective_timezone(self, tenant_id: UUID) -> str:

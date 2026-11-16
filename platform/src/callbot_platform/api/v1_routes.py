@@ -32,9 +32,9 @@ def list_calls(
     session: Session = Depends(db_dep),
     status: str | None = Query(default=None, max_length=32),
     limit: int = Query(default=100, ge=1, le=200),
+    cursor: str | None = Query(default=None, max_length=512),
 ) -> dict[str, Any]:
     principal.require_scope("calls:read")
-    calls = AdminRepository(session).list_calls(
-        principal.tenant_id, status=status, limit=limit
+    return AdminRepository(session).list_calls(
+        principal.tenant_id, status=status, limit=limit, cursor=cursor
     )
-    return {"calls": calls}
