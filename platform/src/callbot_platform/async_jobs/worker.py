@@ -57,6 +57,7 @@ class AsyncJobWorker:
         )
         self._metrics = metrics or JobMetrics()
         self._stop = False
+        self._last_billing_renewal_enqueue_at: datetime | None = None
 
     def register(self, job_type: str, handler: JobHandler) -> None:
         self._handlers[job_type] = handler
@@ -73,6 +74,7 @@ class AsyncJobWorker:
 
     def process_batch(self) -> int:
         self._reclaim_expired_leases()
+        self._maybe_enqueue_billing_renewal()
         claimed = self._claim_batch()
         if not claimed:
             return 0
@@ -140,6 +142,27 @@ class AsyncJobWorker:
             session.rollback()
             logger.exception("async_jobs_lease_reclaim_failed")
             return 0
+        finally:
+            session.close()
+
+    def _maybe_enqueue_billing_renewal(self) -> None:
+        """Hourly idempotent enqueue of wallet subscription renewal sweeps."""
+        now = datetime.now(UTC)
+        last = self._last_billing_renewal_enqueue_at
+        if last is not None and (now - last) < timedelta(minutes=5):
+            return
+        self._last_billing_renewal_enqueue_at = now
+        session: Session = self._session_factory()
+        try:
+            from callbot_platform.billing.renewal_jobs import (
+                enqueue_subscription_renewal,
+            )
+
+            enqueue_subscription_renewal(session, settings=self._settings, now=now)
+            session.commit()
+        except Exception:
+            session.rollback()
+            logger.exception("billing_renewal_enqueue_failed")
         finally:
             session.close()
 

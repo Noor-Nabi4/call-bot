@@ -77,6 +77,12 @@ def build_default_handlers(
     def _integration_oauth_refresh(session: Session, job: AsyncJob) -> dict:
         return integrations_h.handle_oauth_refresh(session, job)
 
+    def _subscription_renewal(session: Session, job: AsyncJob) -> dict:
+        from callbot_platform.billing.renewal_jobs import run_renewal_and_alerts
+
+        _ = job
+        return run_renewal_and_alerts(session)
+
     return {
         JobType.TELEPHONY_PROVISION_PURCHASE: _purchase,
         JobType.TELEPHONY_PROVISION_CONNECT: _connect,
@@ -84,6 +90,7 @@ def build_default_handlers(
         JobType.TELEPHONY_REFRESH_DISPATCH: _refresh,
         JobType.STRIPE_SIGNUP_PROVISION: _signup,
         JobType.STRIPE_CHECKOUT_PROVISION: _checkout,
+        JobType.BILLING_SUBSCRIPTION_RENEWAL: _subscription_renewal,
         JobType.KNOWLEDGE_INGEST: _knowledge_ingest,
         JobType.CALL_TRANSCRIBE: _call_transcribe,
         JobType.CALL_ANALYZE: _call_analyze,

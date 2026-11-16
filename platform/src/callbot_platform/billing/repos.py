@@ -131,7 +131,34 @@ class BillingRepository:
             "current_period_end": (
                 row.current_period_end.isoformat() if row.current_period_end else None
             ),
+            "billing_period_start": (
+                row.billing_period_start.isoformat()
+                if getattr(row, "billing_period_start", None)
+                else None
+            ),
+            "billing_period_end": (
+                row.billing_period_end.isoformat()
+                if getattr(row, "billing_period_end", None)
+                else None
+            ),
+            "next_billing_at": (
+                row.next_billing_at.isoformat()
+                if getattr(row, "next_billing_at", None)
+                else None
+            ),
+            "monthly_price_cents": getattr(row, "monthly_price_cents", None),
+            "included_minutes": getattr(row, "included_minutes", None),
+            "included_minutes_consumed": int(
+                getattr(row, "included_minutes_consumed", 0) or 0
+            ),
+            "overage_rate_cents": getattr(row, "overage_rate_cents", None),
             "cancel_at_period_end": row.cancel_at_period_end,
             "trial_end": row.trial_end.isoformat() if row.trial_end else None,
+            "grace_period_ends_at": (
+                row.grace_period_ends_at.isoformat()
+                if getattr(row, "grace_period_ends_at", None)
+                else None
+            ),
             "is_entitled": row.status in {"trialing", "active"},
+            "billing_model": "wallet",
         }

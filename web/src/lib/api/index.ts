@@ -205,10 +205,19 @@ export {
 export {
   getSubscription,
   getUsage,
+  getWallet,
+  getWalletTransactions,
+  getBillingSummary,
   createCheckout,
+  createWalletTopup,
+  subscribeFromWallet,
+  changePlan,
   createPortal,
+  formatCentsUsd,
   type TenantSubscription,
   type TenantUsage,
+  type WalletBalance,
+  type WalletTransaction,
 } from "./billing";
 export {
   getCogsSummary,

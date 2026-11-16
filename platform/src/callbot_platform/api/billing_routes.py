@@ -38,8 +38,28 @@ class CheckoutBody(BaseModel):
     plan_key: str | None = Field(default=None, max_length=32)
 
 
+class TopupBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    amount_cents: int = Field(..., ge=500, le=500_000)
+
+
+class SubscribeBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    plan_key: str | None = Field(default=None, max_length=32)
+
+
+class ChangePlanBody(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    plan_key: str = Field(..., min_length=2, max_length=32)
+
+
 def _billing_http(exc: Exception) -> HTTPException:
-    if isinstance(exc, BillingError):
+    from callbot_platform.billing.wallet.service import WalletError
+
+    if isinstance(exc, (BillingError, WalletError)):
         status = 400
         if exc.code in {"subscription_not_found", "tenant_not_found"}:
             status = 404
@@ -47,6 +67,8 @@ def _billing_http(exc: Exception) -> HTTPException:
             status = 503
         if exc.code == "invalid_signature":
             status = 400
+        if exc.code == "insufficient_funds":
+            status = 402
         return HTTPException(
             status_code=status, detail={"code": exc.code, "message": str(exc)}
         )
@@ -86,6 +108,127 @@ def get_usage(
 ) -> dict[str, Any]:
     service = BillingService(session, settings)
     return {"usage": service.get_usage(user.tenant_id)}
+
+
+@router.get("/wallet")
+def get_wallet(
+    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    from callbot_platform.billing.wallet.service import WalletService
+
+    return {"wallet": WalletService(session).get_balance(user.tenant_id)}
+
+
+@router.get("/wallet/transactions")
+def list_wallet_transactions(
+    limit: int = 50,
+    offset: int = 0,
+    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+) -> dict[str, Any]:
+    from callbot_platform.billing.wallet.service import WalletService
+
+    rows = WalletService(session).list_transactions(
+        user.tenant_id, limit=limit, offset=offset
+    )
+    return {"transactions": rows}
+
+
+@router.get("/wallet/topup-presets")
+def wallet_topup_presets(
+    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
+) -> dict[str, Any]:
+    from callbot_platform.billing.wallet.topup_service import WalletTopupService
+
+    _ = user
+    return WalletTopupService(session, settings).presets()
+
+
+@router.post("/wallet/topups")
+def create_wallet_topup(
+    body: TopupBody,
+    user: CurrentUser = Depends(_require_billing_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
+) -> dict[str, Any]:
+    try:
+        from callbot_platform.billing.wallet.topup_service import WalletTopupService
+
+        result = WalletTopupService(session, settings).create_topup_checkout(
+            tenant_id=user.tenant_id,
+            amount_cents=body.amount_cents,
+            auto_activate_plan=True,
+        )
+        session.commit()
+        return result
+    except Exception as exc:
+        session.rollback()
+        raise _billing_http(exc) from exc
+
+
+@router.post("/subscribe")
+def subscribe_from_wallet(
+    body: SubscribeBody,
+    user: CurrentUser = Depends(_require_billing_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
+) -> dict[str, Any]:
+    _ = settings
+    try:
+        from callbot_platform.billing.subscription_wallet import (
+            SubscriptionWalletService,
+        )
+
+        sub = SubscriptionWalletService(session).activate_from_wallet(
+            user.tenant_id, plan_key=body.plan_key
+        )
+        session.commit()
+        return {"subscription": sub}
+    except Exception as exc:
+        session.rollback()
+        raise _billing_http(exc) from exc
+
+
+@router.post("/change-plan")
+def change_plan(
+    body: ChangePlanBody,
+    user: CurrentUser = Depends(_require_billing_manage),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
+) -> dict[str, Any]:
+    _ = settings
+    try:
+        from callbot_platform.billing.subscription_wallet import (
+            SubscriptionWalletService,
+        )
+
+        sub = SubscriptionWalletService(session).change_plan(
+            user.tenant_id, plan_key=body.plan_key
+        )
+        session.commit()
+        return {"subscription": sub}
+    except Exception as exc:
+        session.rollback()
+        raise _billing_http(exc) from exc
+
+
+@router.get("/summary")
+def billing_summary(
+    user: CurrentUser = Depends(_require_billing_read),  # noqa: B008
+    session: Session = Depends(db_dep),  # noqa: B008
+    settings: Settings = Depends(settings_dep),  # noqa: B008
+) -> dict[str, Any]:
+    from callbot_platform.billing.wallet.service import WalletService
+
+    service = BillingService(session, settings)
+    return {
+        "subscription": service.get_subscription(user.tenant_id),
+        "usage": service.get_usage(user.tenant_id),
+        "wallet": WalletService(session).get_balance(user.tenant_id),
+    }
 
 
 @router.post("/checkout")

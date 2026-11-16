@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock, patch
 from uuid import UUID, uuid4
@@ -126,12 +125,15 @@ def test_signup_creates_pending_tenant(session: Session) -> None:
     assert result["user"]["email"] == "owner@acme.test"
     assert result["user"]["role"] == "admin"
 
-    # Checkout must use price_data (no registered Stripe Price IDs).
+    # Signup funds the USD wallet via one-time Checkout (not Stripe Subscriptions).
     kwargs = create_session.call_args.kwargs
+    assert kwargs["mode"] == "payment"
+    assert kwargs["metadata"]["purpose"] == "wallet_topup"
+    assert kwargs["metadata"]["plan_key"] == "growth"
     line_item = kwargs["line_items"][0]
     assert "price" not in line_item
     assert line_item["price_data"]["unit_amount"] == 24900
-    assert line_item["price_data"]["product_data"]["metadata"]["plan_key"] == "growth"
+    assert "recurring" not in line_item["price_data"]
 
     tenant = session.get(Tenant, UUID(result["user"]["tenant_id"]))
     assert tenant is not None
@@ -215,7 +217,8 @@ def test_signup_rejects_invalid_plan(session: Session) -> None:
     assert exc.value.code == "invalid_plan"
 
 
-def test_webhook_activates_subscription(session: Session) -> None:
+def test_webhook_credits_wallet_topup(session: Session) -> None:
+    """checkout.session.completed (payment) credits wallet; legacy sub events ignored."""
     settings = _settings()
     tenant = Tenant(
         name="Webhook Co",
@@ -237,24 +240,44 @@ def test_webhook_activates_subscription(session: Session) -> None:
     )
     session.flush()
 
+    from callbot_platform.billing.wallet.service import WalletService
+    from callbot_platform.db.models.wallet import WalletTopup
+
+    wallets = WalletService(session)
+    wallet = wallets.ensure_wallet(tenant.id)
+    topup = WalletTopup(
+        tenant_id=tenant.id,
+        wallet_id=wallet.id,
+        amount_cents=20000,
+        currency="USD",
+        status="PENDING",
+        stripe_checkout_session_id="cs_wh_1",
+        stripe_payment_intent_id="pi_wh_1",
+    )
+    session.add(topup)
+    session.flush()
+
     service = BillingService(session, settings)
-    period_end = int(datetime(2026, 8, 1, tzinfo=UTC).timestamp())
-    subscription_obj = {
-        "id": "sub_wh_1",
-        "customer": "cus_wh_1",
-        "status": "active",
-        "cancel_at_period_end": False,
-        "current_period_end": period_end,
-        "trial_end": None,
-        "metadata": {"tenant_id": str(tenant.id), "plan_key": "starter"},
-        "items": {
-            "data": [{"price": {"id": "price_auto_from_checkout"}}],
-        },
-    }
     event = {
         "id": "evt_test_1",
-        "type": "customer.subscription.updated",
-        "data": {"object": subscription_obj},
+        "type": "checkout.session.completed",
+        "data": {
+            "object": {
+                "id": "cs_wh_1",
+                "mode": "payment",
+                "payment_status": "paid",
+                "amount_total": 20000,
+                "payment_intent": "pi_wh_1",
+                "customer": "cus_wh_1",
+                "metadata": {
+                    "purpose": "wallet_topup",
+                    "tenant_id": str(tenant.id),
+                    "wallet_topup_id": str(topup.id),
+                    "plan_key": "starter",
+                    "auto_activate_plan": "1",
+                },
+            }
+        },
     }
 
     result = service.handle_webhook_event(event)  # type: ignore[arg-type]
@@ -267,11 +290,26 @@ def test_webhook_activates_subscription(session: Session) -> None:
     assert sub is not None
     assert sub.status == "active"
     assert sub.plan_key == "starter"
-    assert sub.stripe_subscription_id == "sub_wh_1"
     assert service.tenant_is_entitled(tenant.id)
 
     replay = service.handle_webhook_event(event)  # type: ignore[arg-type]
     assert replay["duplicate"] is True
+
+    ignored = service.handle_webhook_event(
+        {
+            "id": "evt_test_2",
+            "type": "customer.subscription.updated",
+            "data": {
+                "object": {
+                    "id": "sub_ignored",
+                    "customer": "cus_wh_1",
+                    "status": "active",
+                    "metadata": {"tenant_id": str(tenant.id)},
+                }
+            },
+        }  # type: ignore[arg-type]
+    )
+    assert ignored["ok"] is True
 
 
 def test_invalid_webhook_signature_rejected(session: Session) -> None:

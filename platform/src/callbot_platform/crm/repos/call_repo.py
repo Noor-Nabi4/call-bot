@@ -126,6 +126,16 @@ class CallRepository:
             logger.exception(
                 "usage_ledger_call_ingest_failed call_id=%s", call.id
             )
+        try:
+            from callbot_platform.billing.usage_billing import UsageBillingService
+
+            UsageBillingService(self._session).charge_call_overage(
+                tenant_id, call.id
+            )
+        except Exception:
+            logger.exception(
+                "wallet_usage_charge_failed call_id=%s", call.id
+            )
         write_audit(
             self._session,
             tenant_id=tenant_id,
