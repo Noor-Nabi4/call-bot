@@ -43,6 +43,7 @@ import {
 } from "@/components/ui";
 import { fetchOrgGeoRegions } from "@/lib/geo-api";
 import {
+  applyLiveGeoDefaults,
   catalogToCountryOptions,
   catalogToCurrencyOptions,
   catalogToOptions,
@@ -201,20 +202,27 @@ function OnboardingPageInner() {
     ]);
     setOnboarding(ob.onboarding);
     const rawProfile = bp.profile || {};
+    const countryRows = bp.catalogs.countries || [];
+    const withLive = applyLiveGeoDefaults(
+      {
+        ...rawProfile,
+        country: normalizeCountryCode(rawProfile.country) || rawProfile.country,
+        currency:
+          normalizeCurrencyCode(rawProfile.currency) || rawProfile.currency,
+        timezone: rawProfile.timezone || null,
+      },
+      countryRows,
+    );
     setProfile({
-      ...rawProfile,
-      country: normalizeCountryCode(rawProfile.country) || rawProfile.country,
-      currency:
-        normalizeCurrencyCode(rawProfile.currency) ||
-        rawProfile.currency ||
-        "USD",
-      timezone: rawProfile.timezone || "UTC",
+      ...withLive,
+      currency: normalizeCurrencyCode(withLive.currency) || "USD",
+      timezone: withLive.timezone || "UTC",
     });
     setIndustries(bp.catalogs.industries || []);
     setModels(bp.catalogs.business_models || []);
     setSizes(bp.catalogs.business_sizes || []);
-    setCountryCatalog(bp.catalogs.countries || []);
-    setCountries(catalogToCountryOptions(bp.catalogs.countries));
+    setCountryCatalog(countryRows);
+    setCountries(catalogToCountryOptions(countryRows));
     setCurrencies(catalogToCurrencyOptions(bp.catalogs.currencies));
     setTimezones(catalogToOptions(bp.catalogs.timezones));
     setCrm(cfg.configuration);

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  applyLiveGeoDefaults,
   catalogToCountryOptions,
   catalogToCurrencyOptions,
   catalogToOptions,
@@ -55,5 +56,39 @@ describe("geo-options", () => {
       ]),
       "PKR",
     );
+  });
+
+  it("applies live defaults only over blank / placeholder geo fields", () => {
+    const countries = [
+      { key: "PK", name: "Pakistan", default_currency_code: "PKR" },
+      { key: "US", name: "United States", default_currency_code: "USD" },
+    ];
+    const filled = applyLiveGeoDefaults(
+      {
+        country: "US",
+        currency: "USD",
+        timezone: "America/New_York",
+      },
+      countries,
+    );
+    assert.equal(filled.country, "US");
+    assert.equal(filled.currency, "USD");
+    assert.equal(filled.timezone, "America/New_York");
+
+    // en-US language would suggest US, but Asia/Karachi must win → PK + PKR.
+    const karachi = applyLiveGeoDefaults(
+      { country: "US", currency: "USD", timezone: "Asia/Karachi" },
+      countries,
+    );
+    assert.equal(karachi.country, "PK");
+    assert.equal(karachi.currency, "PKR");
+    assert.equal(karachi.timezone, "Asia/Karachi");
+
+    const blank = applyLiveGeoDefaults(
+      { country: null, currency: "USD", timezone: "Asia/Karachi" },
+      countries,
+    );
+    assert.equal(blank.country, "PK");
+    assert.equal(blank.currency, "PKR");
   });
 });
