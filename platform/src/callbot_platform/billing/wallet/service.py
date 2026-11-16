@@ -35,9 +35,12 @@ class WalletService:
         self._repo = WalletRepository(session)
 
     def ensure_wallet(self, tenant_id: UUID) -> Wallet:
+        """Get or create the tenant wallet (safe under concurrent first loads)."""
         existing = self._repo.get_wallet(tenant_id)
         if existing is not None:
+            self._ensure_settings(tenant_id)
             return existing
+
         wallet = Wallet(
             tenant_id=tenant_id,
             currency=WALLET_CURRENCY,
@@ -45,16 +48,47 @@ class WalletService:
             reserved_balance_cents=0,
             status="ACTIVE",
         )
-        self._session.add(wallet)
+        try:
+            with self._session.begin_nested():
+                self._session.add(wallet)
+                self._session.flush()
+        except IntegrityError:
+            # Parallel billing requests both tried to create the first wallet.
+            existing = self._repo.get_wallet(tenant_id)
+            if existing is None:
+                raise WalletError(
+                    "wallet_unavailable",
+                    "Wallet could not be created or loaded for this organization",
+                ) from None
+            self._ensure_settings(tenant_id)
+            return existing
+
+        self._ensure_settings(tenant_id)
+        return wallet
+
+    def _ensure_settings(self, tenant_id: UUID) -> WalletSettings:
+        existing = self._repo.get_settings(tenant_id)
+        if existing is not None:
+            return existing
         settings = WalletSettings(
             tenant_id=tenant_id,
             low_balance_cents=DEFAULT_LOW_BALANCE_CENTS,
             critical_balance_cents=DEFAULT_CRITICAL_BALANCE_CENTS,
             auto_topup_enabled=False,
         )
-        self._session.add(settings)
-        self._session.flush()
-        return wallet
+        try:
+            with self._session.begin_nested():
+                self._session.add(settings)
+                self._session.flush()
+        except IntegrityError:
+            existing = self._repo.get_settings(tenant_id)
+            if existing is None:
+                raise WalletError(
+                    "wallet_settings_unavailable",
+                    "Wallet settings could not be created or loaded",
+                ) from None
+            return existing
+        return settings
 
     def get_balance(self, tenant_id: UUID) -> dict[str, Any]:
         wallet = self.ensure_wallet(tenant_id)

@@ -121,6 +121,15 @@ def test_idempotent_complete_and_skip(session: Session, tenant: Tenant) -> None:
     assert state["skipped_steps"].count("team") == 1
 
 
+def test_ai_configuration_is_required(session: Session, tenant: Tenant) -> None:
+    svc = OnboardingService(session)
+    with pytest.raises(OnboardingError) as exc:
+        svc.skip_step(tenant.id, "ai_configuration", actor="a@t.test")
+    assert exc.value.code == "step_required"
+    meta = next(s for s in svc.get(tenant.id)["steps"] if s["key"] == "ai_configuration")
+    assert meta["required"] is True
+
+
 def test_resume_and_partial_state_data(session: Session, tenant: Tenant) -> None:
     svc = OnboardingService(session)
     svc.patch(

@@ -1046,25 +1046,25 @@ function OnboardingPageInner() {
                   {onboarding.steps.find((s) => s.key === activeStep)?.title}
                 </h2>
                 <p className="text-sm text-text-secondary">
-                  This step is optional. Skip it for now, or mark it complete to
-                  continue — you can finish setup anytime from Settings.
+                  Required before go-live. Set up your voice AI agent, then
+                  continue. You can refine prompts and tools later in Agents.
                 </p>
                 {canUpdate && !closed ? (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       type="button"
                       disabled={busy}
-                      onClick={() => void completeOrSkip(activeStep)}
+                      onClick={() => router.push(ONBOARDING_AI_PATH)}
                     >
-                      Mark complete
+                      Set up AI agent
                     </Button>
                     <Button
                       type="button"
                       variant="secondary"
                       disabled={busy}
-                      onClick={() => void completeOrSkip(activeStep, true)}
+                      onClick={() => void completeOrSkip(activeStep)}
                     >
-                      Skip
+                      I've configured my agent — continue
                     </Button>
                   </div>
                 ) : null}
@@ -1130,10 +1130,31 @@ function OnboardingPageInner() {
                   </p>
                   {onboarding.phone_setup?.primary_e164 ? (
                     <p className="mt-1 text-text-secondary">
-                      Number: {onboarding.phone_setup.primary_e164}
+                      Number:{" "}
+                      <strong className="font-mono text-text-primary">
+                        {onboarding.phone_setup.primary_e164}
+                      </strong>
                     </p>
                   ) : null}
-                  {onboarding.phone_setup?.message ? (
+                  {onboarding.phone_setup?.verification_status === "pending" &&
+                  onboarding.phone_setup?.primary_e164 ? (
+                    <div
+                      role="status"
+                      className="mt-3 rounded-md border border-teal/40 bg-teal-soft px-3 py-2 text-text-primary"
+                    >
+                      <p className="font-semibold">
+                        Call this number from another phone
+                      </p>
+                      <p className="mt-1">
+                        Dial{" "}
+                        <strong className="font-mono tracking-wide">
+                          {onboarding.phone_setup.primary_e164}
+                        </strong>{" "}
+                        now. After we detect the inbound call, status becomes
+                        Ready and you can continue.
+                      </p>
+                    </div>
+                  ) : onboarding.phone_setup?.message ? (
                     <p className="mt-2 text-text-secondary">
                       {onboarding.phone_setup.message}
                     </p>
@@ -1142,10 +1163,27 @@ function OnboardingPageInner() {
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
+                    onClick={() =>
+                      router.push(`${PHONES_ONBOARDING_PATH}&action=connect`)
+                    }
+                  >
+                    Connect my Twilio number
+                  </Button>
+                  <Button
+                    type="button"
                     variant="secondary"
+                    onClick={() =>
+                      router.push(`${PHONES_ONBOARDING_PATH}&action=buy`)
+                    }
+                  >
+                    Buy a new number
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
                     onClick={() => router.push(PHONES_ONBOARDING_PATH)}
                   >
-                    Open phone setup
+                    Open phones page
                   </Button>
                   <Button
                     type="button"
