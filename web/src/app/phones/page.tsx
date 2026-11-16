@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Phone, Plus, Search, Link2 } from "lucide-react";
-import { AppShell } from "@/components/shell";
+import { AppShell, OnboardingShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
 import { ONBOARDING_PATH } from "@/lib/onboarding";
 import {
@@ -22,6 +22,7 @@ import {
   type AgentProfile,
   type InventoryNumber,
   type PhoneNumber,
+  type PhoneVerificationStart,
 } from "@/lib/api";
 import { safeUserError } from "@/lib/safe-error";
 import {
@@ -60,6 +61,7 @@ export default function PhonesPage() {
 function PhonesPageInner() {
   const searchParams = useSearchParams();
   const fromOnboarding = searchParams.get("from") === "onboarding";
+  const setupAction = searchParams.get("action");
   const { user, loading, forbidden } = useAuth({
     permission: "phones.manage",
     // Required during mandatory onboarding before COMPLETED.
@@ -77,6 +79,9 @@ function PhonesPageInner() {
   const [buyOpen, setBuyOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [testInfo, setTestInfo] = useState<string | null>(null);
+  const [verifyInfo, setVerifyInfo] = useState<PhoneVerificationStart | null>(
+    null,
+  );
   const [purchaseTarget, setPurchaseTarget] = useState<InventoryNumber | null>(
     null,
   );
@@ -86,6 +91,12 @@ function PhonesPageInner() {
   const load = useCallback(async () => {
     const phoneData = await listPhoneNumbers();
     setPhones(phoneData.items);
+    const stillPending = phoneData.items.some(
+      (p) =>
+        p.verification_status === "pending" ||
+        p.connection_status === "pending_verification",
+    );
+    if (!stillPending) setVerifyInfo(null);
     // Agent profiles may be gated until onboarding completes — non-fatal here.
     try {
       const profileData = await listAgentProfiles();
@@ -111,6 +122,15 @@ function PhonesPageInner() {
     };
   }, [user, load]);
 
+  // Deep-link from onboarding CTAs: open connect or buy drawer once.
+  useEffect(() => {
+    if (!fromOnboarding || fetching || !user) return;
+    if (setupAction === "connect") setConnectOpen(true);
+    if (setupAction === "buy") setBuyOpen(true);
+  }, [fromOnboarding, setupAction, fetching, user]);
+
+  const Shell = fromOnboarding ? OnboardingShell : AppShell;
+
   async function onAssign(phoneId: string, profileId: string) {
     try {
       await assignPhoneProfile(phoneId, profileId || null);
@@ -121,18 +141,18 @@ function PhonesPageInner() {
     }
   }
 
-  function closeConnect() {
+  const closeConnect = useCallback(() => {
     if (busy) return;
     setConnectOpen(false);
     setConnectNumber("");
-  }
+  }, [busy]);
 
-  function closeBuy() {
+  const closeBuy = useCallback(() => {
     if (busy) return;
     setBuyOpen(false);
     setAreaCode("");
     setInventory([]);
-  }
+  }, [busy]);
 
   async function onConnect(e: FormEvent) {
     e.preventDefault();
@@ -153,15 +173,31 @@ function PhonesPageInner() {
 
   async function onSearch(e?: FormEvent) {
     e?.preventDefault();
+    const digits = areaCode.replace(/\D+/g, "");
+    const normalized =
+      digits.length === 3
+        ? digits
+        : digits.length === 11 && digits.startsWith("1")
+          ? digits.slice(1, 4)
+          : digits.length >= 10
+            ? digits.slice(0, 3)
+            : digits;
+    if (areaCode.trim() && !/^[2-9]\d{2}$/.test(normalized)) {
+      toast.push("Enter a 3-digit area code (e.g. 415), not a full number", "error");
+      return;
+    }
     setBusy(true);
     try {
       await ensureTwilioSubaccount();
       const data = await searchInventory({
         country: "US",
-        area_code: areaCode || undefined,
+        area_code: normalized || undefined,
         limit: 10,
       });
       setInventory(data.items || []);
+      if (normalized && normalized !== areaCode.trim()) {
+        setAreaCode(normalized);
+      }
     } catch (err) {
       toast.push(safeUserError(err, "Inventory search failed"), "error");
     } finally {
@@ -214,8 +250,12 @@ function PhonesPageInner() {
 
   async function onVerify(phoneId: string) {
     try {
-      await startPhoneVerification(phoneId);
-      toast.push("Verification started — place a test inbound call", "success");
+      const started = await startPhoneVerification(phoneId);
+      setVerifyInfo(started);
+      toast.push(
+        `Call ${started.e164} from another phone to verify`,
+        "success",
+      );
       await load();
     } catch (err) {
       toast.push(safeUserError(err, "Verification failed"), "error");
@@ -236,6 +276,28 @@ function PhonesPageInner() {
 
   const defaultProfile = profiles.find((p) => p.is_default);
   const activePhones = phones.filter((p) => p.connection_status !== "released");
+  const pendingVerifyPhone =
+    activePhones.find(
+      (p) =>
+        p.verification_status === "pending" ||
+        p.connection_status === "pending_verification",
+    ) ?? null;
+  const verifyBanner =
+    verifyInfo != null
+      ? {
+          e164: verifyInfo.e164,
+          instructions: verifyInfo.instructions,
+          expiresAt: verifyInfo.expires_at
+            ? new Date(verifyInfo.expires_at).toLocaleString()
+            : null,
+        }
+      : pendingVerifyPhone != null
+        ? {
+            e164: pendingVerifyPhone.e164,
+            instructions: null as string | null,
+            expiresAt: null as string | null,
+          }
+        : null;
 
   if (loading || !user) {
     return (
@@ -247,28 +309,26 @@ function PhonesPageInner() {
 
   if (forbidden) {
     return (
-      <AppShell user={user}>
+      <Shell user={user}>
         <ForbiddenState />
-      </AppShell>
+      </Shell>
     );
   }
 
   return (
-    <AppShell user={user}>
+    <Shell user={user}>
       {fromOnboarding ? (
         <div className="mb-4 rounded-lg border border-border bg-teal-soft/40 px-4 py-3 text-sm text-text-primary">
-          Phone setup is required for every organization before dashboard
-          access.{" "}
-          <strong>Connect a number you already own</strong> (Twilio BYON) or{" "}
-          <strong>purchase a new number</strong> after confirming price. When
-          status is active and verified,{" "}
+          Phone setup is required before dashboard access. Use{" "}
+          <strong>Connect</strong> (Twilio number you already own) or{" "}
+          <strong>Buy number</strong>, then verify. When status is ready,{" "}
           <Link
             href={`${ONBOARDING_PATH}?manual=1`}
             className="font-medium text-teal underline-offset-2 hover:underline"
           >
             return to onboarding
           </Link>{" "}
-          or refresh — access unlocks automatically.
+          and continue.
         </div>
       ) : null}
       <PageHeader
@@ -305,6 +365,31 @@ function PhonesPageInner() {
       />
 
       {error ? <ErrorState message={error} onRetry={() => load()} /> : null}
+      {verifyBanner ? (
+        <div
+          role="status"
+          className="mt-4 rounded-lg border border-teal/40 bg-teal-soft px-4 py-3 text-sm text-text-primary"
+        >
+          <p className="font-semibold">Action required: verify this number</p>
+          <p className="mt-1">
+            Call{" "}
+            <strong className="font-mono tracking-wide">
+              {verifyBanner.e164}
+            </strong>{" "}
+            from another phone now. Keep the call connected until it rings or
+            answers — we mark the number Active after we detect the inbound
+            call.
+          </p>
+          {verifyBanner.expiresAt ? (
+            <p className="mt-1 text-text-secondary">
+              Complete this before {verifyBanner.expiresAt}.
+            </p>
+          ) : null}
+          {verifyBanner.instructions ? (
+            <p className="mt-2 text-text-secondary">{verifyBanner.instructions}</p>
+          ) : null}
+        </div>
+      ) : null}
       {testInfo ? (
         <p className="mt-3 rounded-lg border border-brand/30 bg-brand-soft px-3 py-2 text-sm">
           {testInfo}
@@ -397,6 +482,13 @@ function PhonesPageInner() {
                       </Select>
                     </Field>
                   </div>
+                  {phone.verification_status === "pending" ||
+                  phone.connection_status === "pending_verification" ? (
+                    <p className="mt-2 rounded-md border border-teal/30 bg-teal-soft/60 px-2.5 py-2 text-xs text-text-primary">
+                      Call <strong className="font-mono">{phone.e164}</strong>{" "}
+                      from another phone to finish verification.
+                    </p>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap gap-2">
                     <Button
                       size="sm"
@@ -466,7 +558,7 @@ function PhonesPageInner() {
         open={buyOpen}
         onClose={closeBuy}
         title="Buy number"
-        description="Search Twilio inventory by area code, then confirm purchase."
+        description="Search by 3-digit US area code (e.g. 415), then confirm purchase."
         width="md"
         footer={
           <div className="flex justify-end gap-2">
@@ -478,11 +570,14 @@ function PhonesPageInner() {
       >
         <form id={BUY_FORM_ID} onSubmit={onSearch} className="grid gap-3">
           <div className="flex gap-2">
-            <Field label="Area code" className="flex-1">
+            <Field label="Area code (3 digits)" className="flex-1">
               <Input
                 value={areaCode}
                 onChange={(e) => setAreaCode(e.target.value)}
                 placeholder="415"
+                inputMode="numeric"
+                maxLength={14}
+                aria-describedby="area-code-hint"
               />
             </Field>
             <div className="flex items-end">
@@ -492,6 +587,9 @@ function PhonesPageInner() {
               </Button>
             </div>
           </div>
+          <p id="area-code-hint" className="text-xs text-text-muted">
+            Example: 415. Do not paste a full phone number.
+          </p>
           <ul className="divide-y divide-border">
             {inventory.length === 0 ? (
               <li className="py-6 text-center text-sm text-text-muted">
@@ -564,6 +662,6 @@ function PhonesPageInner() {
           setReleaseTarget(null);
         }}
       />
-    </AppShell>
+    </Shell>
   );
 }

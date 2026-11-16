@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from callbot_platform.domain.phone import PhoneNumberError, normalize_e164
+from callbot_platform.domain.phone import (
+    PhoneNumberError,
+    normalize_area_code,
+    normalize_e164,
+)
 
 
 def test_normalize_e164_plus_format() -> None:
@@ -18,3 +22,11 @@ def test_normalize_e164_with_default_region() -> None:
 def test_normalize_rejects_invalid() -> None:
     with pytest.raises(PhoneNumberError):
         normalize_e164("not-a-number")
+
+
+def test_normalize_area_code_accepts_npa_or_full_number() -> None:
+    assert normalize_area_code(None) is None
+    assert normalize_area_code("415") == "415"
+    assert normalize_area_code("+1 217 858 4121") == "217"
+    with pytest.raises(PhoneNumberError):
+        normalize_area_code("12")

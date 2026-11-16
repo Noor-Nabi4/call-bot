@@ -82,6 +82,22 @@ def phone_setup_readiness(session: Session, tenant_id: UUID) -> dict[str, Any]:
     ]
     if pending:
         row = pending[0]
+        if row.verification_status == VerificationStatus.PENDING.value:
+            message = (
+                f"Call {row.e164} from another phone now. "
+                "After we detect the inbound call, this number becomes Active "
+                "and you can finish onboarding."
+            )
+        elif row.connection_status == ConnectionStatus.PENDING_VERIFICATION.value:
+            message = (
+                f"Start verification for {row.e164}, then call that number "
+                "from another phone so we can mark it Active."
+            )
+        else:
+            message = (
+                "Phone number setup is still in progress. "
+                "Finish provisioning and verification before continuing."
+            )
         return {
             "state": "setup_in_progress",
             "eligible_count": 0,
@@ -89,10 +105,7 @@ def phone_setup_readiness(session: Session, tenant_id: UUID) -> dict[str, Any]:
             "primary_phone_number_id": str(row.id),
             "connection_status": row.connection_status,
             "verification_status": row.verification_status,
-            "message": (
-                "Phone number setup is still in progress. "
-                "Finish provisioning and verification before continuing."
-            ),
+            "message": message,
         }
 
     failed = [

@@ -23,6 +23,7 @@ from callbot_platform.api.deps import (
     db_dep,
     purchase_service,
     require_entitled_permission,
+    require_permission,
     settings_dep,
     signer_dep,
     verification_service,
@@ -57,8 +58,9 @@ router = APIRouter(prefix="/api/admin", tags=["admin-agents-phones"])
 
 _require_agents_read = require_entitled_permission("ai.read")
 _require_agents_manage = require_entitled_permission("agents.manage")
-# Phone provisioning is required during mandatory onboarding; keep entitlement.
-_require_phones = require_entitled_permission(
+# Phone setup is a prerequisite for onboarding completion (and thus entitlement).
+# Do not require wallet/subscription here — that creates a chicken-and-egg 402.
+_require_phones = require_permission(
     "phones.manage", allow_incomplete_onboarding=True
 )
 _require_ai_configure = require_entitled_permission("ai.configure")
@@ -485,17 +487,31 @@ def search_inventory(
     session: Session = Depends(db_dep),  # noqa: B008
     service: PlatformPurchaseService = Depends(purchase_service),  # noqa: B008
 ) -> dict[str, Any]:
+    from callbot_platform.domain.phone import PhoneNumberError, normalize_area_code
+    from callbot_platform.telephony.adapters.twilio_adapter import TwilioApiError
+
     try:
+        normalized_area = normalize_area_code(area_code, country=country)
         service.ensure_subaccount(tenant_id=user.tenant_id, actor=user.email)
         session.commit()
         items = service.search_inventory(
             tenant_id=user.tenant_id,
             country=country,
-            area_code=area_code,
+            area_code=normalized_area,
             number_type=number_type,
             limit=limit,
         )
-        return {"items": items}
+        return {"items": items, "area_code": normalized_area}
+    except PhoneNumberError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "invalid_area_code", "message": str(exc)},
+        ) from exc
+    except TwilioApiError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "inventory_search_failed", "message": str(exc)},
+        ) from exc
     except PurchaseError as exc:
         raise HTTPException(
             status_code=400, detail={"code": exc.code, "message": str(exc)}

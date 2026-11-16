@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from twilio.base.exceptions import TwilioRestException
+from twilio.base.exceptions import TwilioException, TwilioRestException
 from twilio.rest import Client
 
 from callbot_platform.domain.enums import TelephonyProviderId
@@ -55,7 +55,8 @@ class TwilioNumberInventoryService(NumberInventoryService):
         country_code = country.upper()
         params: dict[str, Any] = {"limit": limit}
         if area_code:
-            params["area_code"] = area_code
+            # Twilio requires AreaCode as an integer-like digit string.
+            params["area_code"] = int(str(area_code).strip())
         if voice_enabled:
             params["voice_enabled"] = True
         if sms_enabled is not None:
@@ -74,11 +75,14 @@ class TwilioNumberInventoryService(NumberInventoryService):
                 records = client.available_phone_numbers(country_code).local.list(
                     **params
                 )
-        except TwilioRestException as exc:
+        except (TwilioRestException, TwilioException, ValueError, TypeError) as exc:
+            msg = getattr(exc, "msg", None) or str(exc)
+            status = getattr(exc, "status", None)
+            code = getattr(exc, "code", None)
             raise TwilioApiError(
-                f"Twilio inventory search failed: {exc.msg}",
-                status=exc.status,
-                code=exc.code,
+                f"Twilio inventory search failed: {msg}",
+                status=status if isinstance(status, int) else None,
+                code=code if isinstance(code, int) else None,
             ) from exc
 
         results: list[AvailableNumber] = []

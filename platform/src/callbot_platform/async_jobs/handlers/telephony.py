@@ -73,8 +73,15 @@ class TelephonyProvisionHandler:
         signer = self._signer or MetadataSigner(self._settings.metadata_hmac_secret)
         provisioning = self._provisioning or TwilioNumberProvisioningService()
         twilio_sip = self._twilio_sip or TwilioSipTrunkService()
-        livekit = self._livekit or LiveKitSipService(self._settings)
+        livekit = self._livekit or self._build_livekit()
         return cipher, signer, provisioning, twilio_sip, livekit
+
+    def _build_livekit(self) -> LiveKitSipService:
+        return LiveKitSipService(
+            url=self._settings.livekit_url,
+            api_key=self._settings.livekit_api_key,
+            api_secret=self._settings.livekit_api_secret,
+        )
 
     def handle_purchase(self, session: Session, job: AsyncJob) -> dict[str, Any]:
         cipher, signer, provisioning, twilio_sip, livekit = self._deps()
@@ -111,7 +118,7 @@ class TelephonyProvisionHandler:
             details["phone_number_sid"] = purchased.phone_number_sid
             steps.append("twilio_purchase")
             details["steps_completed"] = steps
-            row.provisioning_details = details
+            row.provisioning_details = dict(details)
             session.flush()
 
         phone_sid = str(details.get("phone_number_sid") or "")
@@ -131,7 +138,7 @@ class TelephonyProvisionHandler:
             details["twilio_trunk_sid"] = trunk.trunk_sid
             steps.append("twilio_trunk")
             details["steps_completed"] = steps
-            row.provisioning_details = details
+            row.provisioning_details = dict(details)
             session.flush()
 
         trunk_sid = row.twilio_trunk_sid or str(details.get("twilio_trunk_sid") or "")
@@ -144,7 +151,7 @@ class TelephonyProvisionHandler:
             )
             steps.append("twilio_trunk_association")
             details["steps_completed"] = steps
-            row.provisioning_details = details
+            row.provisioning_details = dict(details)
             session.flush()
 
         metadata = signer.sign_payload(
@@ -171,7 +178,7 @@ class TelephonyProvisionHandler:
             details["livekit_inbound_trunk_id"] = lk_trunk.trunk_id
             steps.append("livekit_inbound_trunk")
             details["steps_completed"] = steps
-            row.provisioning_details = details
+            row.provisioning_details = dict(details)
             session.flush()
 
         if "livekit_dispatch_rule" not in steps:
@@ -188,12 +195,12 @@ class TelephonyProvisionHandler:
             details["livekit_dispatch_rule_id"] = dispatch.dispatch_rule_id
             steps.append("livekit_dispatch_rule")
             details["steps_completed"] = steps
-            row.provisioning_details = details
+            row.provisioning_details = dict(details)
             session.flush()
 
         row.connection_status = ConnectionStatus.PENDING_VERIFICATION.value
         row.provisioning_state = ProvisioningState.COMPLETE.value
-        row.provisioning_details = details
+        row.provisioning_details = dict(details)
         row.last_purchase_error = None
         row.updated_at = datetime.now(UTC)
         write_audit(
@@ -249,8 +256,9 @@ class TelephonyProvisionHandler:
                 row.livekit_inbound_trunk_id = trunk.trunk_id
                 details["livekit_inbound_trunk_id"] = trunk.trunk_id
                 steps.append("livekit_inbound_trunk")
-                details["steps_completed"] = steps
-                row.provisioning_details = details
+                details["steps_completed"] = list(steps)
+                # Fresh dict so SQLAlchemy persists JSON mutations across flushes.
+                row.provisioning_details = dict(details)
                 session.flush()
 
             if "livekit_dispatch_rule" not in steps:
@@ -269,13 +277,13 @@ class TelephonyProvisionHandler:
                 row.livekit_dispatch_rule_id = dispatch.dispatch_rule_id
                 details["livekit_dispatch_rule_id"] = dispatch.dispatch_rule_id
                 steps.append("livekit_dispatch_rule")
-                details["steps_completed"] = steps
-                row.provisioning_details = details
+                details["steps_completed"] = list(steps)
+                row.provisioning_details = dict(details)
                 session.flush()
 
             row.connection_status = ConnectionStatus.PENDING_SETUP.value
             row.provisioning_state = ProvisioningState.COMPLETE.value
-            row.provisioning_details = details
+            row.provisioning_details = dict(details)
             row.updated_at = datetime.now(UTC)
             write_audit(
                 session,
@@ -291,7 +299,7 @@ class TelephonyProvisionHandler:
             row.provisioning_state = ProvisioningState.PARTIAL.value
             details["error"] = str(exc)
             details["steps_completed"] = steps
-            row.provisioning_details = details
+            row.provisioning_details = dict(details)
             row.updated_at = datetime.now(UTC)
             session.flush()
             raise
@@ -307,10 +315,10 @@ class TelephonyProvisionHandler:
         row.connection_status = ConnectionStatus.PARTIAL.value
         row.provisioning_state = ProvisioningState.PARTIAL.value
         row.last_purchase_error = error[:500]
-        row.provisioning_details = details
+        row.provisioning_details = dict(details)
         row.updated_at = datetime.now(UTC)
         # Best-effort LiveKit rollback only (never release Twilio number).
-        livekit = self._livekit or LiveKitSipService(self._settings)
+        livekit = self._livekit or self._build_livekit()
         if row.livekit_dispatch_rule_id:
             with contextlib.suppress(Exception):
                 livekit.delete_dispatch_rule(row.livekit_dispatch_rule_id)
@@ -424,7 +432,7 @@ class TelephonyProvisionHandler:
                     raise
             steps.append("twilio_release")
             details["release_steps_completed"] = steps
-            row.provisioning_details = details
+            row.provisioning_details = dict(details)
             session.flush()
 
         if "livekit_dispatch_deleted" not in steps and row.livekit_dispatch_rule_id:
@@ -433,7 +441,7 @@ class TelephonyProvisionHandler:
             row.livekit_dispatch_rule_id = None
             steps.append("livekit_dispatch_deleted")
             details["release_steps_completed"] = steps
-            row.provisioning_details = details
+            row.provisioning_details = dict(details)
             session.flush()
         elif "livekit_dispatch_deleted" not in steps:
             steps.append("livekit_dispatch_deleted")
@@ -444,7 +452,7 @@ class TelephonyProvisionHandler:
             row.livekit_inbound_trunk_id = None
             steps.append("livekit_trunk_deleted")
             details["release_steps_completed"] = steps
-            row.provisioning_details = details
+            row.provisioning_details = dict(details)
             session.flush()
         elif "livekit_trunk_deleted" not in steps:
             steps.append("livekit_trunk_deleted")
@@ -452,7 +460,7 @@ class TelephonyProvisionHandler:
         row.connection_status = ConnectionStatus.RELEASED.value
         row.provisioning_state = ProvisioningState.COMPLETE.value
         details["release_steps_completed"] = steps
-        row.provisioning_details = details
+        row.provisioning_details = dict(details)
         row.updated_at = datetime.now(UTC)
         write_audit(
             session,

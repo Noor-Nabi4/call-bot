@@ -60,13 +60,24 @@ async function handleApiResponse<T>(res: Response): Promise<T> {
     }
     if (code === "subscription_required" && typeof window !== "undefined") {
       const pathNow = window.location.pathname;
-      if (!pathNow.startsWith("/settings/billing")) {
+      // Never yank users off setup flows (phone onboarding → billing → onboarding loop).
+      if (
+        !pathNow.startsWith("/settings/billing") &&
+        !pathNow.startsWith("/onboarding") &&
+        !pathNow.startsWith("/phones") &&
+        !pathNow.startsWith("/signup")
+      ) {
         window.location.assign("/settings/billing");
       }
     }
     if (code === "ONBOARDING_REQUIRED" && typeof window !== "undefined") {
       const pathNow = window.location.pathname;
-      if (!pathNow.startsWith("/onboarding") && !pathNow.startsWith("/phones")) {
+      if (
+        !pathNow.startsWith("/onboarding") &&
+        !pathNow.startsWith("/phones") &&
+        !pathNow.startsWith("/settings/billing") &&
+        !pathNow.startsWith("/signup")
+      ) {
         window.location.assign(
           reason === "phone_required"
             ? "/phones?from=onboarding"

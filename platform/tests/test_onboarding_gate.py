@@ -220,17 +220,10 @@ def test_legacy_completed_without_phone_is_blocked(
         assert body["phone_ready"] is False
         assert body["onboarding_complete"] is False
 
-        # Phone recovery stays available.
+        # Phone recovery stays available (no onboarding or wallet entitlement gate).
         phones = client.get("/api/admin/phone-numbers")
-        phone_detail = (
-            phones.json().get("detail")
-            if phones.headers.get("content-type", "").startswith("application/json")
-            else None
-        )
-        phone_code = (
-            phone_detail.get("code") if isinstance(phone_detail, dict) else None
-        )
-        assert phone_code != "ONBOARDING_REQUIRED"
+        assert phones.status_code == 200
+        assert "items" in phones.json()
     finally:
         app.dependency_overrides.clear()
         get_settings.cache_clear()
@@ -319,13 +312,8 @@ def test_phone_apis_allowed_while_incomplete(
     client, _user = _admin_client(session, settings, tenant)
     try:
         res = client.get("/api/admin/phone-numbers")
-        detail = (
-            res.json().get("detail")
-            if res.headers.get("content-type", "").startswith("application/json")
-            else None
-        )
-        code = detail.get("code") if isinstance(detail, dict) else None
-        assert code != "ONBOARDING_REQUIRED"
+        assert res.status_code == 200
+        assert res.json()["items"] == []
     finally:
         app.dependency_overrides.clear()
         get_settings.cache_clear()
