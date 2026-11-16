@@ -5,7 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from callbot_platform.business_config.modules import MODULE_KEYS, assert_module_keys
+from callbot_platform.business_config.modules import (
+    MODULE_KEYS,
+    assert_module_keys,
+    filter_ui_live_keys,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,7 +121,12 @@ def _tpl(
     fields: dict[str, tuple[dict[str, str], ...]] | None = None,
     workflows: tuple[dict[str, Any], ...] | None = None,
 ) -> CrmTemplate:
-    mods = tuple(assert_module_keys(list(modules)))
+    # Industry packs must not auto-enable stub modules (no shipped UI).
+    mods = tuple(filter_ui_live_keys(assert_module_keys(list(modules))))
+    live = set(mods)
+    raw_statuses = statuses or _svc_statuses()
+    raw_fields = fields or {}
+    raw_workflows = workflows or (_wf_job() + _wf_lead())
     return CrmTemplate(
         key=key,
         name=name,
@@ -125,9 +134,11 @@ def _tpl(
         business_models=business_models,
         modules=mods,
         settings=dict(_DEFAULT_SETTINGS),
-        statuses=statuses or _svc_statuses(),
-        fields=fields or {},
-        workflows=workflows or (_wf_job() + _wf_lead()),
+        statuses={k: v for k, v in raw_statuses.items() if k in live},
+        fields={k: v for k, v in raw_fields.items() if k in live},
+        workflows=tuple(
+            w for w in raw_workflows if str(w.get("module_key") or "").upper() in live
+        ),
         version=1,
     )
 
@@ -400,6 +411,25 @@ def list_templates() -> list[dict[str, Any]]:
 
 def get_template(key: str) -> CrmTemplate | None:
     return TEMPLATE_BY_KEY.get(key.strip().lower())
+
+
+# Extra live modules implied by business model (industry packs may omit these).
+_MODEL_MODULE_EXTRAS: dict[str, tuple[str, ...]] = {
+    "products": ("PRODUCTS", "CATEGORIES", "PRICEBOOKS"),
+    "products_and_services": ("PRODUCTS", "CATEGORIES", "SERVICES", "PRICEBOOKS"),
+    "services": ("SERVICES", "PRICEBOOKS"),
+}
+
+
+def modules_for_business_model(
+    base_modules: list[str] | tuple[str, ...],
+    *,
+    business_model: str | None,
+) -> list[str]:
+    """Merge industry template modules with catalog modules required by model."""
+    model = (business_model or "").strip().lower()
+    extras = _MODEL_MODULE_EXTRAS.get(model, ())
+    return filter_ui_live_keys([*list(base_modules), *extras])
 
 
 def resolve_template(

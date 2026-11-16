@@ -73,6 +73,35 @@ Dynamic CRM Phase 3 + Task 3.5 hardening are **locally verified** (`docs/DYNAMIC
 
 **Implementation override:** Tasks 4.1–4.4 Customer CRM and Tasks 5.1–5.4 Product Catalog were built and locally tested under an explicit development override. This does **not** approve production deployment. Gate status above remains authoritative.
 
+### Wave 1 voice CRM path (2026-11-16)
+
+```text
+LOCAL Customers / tenant isolation / appointments / jobs / dispatch / handoff / call-flow:
+  VERIFIED — 104 passed (customer_crm, tenant_isolation, appointments_crm + http_rbac,
+  jobs_crm + http_rbac, dispatch_crm + http_rbac, handoff, call_flow)
+LOCAL Appointments + Jobs hardening / jobs auth: VERIFIED — 44 passed
+CRM Wave 0 stub hide (ui_live): VERIFIED locally + pushed on feat/usd-wallet-billing (2de0277)
+STAGING Customers→Call→Appointment/Job→Dispatch smoke: NOT AVAILABLE (no staging fleet / STAGING_* env)
+PRODUCTION Wave 1 smoke: NOT EXECUTED (production credentials not touched)
+Voice CRM Wave 1 production readiness: BLOCKED on staging environment
+```
+
+Unblock: provision staging API + managed Postgres (migrated), then run RBAC/isolation smoke for Customers, Calls, Appointments, Jobs, Dispatch, Handoffs. LiveKit/Twilio live call remains a separate provider smoke.
+
+### Products + Services catalog (2026-11-16)
+
+```text
+LOCAL Product catalog (test_product_catalog): VERIFIED — included in 33-pass products/services suite
+LOCAL Services + pricebooks (test_services_pricebook + hardening + http_rbac): VERIFIED
+LOCAL PG concurrency (test_services_pricebook_pg_concurrency): NOT EXECUTED here (3 skipped — dedicated PG URL)
+ui_live: PRODUCTS, SERVICES, PRICEBOOKS, CATEGORIES = True
+Fix: products_and_services business model now merges PRODUCTS/CATEGORIES/PRICEBOOKS on CRM setup
+  (industry packs like HVAC previously omitted PRODUCTS)
+STAGING Products/Services smoke: NOT AVAILABLE
+PRODUCTION Products/Services smoke: NOT EXECUTED
+Products/Services production readiness: BLOCKED on staging
+```
+
 ### Phase 9 Orders (9.5 staging gate — 2026-10-06)
 
 ```text

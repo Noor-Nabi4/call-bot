@@ -6,13 +6,13 @@ import { AppShell } from "@/components/shell";
 import { useAuth } from "@/lib/use-auth";
 import { LoadingSkeleton, PageHeader, Surface } from "@/components/ui";
 
-/**
- * Placeholder for CRM modules without a shipped transactional domain.
- * No mock records — configuration-only until Phase 4 gate closes.
- */
+/** Fallback page for CRM modules that are enabled but not yet live. */
 export default function CrmModulePlaceholderPage() {
   const params = useParams<{ module?: string }>();
-  const moduleKey = String(params.module || "").toUpperCase();
+  const moduleKey = String(params.module || "").replace(/_/g, " ");
+  const title = moduleKey
+    ? moduleKey.replace(/\b\w/g, (c) => c.toUpperCase())
+    : "CRM module";
   const { user, loading } = useAuth({ permission: "organization.read" });
 
   if (loading || !user) {
@@ -22,19 +22,16 @@ export default function CrmModulePlaceholderPage() {
   return (
     <AppShell user={user}>
       <PageHeader
-        title={moduleKey || "CRM module"}
-        description="Not yet available — this module can be enabled in CRM configuration, but transactional records are not shipped until Phase 4."
+        title={title}
+        description="This area isn’t available yet for your workspace."
       />
-      <Surface className="space-y-3 p-6 text-sm text-text-muted">
+      <Surface className="space-y-3 p-6 text-sm text-text-secondary">
         <p>
-          Module key: <code className="text-text-primary">{moduleKey}</code>
-        </p>
-        <p>
-          No sample or mock data is shown here. Configure modules under{" "}
+          You can manage which CRM modules are enabled under{" "}
           <Link href="/settings/crm" className="text-accent hover:underline">
             Settings → CRM modules
           </Link>
-          , or use custom objects for organization-defined entities.
+          , or use custom objects for organization-defined records.
         </p>
       </Surface>
     </AppShell>

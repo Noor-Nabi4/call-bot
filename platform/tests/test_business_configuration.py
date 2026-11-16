@@ -14,7 +14,11 @@ from callbot_platform.api.deps import db_dep, settings_dep
 from callbot_platform.auth.repos import AuthRepository
 from callbot_platform.config import Settings, get_settings
 from callbot_platform.crm_config import CrmSetupService
-from callbot_platform.crm_templates import TEMPLATES, resolve_template
+from callbot_platform.crm_templates import (
+    TEMPLATES,
+    modules_for_business_model,
+    resolve_template,
+)
 from callbot_platform.db.models import (
     OrganizationCrmModule,
     OrganizationCrmStatus,
@@ -188,6 +192,46 @@ def test_template_resolution() -> None:
     assert "PRODUCTS" in ecommerce.modules
     custom = resolve_template(industry_key="unknown", business_model="services")
     assert custom.key == "custom"
+
+
+def test_modules_for_business_model_adds_catalog() -> None:
+    hvac = resolve_template(industry_key="hvac", business_model="services")
+    assert "PRODUCTS" not in hvac.modules
+    merged = modules_for_business_model(
+        hvac.modules, business_model="products_and_services"
+    )
+    assert "PRODUCTS" in merged
+    assert "SERVICES" in merged
+    assert "PRICEBOOKS" in merged
+    assert "CATEGORIES" in merged
+    services_only = modules_for_business_model(
+        hvac.modules, business_model="services"
+    )
+    assert "PRODUCTS" not in services_only
+    assert "SERVICES" in services_only
+    assert "PRICEBOOKS" in services_only
+
+
+def test_crm_setup_products_and_services_enables_catalog(
+    session: Session, tenant: Tenant
+) -> None:
+    OrganizationService(session).update(
+        tenant.id,
+        actor="seed",
+        name="HVAC Retail",
+        industry="hvac",
+        business_type="products_and_services",
+        timezone="America/Chicago",
+        currency="USD",
+        country="US",
+    )
+    result = CrmSetupService(session).setup(tenant.id, actor="a@t.test")
+    enabled = {m["key"] for m in result["modules"] if m["enabled"]}
+    assert "PRODUCTS" in enabled
+    assert "SERVICES" in enabled
+    assert "PRICEBOOKS" in enabled
+    assert "CATEGORIES" in enabled
+    assert "JOBS" in enabled
 
 
 def test_crm_setup_idempotent_and_preserves_custom(

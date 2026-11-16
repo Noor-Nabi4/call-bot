@@ -97,6 +97,11 @@ class ModuleConfigService:
                 "module_required",
                 f"Module {key} is required and cannot be disabled",
             )
+        if enabled and not meta.ui_live:
+            raise DynamicCrmError(
+                "module_not_available",
+                f"Module {key} is not available yet for this workspace",
+            )
         row = self._get_row(tenant_id, key)
         before = row.enabled
         row.enabled = enabled
