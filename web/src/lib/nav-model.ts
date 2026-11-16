@@ -139,12 +139,19 @@ export const CRM_LEAVES: NavLeaf[] = [
     section: "crm",
   },
   {
-    href: "/dispatch",
-    label: "Jobs board",
-    icon: "layout-grid",
-    permission: "jobs.read",
+    href: "/crm/handoffs",
+    label: "Handoffs",
+    icon: "phone-forwarded",
+    permission: "handoffs.read",
     section: "crm",
   },
+];
+
+/**
+ * CRM pages that are not (yet) platform CRM modules but stay in the shell
+ * when dynamic configuration replaces CRM_LEAVES.
+ */
+export const CRM_STATIC_EXTRAS: NavLeaf[] = [
   {
     href: "/crm/handoffs",
     label: "Handoffs",

@@ -10,7 +10,10 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from callbot_platform.business_config.modules import MODULE_BY_KEY
+from callbot_platform.business_config.modules import (
+    MODULE_BY_KEY,
+    filter_ui_live_keys,
+)
 from callbot_platform.crm_templates import resolve_template, serialize_template
 from callbot_platform.db.models.crm_config import (
     OrganizationCrmConfiguration,
@@ -164,7 +167,7 @@ class CrmSetupService:
         )
 
         try:
-            cleaned = assert_module_keys(list(module_keys))
+            cleaned = filter_ui_live_keys(assert_module_keys(list(module_keys)))
         except ValueError as exc:
             raise CrmSetupError("INVALID_MODULE", str(exc)) from exc
         # Always keep required modules enabled.
@@ -194,10 +197,12 @@ class CrmSetupService:
                 continue
             if row.module_key in selected:
                 row.enabled = True
-            elif row.source in {"template", "INDUSTRY_DEFAULT"}:
+            elif (
+                row.source in {"template", "INDUSTRY_DEFAULT"}
+                and row.module_key not in selected
+            ):
                 # Owner deselected a template suggestion during AI review.
-                if row.module_key not in selected:
-                    row.enabled = False
+                row.enabled = False
 
         fields_payload: dict[str, list[dict[str, str]]] = {}
         for item in custom_fields or []:
@@ -244,17 +249,16 @@ class CrmSetupService:
             ).all()
         }
         now = datetime.now(UTC)
-        for key in modules:
+        for key in filter_ui_live_keys(list(modules)):
             row = existing.get(key)
+            meta = MODULE_BY_KEY.get(key)
             if row is None:
                 self._session.add(
                     OrganizationCrmModule(
                         tenant_id=tenant_id,
                         module_key=key,
                         enabled=True,
-                        display_order=MODULE_BY_KEY.get(key).default_order
-                        if key in MODULE_BY_KEY
-                        else 100,
+                        display_order=meta.default_order if meta else 100,
                         source="template",
                     )
                 )

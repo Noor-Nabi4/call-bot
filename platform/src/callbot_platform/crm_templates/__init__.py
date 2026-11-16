@@ -5,7 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from callbot_platform.business_config.modules import MODULE_KEYS, assert_module_keys
+from callbot_platform.business_config.modules import (
+    MODULE_KEYS,
+    assert_module_keys,
+    filter_ui_live_keys,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,7 +121,12 @@ def _tpl(
     fields: dict[str, tuple[dict[str, str], ...]] | None = None,
     workflows: tuple[dict[str, Any], ...] | None = None,
 ) -> CrmTemplate:
-    mods = tuple(assert_module_keys(list(modules)))
+    # Industry packs must not auto-enable stub modules (no shipped UI).
+    mods = tuple(filter_ui_live_keys(assert_module_keys(list(modules))))
+    live = set(mods)
+    raw_statuses = statuses or _svc_statuses()
+    raw_fields = fields or {}
+    raw_workflows = workflows or (_wf_job() + _wf_lead())
     return CrmTemplate(
         key=key,
         name=name,
@@ -125,9 +134,11 @@ def _tpl(
         business_models=business_models,
         modules=mods,
         settings=dict(_DEFAULT_SETTINGS),
-        statuses=statuses or _svc_statuses(),
-        fields=fields or {},
-        workflows=workflows or (_wf_job() + _wf_lead()),
+        statuses={k: v for k, v in raw_statuses.items() if k in live},
+        fields={k: v for k, v in raw_fields.items() if k in live},
+        workflows=tuple(
+            w for w in raw_workflows if str(w.get("module_key") or "").upper() in live
+        ),
         version=1,
     )
 

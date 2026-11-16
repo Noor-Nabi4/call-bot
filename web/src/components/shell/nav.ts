@@ -56,6 +56,7 @@ import {
   AI_LEAVES,
   ADMIN_LEAVES,
   CRM_LEAVES,
+  CRM_STATIC_EXTRAS,
   NAV_SECTION_LABELS,
   NAV_SECTION_ORDER,
   WORK_LEAVES,
@@ -192,7 +193,13 @@ function orgLeaves(crmNavigation?: CrmNavItem[] | null): NavLeaf[] {
       }));
     const seen = new Set<string>();
     const out: NavLeaf[] = [];
-    for (const item of [...WORK_LEAVES, ...crmLeaves, ...AI_LEAVES, ...ADMIN_LEAVES]) {
+    for (const item of [
+      ...WORK_LEAVES,
+      ...crmLeaves,
+      ...CRM_STATIC_EXTRAS,
+      ...AI_LEAVES,
+      ...ADMIN_LEAVES,
+    ]) {
       if (seen.has(item.href)) continue;
       seen.add(item.href);
       out.push(item);

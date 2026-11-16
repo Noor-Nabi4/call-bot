@@ -108,6 +108,23 @@ def test_effective_configuration_navigation(session: Session, tenant: Tenant) ->
     keys = {n["key"] for n in cfg["navigation"]}
     assert "CUSTOMERS" in keys
     assert "JOBS" not in keys
+    assert "PROPERTIES" not in keys
+    assert "PAYMENTS" not in keys
+    customers = next(m for m in cfg["modules"] if m["key"] == "CUSTOMERS")
+    assert customers["ui_live"] is True
+    properties = next(m for m in cfg["modules"] if m["key"] == "PROPERTIES")
+    assert properties["ui_live"] is False
+
+
+def test_stub_module_cannot_be_enabled(session: Session, tenant: Tenant) -> None:
+    _seed_crm(session, tenant)
+    svc = ModuleConfigService(session)
+    with pytest.raises(DynamicCrmError) as exc:
+        svc.set_enabled(tenant.id, "PROPERTIES", enabled=True, actor="a")
+    assert exc.value.code == "module_not_available"
+    enabled = {m["key"] for m in svc.list_modules(tenant.id) if m["enabled"]}
+    assert "PROPERTIES" not in enabled
+    assert "PAYMENTS" not in enabled
 
 
 def test_custom_fields_validation_and_values(session: Session, tenant: Tenant) -> None:

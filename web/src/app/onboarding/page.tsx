@@ -1031,8 +1031,8 @@ function OnboardingPageInner() {
                   {onboarding.steps.find((s) => s.key === activeStep)?.title}
                 </h2>
                 <p className="text-sm text-text-secondary">
-                  Full domain setup ships in later phases. You can skip this
-                  optional step or mark it complete to continue.
+                  This step is optional. Skip it for now, or mark it complete to
+                  continue — you can finish setup anytime from Settings.
                 </p>
                 {canUpdate && !closed ? (
                   <div className="flex gap-2">
@@ -1060,9 +1060,9 @@ function OnboardingPageInner() {
               <>
                 <h2 className="text-sm font-semibold">Scheduling defaults</h2>
                 <p className="text-sm text-text-secondary">
-                  Timezone is taken from your business profile (
-                  {profile.timezone || "UTC"}). Full scheduling configuration is
-                  Phase 11.
+                  Scheduling will use your business profile timezone (
+                  {profile.timezone || "UTC"}). You can adjust business hours
+                  later in Settings.
                 </p>
                 {canUpdate && !closed ? (
                   <Button
@@ -1220,8 +1220,8 @@ function OnboardingPageInner() {
                   </p>
                 ) : (
                   <p className="text-sm text-text-secondary">
-                    Completing onboarding will initialize CRM configuration
-                    idempotently from the industry template.
+                    Completing onboarding will set up your CRM from the selected
+                    industry template.
                   </p>
                 )}
               </>

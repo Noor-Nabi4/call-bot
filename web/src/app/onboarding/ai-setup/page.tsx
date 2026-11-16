@@ -893,7 +893,7 @@ export default function AiBusinessSetupPage() {
       <ConfirmDialog
         open={confirmOpen}
         title="Save business setup"
-        description="This will apply the reviewed modules, services, and organization profile. Double-submit is safe (idempotent)."
+        description="This will apply the reviewed modules, services, and organization profile to your workspace."
         confirmLabel="Save and Continue"
         onConfirm={() => void onConfirm()}
         onCancel={() => setConfirmOpen(false)}

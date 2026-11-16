@@ -24,6 +24,7 @@ type ModuleRow = {
   enabled: boolean;
   display_order: number;
   required?: boolean;
+  ui_live?: boolean;
   description?: string;
 };
 
@@ -90,13 +91,20 @@ export default function CrmModulesSettingsPage() {
     <AppShell user={user}>
       <PageHeader
         title="CRM modules"
-        description="Enable, disable, and order modules for this organization. Disabling a module hides it from navigation without deleting data."
+        description="Enable or disable modules for this organization. Only modules with a live workspace page can be turned on. Disabling hides navigation without deleting data."
       />
       {error ? <ErrorState message={error} onRetry={() => void load()} /> : null}
       {loading ? <LoadingSkeleton rows={8} /> : null}
       {!loading && !error ? (
         <Surface className="divide-y divide-border">
-          {modules.map((mod) => (
+          {modules.map((mod) => {
+            const live = mod.ui_live === true;
+            const canToggle =
+              canConfigure &&
+              live &&
+              !(mod.required && mod.enabled) &&
+              busy !== mod.key;
+            return (
             <div
               key={mod.key}
               className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
@@ -106,18 +114,23 @@ export default function CrmModulesSettingsPage() {
                 <p className="text-sm text-text-muted">
                   {mod.key}
                   {mod.required ? " · required" : ""}
+                  {!live ? " · not available yet" : ""}
                   {mod.description ? ` — ${mod.description}` : ""}
                 </p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-text-muted">
-                  {mod.enabled ? "Enabled" : "Disabled"}
+                  {!live
+                    ? "Unavailable"
+                    : mod.enabled
+                      ? "Enabled"
+                      : "Disabled"}
                 </span>
                 {canConfigure ? (
                   <Button
                     size="sm"
                     variant={mod.enabled ? "secondary" : "primary"}
-                    disabled={busy === mod.key || Boolean(mod.required && mod.enabled)}
+                    disabled={!canToggle}
                     onClick={async () => {
                       setBusy(mod.key);
                       try {
@@ -145,7 +158,8 @@ export default function CrmModulesSettingsPage() {
                 ) : null}
               </div>
             </div>
-          ))}
+            );
+          })}
         </Surface>
       ) : null}
     </AppShell>
