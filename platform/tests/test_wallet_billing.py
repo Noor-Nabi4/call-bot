@@ -46,6 +46,28 @@ def _settings() -> Settings:
     )
 
 
+def test_ensure_wallet_idempotent_and_race_safe(
+    session: Session, tenant: Tenant
+) -> None:
+    svc = WalletService(session)
+    first = svc.ensure_wallet(tenant.id)
+    assert svc.ensure_wallet(tenant.id).id == first.id
+
+    # Concurrent first-load: lookup misses an already-created wallet, insert races.
+    calls = {"n": 0}
+    real_get = svc._repo.get_wallet
+
+    def flaky_get(tenant_id: object) -> object:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return None
+        return real_get(tenant_id)  # type: ignore[arg-type]
+
+    svc._repo.get_wallet = flaky_get  # type: ignore[method-assign]
+    recovered = svc.ensure_wallet(tenant.id)
+    assert recovered.id == first.id
+
+
 def test_wallet_credit_debit_idempotent(session: Session, tenant: Tenant) -> None:
     svc = WalletService(session)
     credit = svc.credit(

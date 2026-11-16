@@ -61,6 +61,7 @@ export {
   startPhoneVerification,
   releasePhoneNumber,
   createTestCall,
+  type PhoneVerificationStart,
 } from "./phones";
 export { listAppointments, listCalls, reviewCallQuality, listCustomers, listTeamUsers, inviteTeamUser, updateTeamUser, getSupervisorSnapshot, listQueue, claimQueueItem, completeQueueItem, type TeamUser, type SupervisorSnapshot, type QueueItem } from "./admin";
 export {
